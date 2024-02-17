@@ -7,7 +7,7 @@ echo "This is run as $USER"
 if ! [ "${USER}" == "daniel" ]
 then
     echo "tyring to switch to daniel"
-    sudo -H -u daniel bash -c './test.sh'
+    sudo -H -u daniel bash -c './usercheck.sh'
 else
     echo "found user ${USER}, exiting"
     exit;
