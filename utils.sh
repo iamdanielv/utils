@@ -28,27 +28,27 @@ export T_QST_ICON="${T_BOLD}[?]${T_RESET}"
 
 export DIV="-------------------------------------------------------------------------------"
 
-printMsg() {
+function printMsg() {
   echo -e "${1}"
 }
 
-printMsgNoNewline() {
+function printMsgNoNewline() {
   echo -n -e "${1}"
 }
 
-printDatedMsgNoNewLine() {
+function printDatedMsgNoNewLine() {
   echo -n -e "$(getPrettyDate) ${1}"
 }
 
-getFormattedDate() {
+function getFormattedDate() {
   date +"%Y-%m-%d %I:%M:%S"
 }
 
-getPrettyDate() {
+function getPrettyDate() {
   echo "${C_BLUE}$(getFormattedDate)${T_RESET}"
 }
 
-printBanner() {
+function printBanner() {
   printMsg "${C_BLUE}${DIV}"
   printMsg " ${1}"
   printMsg "${DIV}${T_RESET}"
