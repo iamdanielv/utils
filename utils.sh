@@ -40,6 +40,14 @@ function printDatedMsgNoNewLine() {
   echo -n -e "$(getPrettyDate) ${1}"
 }
 
+function printErrMsg() {
+  printMsg "${T_ERR_ICON}${T_ERR} ${1} ${T_RESET}"
+}
+
+function printOkMsg() {
+  printMsg "${T_OK_ICON} ${1}${T_RESET}"
+}
+
 function getFormattedDate() {
   date +"%Y-%m-%d %I:%M:%S"
 }
