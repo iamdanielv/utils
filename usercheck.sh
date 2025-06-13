@@ -1,11 +1,12 @@
 #!/usr/bin/bash
 
-# Define the user to switch to
-TARGET_USER="daniel"
+# Set default value for TARGET_USER if not provided as an argument
+TARGET_USER=${1:-daniel}
 
 # Check if we are currently running as TARGET_USER
 # if not, try to switch to TARGET_USER using sudo
-echo "This is run as $USER"
+echo -e "This is run as: \033[34m$USER\033[0m"
+echo -e "Target user is: \033[34m$TARGET_USER\033[0m"
 
 if ! [ "${USER}" == "${TARGET_USER}" ]
 then
