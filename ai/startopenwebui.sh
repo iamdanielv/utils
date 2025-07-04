@@ -2,22 +2,40 @@
 
 # Start OpenWebUI using docker compose in detached mode
 
-clear
+# Exit immediately if a command exits with a non-zero status.
+set -e
+# The return value of a pipeline is the status of the last command to exit with a non-zero status.
+set -o pipefail
 
-echo -e "\n\033[1;34mStarting OpenWebUI...\033[0m"
-
-# Check if Docker is installed
-if ! command -v docker &> /dev/null; then
-    echo -e "\n\033[1;35m❌ Error: Docker is not installed. Please install Docker first.\033[0m\n"
+# Source common utilities for colors and functions
+# shellcheck source=../shared.sh
+if ! source "$(dirname "$0")/../shared.sh"; then
+    echo "Error: Could not source shared.sh. Make sure it's in the parent directory." >&2
     exit 1
 fi
 
+printBanner "OpenWebUI Starter"
+
+printMsg "${T_INFO_ICON} Checking prerequisites..."
+
+# Check if Docker and Docker Compose are installed
+if ! command -v docker &>/dev/null; then
+    printErrMsg "Docker is not installed. Please install Docker to continue."
+    exit 1
+fi
+printOkMsg "Docker is installed."
+
+if ! docker compose version &>/dev/null; then
+    printErrMsg "Docker Compose is not installed or not available in the PATH."
+    exit 1
+fi
+printOkMsg "Docker Compose is available."
+
+printMsg "${T_INFO_ICON} Starting OpenWebUI containers in detached mode..."
 if ! docker compose up -d; then
-    echo -e "\n\033[1;35m❌ Error: Failed to start containers\033[0m\n"
+    printErrMsg "Failed to start OpenWebUI containers."
     exit 1
 fi
 
-echo -e "\n\033[1;32m✅ OpenWebUI started successfully!\033[0m"
-echo -e "\n🌐 Access at: http://localhost:8080"
-
-exit 0
+printOkMsg "OpenWebUI started successfully!"
+printMsg "    🌐 Access it at: ${C_L_BLUE}http://localhost:8080${T_RESET}"
