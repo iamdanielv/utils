@@ -1,26 +1,63 @@
-#!/usr/bin/bash
+#!/bin/bash
+# Ensures the script is running as a specific user, attempting to switch with sudo if not.
+
+# Exit immediately if a command exits with a non-zero status.
+set -e
+# The return value of a pipeline is the status of the last command to exit with a non-zero status.
+set -o pipefail
+
+# Source common utilities for colors and functions
+# shellcheck source=./shared.sh
+if ! source "$(dirname "$0")/shared.sh"; then
+    echo "Error: Could not source shared.sh. Make sure it's in the same directory." >&2
+    exit 1
+fi
+
+print_usage() {
+    printBanner "User Check Utility"
+    printMsg "Ensures the script is running as a specific user."
+    printMsg "If not, it attempts to re-run itself using 'sudo -u <user>'."
+    printMsg "\n${T_ULINE}Usage:${T_RESET}"
+    printMsg "  $(basename "$0") [username] [-h]"
+    printMsg "\n${T_ULINE}Arguments:${T_RESET}"
+    printMsg "  ${C_L_BLUE}username${T_RESET}   The target user to run as (default: daniel)."
+    printMsg "  ${C_L_BLUE}-h${T_RESET}          Show this help message."
+    printMsg "\n${T_ULINE}Example:${T_RESET}"
+    printMsg "  ${C_GRAY}# Ensure the script runs as the user 'www-data'${T_RESET}"
+    printMsg "  $(basename "$0") www-data"
+}
+
+# --- Main Script ---
+
+# Check for help flag first
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    print_usage
+    exit 0
+fi
 
 # Set default value for TARGET_USER if not provided as an argument
 TARGET_USER=${1:-daniel}
 
-# Check if we are currently running as TARGET_USER
-# if not, try to switch to TARGET_USER using sudo
-echo -e "This is run as: \033[34m$USER\033[0m"
-echo -e "Target user is: \033[34m$TARGET_USER\033[0m"
+printBanner "User Check"
+printMsg "Current user: ${C_L_BLUE}${USER}${T_RESET}"
+printMsg "Target user:  ${C_L_BLUE}${TARGET_USER}${T_RESET}"
 
-if ! [ "${USER}" == "${TARGET_USER}" ]
-then
-    echo -e "Trying to switch to \033[34m${TARGET_USER}...\033[0m"
-    # Use sudo to switch user and run the script again
-    if sudo -H -u "${TARGET_USER}" bash -c './usercheck.sh'
-    then
-        echo -e "\033[32m✓ Switched to ${TARGET_USER} successfully\033[0m"
-        exit 0
-    else
-        echo -e "\033[31m✗ Failed to switch to ${TARGET_USER}\033[0m"
-        exit 1
-    fi
-else
-    echo -e "\033[32m✓ Found user ${USER}\033[0m, exiting"
+# Check if we are already running as the target user
+if [[ "${USER}" == "${TARGET_USER}" ]]; then
+    printOkMsg "Already running as target user (${USER})."
     exit 0
 fi
+
+# If not the target user, check if sudo is available
+if ! command -v sudo &>/dev/null; then
+    printErrMsg "sudo command not found. Cannot switch to user '${TARGET_USER}'."
+    exit 1
+fi
+
+printMsg "${T_INFO_ICON} Not running as target user. Attempting to switch with sudo..."
+
+# Re-execute the script with sudo, replacing the current process.
+# "$0" is the path to the current script. "$@" passes along all original arguments.
+# If sudo fails (e.g., wrong password), it will exit with a non-zero status,
+# and 'set -e' will terminate this script.
+exec sudo -H -u "${TARGET_USER}" -- "$0" "$@"
