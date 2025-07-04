@@ -1,63 +1,54 @@
 #!/bin/bash
-# Install Ollama
-# This script installs or updates Ollama
+# Install or update Ollama.
 
-# Color codes
-RED='\e[31m'
-GREEN='\e[32m'
-YELLOW='\e[33m'
-BLUE='\e[34m'
+# Exit immediately if a command exits with a non-zero status.
+set -e
+# The return value of a pipeline is the status of the last command to exit with a non-zero status.
+set -o pipefail
 
-T_RESET='\e[0m'
-T_BOLD='\e[1m'
-
-ERR_ICON="[${T_BOLD}${RED}✗${T_RESET}]"
-OK_ICON="[${T_BOLD}${GREEN}✓${T_RESET}]"
-INFO_ICON="[${T_BOLD}${YELLOW}i${T_RESET}]"
-
-# Function to check if command exists and print success or failure
-# @param $1: Command to check
-# @param $2: Success message
-# @param $3: Failure message
-# @return 0 if command exists, 1 otherwise
-check_command() {
-    local cmd="$1"
-    local success_msg="$2"
-    local failure_msg="$3"
-
-    if command -v ${cmd} &>/dev/null; then
-        echo -e "${OK_ICON} ${success_msg}"
-        return 0
-    else
-        echo -e "${ERR_ICON} ${RED}${cmd} not found.${T_RESET} ${failure_msg}"
-        return 1
-    fi
-}
-
-echo -e "${BLUE} Checking Pre-Req's..."
-echo -e "${BLUE}-----------------------${T_RESET}"
-echo -n "Checking for curl... "
-if ! check_command "curl" "${GREEN}installed${T_RESET}" "Please install curl."; then
+# Source common utilities for colors and functions
+# shellcheck source=../shared.sh
+if ! source "$(dirname "$0")/../shared.sh"; then
+    echo "Error: Could not source shared.sh. Make sure it's in the parent directory." >&2
     exit 1
 fi
+
+# --- Main Script ---
+
+printBanner "Ollama Installer/Updater"
+
+printMsg "${T_INFO_ICON} Checking prerequisites..."
+
+# Check for curl
+if ! command -v curl &>/dev/null; then
+    printErrMsg "curl is not installed. Please install it to continue."
+    exit 1
+fi
+printOkMsg "curl is installed."
 
 # Check if Ollama is installed and its version
-echo -n "Checking for 🤖 Ollama... "
-if ! check_command "ollama" "${GREEN}installed${T_RESET}" ""; then
-    echo -e "${INFO_ICON} Ollama not found, ${YELLOW}going to install...${T_RESET}"
+if command -v ollama &>/dev/null; then
+    printOkMsg "🤖 Ollama is already installed."
+    printMsg "    Current version: $(ollama --version)"
+    printMsg "${T_INFO_ICON} Trying to update Ollama..."
 else
-    echo -e "    $(ollama --version)"
-    echo -e "    ${INFO_ICON} ${YELLOW}trying to update...${T_RESET}"
+    printMsg "${T_INFO_ICON} 🤖 Ollama not found. going to install..."
 fi
 
-echo "Downloading 📥 auto-install script... "
+printMsg "Downloading 📥 and running the official Ollama install script..."
+# The following command downloads and executes a script from the internet.
+# This is a common practice for installers but carries a security risk.
+# For higher security, download the script, inspect it, and then run it manually.
 curl -fsSL https://ollama.com/install.sh | sh
 
+printOkMsg "Ollama installation script finished successfully."
+
 # Check if the installation was successful
-echo -n "Checking for 🤖 Ollama... "
-if ! check_command "ollama" "${GREEN}installed${T_RESET}" "Problem installing Ollama."; then
-    exit 1
-else
-    sleep 1  # Add a 1-second delay before checking version
-    echo -e "    $(ollama --version)"
-fi
+printMsg "${T_INFO_ICON} Verifying Ollama installation..."
+
+# The 'hash' command clears the shell's command lookup cache.
+# This is more reliable than 'sleep' for finding a newly installed command.
+hash ollama
+
+printOkMsg "Ollama installed/updated successfully."
+printMsg "    New version: $(ollama --version)"
