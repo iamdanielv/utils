@@ -47,7 +47,7 @@ if ! check_command "ollama" "${GREEN}installed${T_RESET}" ""; then
     echo -e "${INFO_ICON} Ollama not found, ${YELLOW}going to install...${T_RESET}"
 else
     echo -e "    $(ollama --version)"
-    echo -e "    ${INFO_ICON} ${YELLOW} trying to update...${T_RESET}"
+    echo -e "    ${INFO_ICON} ${YELLOW}trying to update...${T_RESET}"
 fi
 
 echo "Downloading 📥 auto-install script... "
