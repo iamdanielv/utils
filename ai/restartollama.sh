@@ -1,65 +1,76 @@
 #!/bin/bash
 
 # Sometimes on wake from sleep, the ollama service will go into an inconsistent state.
-# This script will stop, reset, and start Ollama using systemd and NVIDIA UVM
+# This script will stop, reset, and start Ollama using systemd and NVIDIA UVM.
 
-# Color codes
-RED='\033[1;31m'
-GREEN='\033[1;32m'
-BLUE='\033[1;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m'  # No Color
+# Exit immediately if a command exits with a non-zero status.
+set -e
+# The return value of a pipeline is the status of the last command to exit with a non-zero status.
+set -o pipefail
+
+# Source common utilities for colors and functions
+# shellcheck source=../shared.sh
+if ! source "$(dirname "$0")/../shared.sh"; then
+    echo "Error: Could not source shared.sh. Make sure it's in the parent directory." >&2
+    exit 1
+fi
+
+printBanner "Ollama Service Restarter"
+
+printMsg "${T_INFO_ICON} Checking prerequisites..."
 
 # Check if Ollama is installed
 if ! command -v ollama &> /dev/null; then
-    echo -e "${RED}❌ Error:${NC} Ollama is not installed. Please install Ollama before running this script."
+    printErrMsg "Ollama is not installed. Please run the installer first."
     exit 1
 fi
+printOkMsg "Ollama is installed."
 
 # Check if the script is run as root
 if [[ $EUID -ne 0 ]]; then
-    echo -e "${RED}❌ Error:${NC} This script must be run as root."
+    printErrMsg "This script must be run as root."
+    exit 1
+fi
+printOkMsg "Running with root privileges."
+
+# Stop Ollama gracefully
+printMsgNoNewline "${C_BLUE}Stopping Ollama service...${T_RESET}\t"
+if systemctl stop ollama.service &>/dev/null; then
+    printMsg "${T_OK_ICON} Stopped via systemctl"
+elif pkill -f ollama &>/dev/null; then
+    printMsg "${T_OK_ICON} Stopped via pkill"
+else
+    printMsg "${T_ERR_ICON} Failed to stop Ollama"
     exit 1
 fi
 
-# Stop Ollama gracefully
-echo -e -n "${BLUE}Stopping Ollama...  \t${NC}"
-if systemctl stop ollama.service; then
-    echo -e "${GREEN}✅ via systemctl${NC}"
-else
-    echo -e "${YELLOW}Trying alternate stop method...${NC}"
-    pkill -f ollama > /dev/null && echo -e "${GREEN}✅ via pkill{NC}" || {
-        echo -e "${RED}❌ Failed to stop Ollama${NC}"
-        exit 1
-    }
-fi
-
 # Reset NVIDIA UVM (force unload/reload)
-echo -e -n "${BLUE}Resetting NVIDIA UVM...\t${NC}"
-rmmod nvidia_uvm || true   # Ignore error if module not loaded
-modprobe nvidia_uvm
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ OK${NC}"
+printMsgNoNewline "${C_BLUE}Resetting NVIDIA UVM...${T_RESET}\t\t"
+rmmod nvidia_uvm &>/dev/null || true # Ignore error if module not loaded
+if modprobe nvidia_uvm; then
+    printMsg "${T_OK_ICON} OK"
 else
-    echo -e "${RED}❌ Failed to reset NVIDIA UVM${NC}"
-    echo -e "${YELLOW} Check NVIDIA driver installation.${NC}"
+    printMsg "${T_ERR_ICON} Failed to reset NVIDIA UVM"
+    printMsg "    ${T_INFO_ICON} Check your NVIDIA driver installation."
     exit 1
 fi
 
 # Start Ollama
-echo -e -n "${BLUE}Starting Ollama...  \t${NC}"
-systemctl start ollama.service 2>/dev/null || {
-    echo -e "${RED}❌ Failed to start Ollama${NC}"
-    echo -e "${YELLOW}Preview of system log:${NC}"
-    journalctl -u ollama.service -n 10  # Print the last 10 lines of the log
+printMsgNoNewline "${C_BLUE}Starting Ollama service...${T_RESET}\t"
+if ! systemctl start ollama.service &>/dev/null; then
+    printMsg "${T_ERR_ICON} Failed to start Ollama"
+    printMsg "    ${T_INFO_ICON} Preview of system log:"
+    journalctl -u ollama.service -n 10 --no-pager | sed 's/^/    /'
     exit 1
-}
+else
+    printMsg "${T_OK_ICON} OK"
+fi
 
 # Verify startup status
 if systemctl is-active --quiet ollama.service; then
-    echo -e "${GREEN}✅ Ollama started${NC}"
+    printMsg "${T_OK_ICON} Ollama service is active."
 else
-    echo -e "${RED}❌ Ollama failed to start${NC}"
+    printErrMsg "Ollama service failed to activate."
     exit 1
 fi
 
