@@ -1,79 +1,33 @@
 #!/bin/bash
-export C_RED='\e[31m'
-export C_GREEN='\e[32m'
-export C_YELLOW='\e[33m'
-export C_BLUE='\e[34m'
-export C_MAGENTA='\e[35m'
-export C_CYAN='\e[36m'
-export C_WHITE='\e[37m'
-export C_GRAY='\e[30;1m'
-export C_L_RED='\e[31;1m'
-export C_L_GREEN='\e[32;1m'
-export C_L_YELLOW='\e[33;1m'
-export C_L_BLUE='\e[34;1m'
-export C_L_MAGENTA='\e[35;1m'
-export C_L_CYAN='\e[36;1m'
-export C_L_WHITE='\e[37;1m'
 
-export T_RESET='\e[0m'
-export T_BOLD='\e[1m'
-export T_ULINE='\e[4m'
+# Exit immediately if a command exits with a non-zero status.
+set -e
+# The return value of a pipeline is the status of the last command to exit with a non-zero status.
+set -o pipefail
 
-export T_ERR="${T_BOLD}\e[31;1m"
-export T_ERR_ICON="[${T_BOLD}${C_RED}✗${T_RESET}]"
+# Source common utilities for colors and functions
+# shellcheck source=./shared.sh
+if ! source "$(dirname "$0")/shared.sh"; then
+    echo "Error: Could not source shared.sh. Make sure it's in the same directory." >&2
+    exit 1
+fi
 
-export T_OK_ICON="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
-export T_INFO_ICON="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
-export T_QST_ICON="${T_BOLD}[?]${T_RESET}"
-
-export DIV="-------------------------------------------------------------------------------"
-
-function printMsg() {
-  echo -e "${1}"
-}
-
-function printMsgNoNewline() {
-  echo -n -e "${1}"
-}
-
-function printDatedMsgNoNewLine() {
-  echo -n -e "$(getPrettyDate) ${1}"
-}
-
-function printErrMsg() {
-  printMsg "${T_ERR_ICON}${T_ERR} ${1} ${T_RESET}"
-}
-
-function printOkMsg() {
-  printMsg "${T_OK_ICON} ${1}${T_RESET}"
-}
-
-function getFormattedDate() {
-  date +"%Y-%m-%d %I:%M:%S"
-}
-
-function getPrettyDate() {
-  echo "${C_BLUE}$(getFormattedDate)${T_RESET}"
-}
-
-function printBanner() {
-  printMsg "${C_BLUE}${DIV}"
-  printMsg " ${1}"
-  printMsg "${DIV}${T_RESET}"
-}
-
-printHelp() {
-  printMsg " Will traverse directories and perform one of"
-  printMsg " the following:"
-  printMsg "  ${T_BOLD}${C_BLUE}-gs${T_RESET}\t\t git status"
-  printMsg "  ${T_BOLD}${C_BLUE}-gp${T_RESET}\t\t git status followed by git pull"
-  printMsg "  ${T_BOLD}${C_BLUE}-gvb${T_RESET}\t\t git view branches "
-  printMsg "  ${T_BOLD}${C_BLUE}-gb ${C_BLUE}<name>${T_RESET}\t switch repos to ${T_BOLD}${C_BLUE}<name>${T_RESET} branch"
-  printMsg "  ${T_BOLD}${C_BLUE}-h${T_RESET}\t\t Show this help dialog"
-  printMsg ""
-  printMsg "Sample Usage: ./utils.sh -gs"
-  printMsg
-  exit 0
+print_usage() {
+  printBanner "Git Directory Utility"
+  printMsg "Recursively performs Git commands on the current directory and its subdirectories."
+  printMsg "\n${T_ULINE}Usage:${T_RESET}"
+  printMsg "  $(basename "$0") [option]"
+  printMsg "\n${T_ULINE}Options:${T_RESET}"
+  printMsg "  ${C_L_BLUE}-gs${T_RESET}           Perform 'git status -sb' on all Git repositories."
+  printMsg "  ${C_L_BLUE}-gp${T_RESET}           Perform 'git status -sb && git pull' on all Git repositories."
+  printMsg "  ${C_L_BLUE}-gvb${T_RESET}          View local and remote branches for all Git repositories."
+  printMsg "  ${C_L_BLUE}-gb <branch>${T_RESET}   Switch all Git repositories to the specified branch."
+  printMsg "  ${C_L_BLUE}-h${T_RESET}            Show this help message."
+  printMsg "\n${T_ULINE}Examples:${T_RESET}"
+  printMsg "  ${C_GRAY}# Check the status of all repositories${T_RESET}"
+  printMsg "  $(basename "$0") -gs"
+  printMsg "  ${C_GRAY}# Switch all repositories to the 'main' branch${T_RESET}"
+  printMsg "  $(basename "$0") -gb main"
 }
 
 # Takes in a command to perform on all sub directories
@@ -138,10 +92,12 @@ switchToBranch() {
   performCommandOnGitDirectories "git checkout ${branchName}"
 }
 
-# Start of script
+# --- Main Execution ---
+# This block will only run when the script is executed directly.
 if [ $# -eq 0 ]; then
   # No arguments provided, print help
-  printHelp
+  print_usage
+  exit 0
 fi
 
 # parameters
@@ -165,11 +121,13 @@ while [[ $# -gt 0 ]]; do
     shift #skip the branch name
     ;;
   "-h" | "h")
-    printHelp
+    print_usage
+    exit 0
     ;;
   -* | *)
     printMsg " ${T_ERR_ICON} Unknown argument ${T_ERR}$1${T_RESET}"
-    printHelp
+    print_usage
+    exit 1
     ;;
 
   esac
