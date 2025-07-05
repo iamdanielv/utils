@@ -19,7 +19,10 @@ alias grep="grep --color=auto -i"
 # -------------------
 
 # Check the status of git repository
-alias gs='git status'
+alias gs='git status -sb'
+
+# List all branches in the repository
+alias gb='git branch -a'
 
 # Stage files for a commit
 alias ga='git add'
