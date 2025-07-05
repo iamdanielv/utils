@@ -14,6 +14,9 @@ alias ip="ip -c"
 # Colorized and case-insensitive grep
 alias grep="grep --color=auto -i"
 
+# Go up one directory
+alias ..='cd ..'
+
 # -------------------
 # Git
 # -------------------
