@@ -44,7 +44,7 @@ alias gl='git log --oneline --graph --decorate'
 alias update='sudo apt-get update && sudo apt-get upgrade -y'
 
 # Get public IP address
-alias myip='curl ipinfo.io/ip'
+alias myip='curl -s ipinfo.io/ip; echo'
 
 # List all listening ports
 alias ports='netstat -tulpn'
