@@ -45,3 +45,9 @@ alias update='sudo apt-get update && sudo apt-get upgrade -y'
 
 # Get public IP address
 alias myip='curl ipinfo.io/ip'
+
+# List all listening ports
+alias ports='netstat -tulpn'
+
+# For a detailed view of all running processes
+alias psa='ps auxf'
