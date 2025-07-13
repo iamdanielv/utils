@@ -2,6 +2,9 @@
 # General Purpose
 # -------------------
 
+# Better vim
+alias vim='nvim'
+
 # Better cat
 alias cat='batcat'
 
