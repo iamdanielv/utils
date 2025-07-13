@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Sometimes on wake from sleep, the ollama service will go into an inconsistent state.
-# This script will stop, reset, and start Ollama using systemd and NVIDIA UVM.
+# This script will stop, reset, and start Ollama using systemd.
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
@@ -33,6 +33,14 @@ if [[ $EUID -ne 0 ]]; then
 fi
 printOkMsg "Running with root privileges."
 
+# Detect if using NVIDIA
+printMsgNoNewline "${C_BLUE}Checking for NVIDIA GPU...${T_RESET}\t"
+if nvidia-smi &> /dev/null; then
+    printMsg "${T_OK_ICON} NVIDIA GPU detected."
+else
+    printMsg "${T_INFO_ICON} No NVIDIA GPU found. Running on CPU only."
+fi
+
 # Stop Ollama gracefully
 printMsgNoNewline "${C_BLUE}Stopping Ollama service...${T_RESET}\t"
 if systemctl stop ollama.service &>/dev/null; then
@@ -44,15 +52,18 @@ else
     exit 1
 fi
 
-# Reset NVIDIA UVM (force unload/reload)
-printMsgNoNewline "${C_BLUE}Resetting NVIDIA UVM...${T_RESET}\t\t"
-rmmod nvidia_uvm &>/dev/null || true # Ignore error if module not loaded
-if modprobe nvidia_uvm; then
-    printMsg "${T_OK_ICON} OK"
-else
-    printMsg "${T_ERR_ICON} Failed to reset NVIDIA UVM"
-    printMsg "    ${T_INFO_ICON} Check your NVIDIA driver installation."
-    exit 1
+# Reset NVIDIA UVM if NVIDIA is detected
+if nvidia-smi &> /dev/null; then
+    # Reset NVIDIA UVM (force unload/reload)
+    printMsgNoNewline "${C_BLUE}Resetting NVIDIA UVM...${T_RESET}\t\t"
+    rmmod nvidia_uvm &>/dev/null || true # Ignore error if module not loaded
+    if modprobe nvidia_uvm; then
+        printMsg "${T_OK_ICON} OK"
+    else
+        printMsg "${T_ERR_ICON} Failed to reset NVIDIA UVM"
+        printMsg "    ${T_INFO_ICON} Check your NVIDIA driver installation."
+        exit 1
+    fi
 fi
 
 # Start Ollama
