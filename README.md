@@ -2,19 +2,25 @@
 
 A collection of utility scripts for various tasks.
 
-## User Check
+## System Temperature Monitor (`temp-monitor.sh`)
+
+### Description
+
+Continuously monitors and displays system temperatures from available thermal sensors. The output is color-coded. Trend arrows (↑, ↓, →) show temperature changes by comparing the current reading against a moving average of previous readings, showing heating or cooling patterns.
+
+## User Check (`user-check.sh`)
 
 ### Description
 
 Ensures the script is running as a specific user, attempting to re-run itself using `sudo -u <user>` if not.
 
-## Random String Generator
+## Random String Generator (`random-string.sh`)
 
 ### Description
 
 Generates random hexadecimal strings suitable for use in scripts.
 
-## Git Utilities
+## Git Utilities (`git-utils.sh`)
 
 ### Description
 
