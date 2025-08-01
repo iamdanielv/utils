@@ -2,6 +2,9 @@
 # General Purpose
 # -------------------
 
+# safer rm
+alias rm='rm -i'
+
 # Better vim
 alias vim='nvim'
 

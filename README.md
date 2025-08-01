@@ -1,39 +1,68 @@
 # utils 🛠️
 
-A collection of utility scripts for various tasks.
+A collection of command-line utilities for system monitoring, string generation, and Git automation.
 
-## System Temperature Monitor (`temp-monitor.sh`)
+## 🎁 Bonus: Shell Aliases (` .bash_aliases `)
 
-### Description
+**Description:**  
+Provides enhanced shell aliases for tools like `vim`, `cat`,
 
-Continuously monitors and displays system temperatures from available thermal sensors. The output is color-coded. Trend arrows (↑, ↓, →) show temperature changes by comparing the current reading against a moving average of previous readings, showing heating or cooling patterns.
+## 🧠 Overview
 
-## User Check (`user-check.sh`)
+This repository contains shell scripts for:
 
-### Description
+- System monitoring (temperature, user checks)
+- String generation
+- Git automation
 
-Ensures the script is running as a specific user, attempting to re-run itself using `sudo -u <user>` if not.
+All scripts are designed to be run in Unix-like environments.
 
-## Random String Generator (`random-string.sh`)
+## 🧩 Scripts
 
-### Description
+### 🌡️ System Temperature Monitor (`temp-monitor.sh`)
 
-Generates random hexadecimal strings suitable for use in scripts.
+**Description:**  
+Continuous temperature monitoring with:
 
-## Git Utilities (`git-utils.sh`)
+- Color-coded sensor readings
+- Trend arrows (↑/↓/→) for temperature changes
+- Support for multiple thermal sensors
 
-### Description
+### 🧑‍🤝‍🧑 User Check (`user-check.sh`)
 
-A collection of utility scripts designed to simplify common Git tasks.
+**Description:**  
+Ensures the script is running as a specific user, attempting to switch with sudo if not.
 
-## For Contributors 🤝
+- Automatically switches to target user with `sudo -u`
 
-* I'm open and encourage contributions of bug fixes, improvements, and documentation!
+### 🎲 Random String Generator (`random-string.sh`)
 
-## License 📜
+**Description:**  
+Generates random hexadecimal strings with configurable:
 
-This project is licensed under the MIT License.  See the `LICENSE` file for details.
+- Length (default: 5 characters)
+- Output format options
 
-## Contact 📧
+### 🧾 Git Utilities (`git-utils.sh`)
 
-Let me know if you have any questions. I can be reached at [@IAmDanielV](https://twitter.com/IAmDanielV) or [@iamdanielv.bsky.social](https://bsky.app/profile/iamdanielv.bsky.social).
+**Description:**  
+Streamlines common Git workflows with:
+
+- Branch management shortcuts
+- Commit automation
+- Repository analysis tools
+
+## 🤝 Contributing
+
+I'm open to and encourage contributions of bug fixes, improvements, and documentation!
+
+## 📜 License
+
+[MIT License](LICENSE) - See the `LICENSE` file for details.
+
+## 📧 Contact
+
+Let me know if you have any questions.
+
+- [Twitter](https://twitter.com/IAmDanielV)
+- [BlueSky](https://bsky.app/profile/iamdanielv.bsky.social)
