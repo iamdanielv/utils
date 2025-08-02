@@ -85,7 +85,7 @@ monitor_temperatures() {
 
     # --- Initial Draw ---
     printf "\033[H\033[J"
-    printBanner "System Temps (Updated every ${interval}s, press Ctrl+C to exit)"
+    printBanner "System Temps (Updated every ${interval}s, press 'q', ESC, or Ctrl+C to exit)"
     printf "  ${C_GRAY}(Trend: ${C_L_RED}↑-hotter${C_GRAY}, ${C_L_BLUE}↓-cooler${C_GRAY}, →-stable vs avg of last %s readings)\n\n" "$avg_count"
  
     # Get initial sensor list and draw the static labels once.
@@ -176,7 +176,15 @@ monitor_temperatures() {
             temp_history["$name"]="${history_array[*]:0:avg_count}"
         done
 
-        sleep "$interval"
+        # Wait for the interval, but also listen for key presses.
+        # -s: silent, -n 1: read 1 char, -t: timeout
+        local key
+        if read -s -n 1 -t "$interval" key; then
+            # Check if 'q' or ESC was pressed. ESC key sends a single char \x1b
+            if [[ "$key" == "q" || "$key" == $'\e' ]]; then
+                kill -INT $$ # Trigger the trap for a graceful exit
+            fi
+        fi
     done
 }
 
