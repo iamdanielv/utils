@@ -87,42 +87,53 @@ monitor_temperatures() {
     printf "\033[H\033[J"
     printBanner "System Temps (Updated every ${interval}s, press Ctrl+C to exit)"
     printf "  ${C_GRAY}(Trend: ${C_L_RED}↑-hotter${C_GRAY}, ${C_L_BLUE}↓-cooler${C_GRAY}, →-stable vs avg of last %s readings)\n\n" "$avg_count"
-
+ 
     # Get initial sensor list and draw the static labels once.
-    mapfile -t sensor_types < <(cat /sys/class/thermal/thermal_zone*/type)
+    # Store the full paths to each zone to handle non-sequential zone numbers (e.g., thermal_zone0, thermal_zone10).
+    local sensor_zones
+    mapfile -d '' -t sensor_zones < <(printf '%s\0' /sys/class/thermal/thermal_zone*)
+    mapfile -t sensor_types < <(cat "${sensor_zones[@]/%//type}")
     local -r num_sensors=${#sensor_types[@]}
-
+ 
     for name in "${sensor_types[@]}"; do # 'name' is implicitly local in modern bash for-loops
         # Print only the static label part of the line
         printf "  %b%-20s%b\n" "$C_L_BLUE" "$name" "$T_RESET"
     done
-
+ 
     # Hide cursor after initial draw for a cleaner display
     printf "\033[?25l"
-
+ 
     # Pre-calculate temp_delta in raw format to avoid using 'bc' in the loop
     local temp_delta_raw
     temp_delta_raw=$(echo "$temp_delta * 1000" | bc)
     temp_delta_raw=${temp_delta_raw%.*} # Ensure it's an integer
-
+ 
     # --- Update Loop ---
     while true; do
         # Move cursor up to the beginning of the data block to overwrite.
         printf "\033[%sA" "${num_sensors}"
-
+ 
         # Update a spinner on the line above the sensors to show activity.
         # It saves the cursor, moves up one line, prints the spinner, then restores.
         local spinner_char="${spinner_chars:$spinner_idx:1}"
         printf "\033[s\033[1A\033[3G%b%s%b\033[K\033[u" "${C_L_CYAN}" "${spinner_char}" "${T_RESET}"
         spinner_idx=$(((spinner_idx + 1) % num_spinner_chars))
 
-        # Read temperature data
-        mapfile -t sensor_temps_raw < <(cat /sys/class/thermal/thermal_zone*/temp)
-
         # Loop through each sensor by its index
-        for i in "${!sensor_types[@]}"; do # 'i' is implicitly local
+        for i in "${!sensor_zones[@]}"; do # 'i' is implicitly local
             local name="${sensor_types[$i]}"
-            local temp_raw="${sensor_temps_raw[$i]}"
+            local temp_raw=0 # Default to 0
+            local temp_file="${sensor_zones[$i]}/temp"
+
+            # Safely read the temperature for the current sensor.
+            # If the file is unreadable or contains non-numeric data, temp_raw remains 0.
+            if [[ -r "$temp_file" ]]; then
+                local content
+                content=$(<"$temp_file")
+                if [[ "$content" =~ ^-?[0-9]+$ ]]; then
+                    temp_raw="$content"
+                fi
+            fi
             local temp_current
             temp_current=$(echo "scale=1; $temp_raw / 1000" | bc)
 
