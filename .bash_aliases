@@ -47,12 +47,12 @@ alias gp='git push'
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
 unalias gl 2>/dev/null
 gl() {
-    git log --graph --pretty=format:'%C(bold red)%h%Creset ' \
-        '%C(bold magenta)%d %Creset%n' \
-        '%C(bold green)%cr%Creset ' \
-        '%C(bold blue)%an%Creset%n' \
-        '%C(cyan)%s%n' \
-        '%w(72,2,2)%b%Creset' "$@"
+    # The format string is built as a single argument to --pretty=format.
+    local format_string=""
+    format_string+="%C(bold red)%h%Creset %C(bold magenta)%d %Creset%n"
+    format_string+="%C(bold green)%cr%Creset %C(bold blue)%an%Creset%n"
+    format_string+="%C(cyan)%s%n%w(72,2,2)%b%Creset"
+    git log --graph --pretty=format:"${format_string}" "$@"
 }
 
 # -------------------
