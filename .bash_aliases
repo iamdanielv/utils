@@ -49,9 +49,9 @@ unalias gl 2>/dev/null
 gl() {
     # The format string is built as a single argument to --pretty=format.
     local format_string=""
-    format_string+="%C(bold red)%h%Creset %C(bold magenta)%d %Creset%n"
-    format_string+="%C(bold green)%cr%Creset %C(bold blue)%an%Creset%n"
-    format_string+="%C(cyan)%s%n%w(72,2,2)%b%Creset"
+    format_string+="%C(red)%h%Creset %C(bold magenta)%d%n%Creset"
+    format_string+="%C(green)%cr%Creset %C(blue)%an%Creset%n"
+    format_string+="%C(bold cyan)%s%n%w(72,2,2)%b%Creset"
     git log --graph --pretty=format:"${format_string}" "$@"
 }
 
