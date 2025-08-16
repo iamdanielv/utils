@@ -55,6 +55,16 @@ gl() {
     git log --graph --pretty=format:"${format_string}" "$@"
 }
 
+# See the commit history for a specific file, tracking renames.
+# Usage: glf <file_path>
+unalias glf 2>/dev/null
+glf() {
+    # The '--' separates log options from file paths.
+    git log \
+        --pretty=format:'%C(red)%h %C(green)%cr %C(blue)%an %C(reset)%s' \
+        --follow -- "$@"
+}
+
 # -------------------
 # System, Network & Packages
 # -------------------
