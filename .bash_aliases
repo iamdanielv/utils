@@ -43,7 +43,7 @@ alias gc='git commit -m'
 alias gp='git push'
 
 # A compact and graphical view of commit history
-alias gl='git log --oneline --graph --decorate'
+alias gl="git log --graph --pretty=format:'%C(bold red)%h%Creset %C(bold magenta)%d %Creset%n%C(bold green)%cr%Creset %C(bold blue)%an%Creset%n%C(cyan)%s%n%b%Creset'"
 
 # -------------------
 # System & Network
