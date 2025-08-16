@@ -49,10 +49,11 @@ unalias gl 2>/dev/null
 gl() {
     # The format string is built as a single argument to --pretty=format.
     local format_string=""
-    format_string+="%C(red)%h%Creset %C(bold magenta)%d%n%Creset"
-    format_string+="%C(green)%cr%Creset %C(blue)%an%Creset%n"
-    format_string+="%C(bold cyan)%s%n%w(72,2,2)%b%Creset"
-    git log --graph --pretty=format:"${format_string}" "$@"
+    format_string+="%C(red)%h%Creset %C(bold magenta)%d%Creset%n"
+    format_string+="%C(green)%cr %C(blue)%an%Creset%n"
+    format_string+=" %C(bold cyan)%s%Creset%n"
+    format_string+="%w(72,2,2)%b%Creset"
+    git log --graph --pretty=format:"${format_string}%n" "$@"
 }
 
 # See the commit history for a specific file, tracking renames.
@@ -60,9 +61,9 @@ gl() {
 unalias glf 2>/dev/null
 glf() {
     # The '--' separates log options from file paths.
-    git log \
-        --pretty=format:'%C(red)%h %C(green)%cr %C(blue)%an %C(reset)%s' \
-        --follow -- "$@"
+    git log --follow \
+        --pretty=format:'%C(red)%h %C(green)%cr %C(blue)%an %C(bold cyan)%s%Creset' \
+        -- "$@"
 }
 
 # -------------------
