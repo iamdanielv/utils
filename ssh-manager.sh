@@ -88,12 +88,11 @@ get_detailed_ssh_hosts_menu_options() {
         local key_info=""
         if [[ -n "$identity_file" ]]; then
             # Using #$HOME is safer than a simple string replacement
-            key_info="(${C_GRAY}${identity_file/#$HOME/\~}${T_RESET})"
+            key_info="(${C_WHITE}${identity_file/#$HOME/\~}${T_RESET})"
         fi
 
-        # Use printf for alignment. -20s means left-aligned in a 20-char field.
         local formatted_string
-        formatted_string=$(printf "%-20s ${C_L_CYAN}%s@%s${T_RESET} %s" \
+        formatted_string=$(printf "%s - ${C_L_CYAN}%s@%s ${T_RESET}%s" \
             "${host_alias}" \
             "${user:-?}" \
             "${hostname:-?}" \
