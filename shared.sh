@@ -130,20 +130,20 @@ function getPrettyDate() {
 clear_current_line() {
     # \e[2K: clear entire line
     # \r: move cursor to beginning of the line
-    echo -ne "\e[2K\r"
+    echo -ne "\e[2K\r" >/dev/tty
 }
 
 # Clears a specified number of lines above the current cursor position.
 # Usage: clear_lines_up [number_of_lines]
 clear_lines_up() {
     local lines=${1:-1} # Default to 1 line if no argument is provided
-    for ((i=0; i<lines; i++)); do
+    for ((i = 0; i < lines; i++)); do
         # \e[1A: move cursor up one line
         # \e[2K: clear entire line
         echo -ne "\e[1A\e[2K"
     done
     echo -ne "\r" # Move cursor to the beginning of the line
-}
+} >/dev/tty
 
 # Clears a specified number of lines from the cursor position downwards.
 # The cursor ends up back at its starting position.
@@ -152,14 +152,14 @@ clear_lines_down() {
     local lines=${1:-1}
     if (( lines <= 0 )); then return; fi
 
-    for ((i=0; i<lines; i++)); do
+    for ((i = 0; i < lines; i++)); do
         # \e[2K: clear entire line
         # \n: move to next line
         echo -ne "\e[2K\n"
     done
     # \e[<N>A: move cursor up N lines
     echo -ne "\e[${lines}A"
-}
+} >/dev/tty
 
 # Moves the cursor up a specified number of lines without clearing them.
 # This is used for flicker-free updates of multi-line content.
@@ -171,7 +171,7 @@ move_cursor_up() {
     if (( lines > 0 )); then
         # Using a loop of "up 1" can be more reliable in some terminals
         # than a single "up N" command, which helps prevent screen tearing.
-        for ((i=0; i<lines; i++)); do echo -ne "\e[1A"; done
+        for ((i = 0; i < lines; i++)); do echo -ne "\e[1A"; done
     fi
     echo -ne "\r" # Move cursor to the beginning of the line
 } >/dev/tty
@@ -309,7 +309,7 @@ script_error_handler() {
 # Function to handle Ctrl+C (SIGINT)
 script_interrupt_handler() {
     trap - INT # Disable the trap to prevent recursion.
-    echo # Add a newline for better formatting.
+    clear
     printMsg "${T_WARN_ICON} ${C_L_YELLOW}Operation cancelled by user.${T_RESET}"
     # Exit with a status code indicating cancellation (130 is common for Ctrl+C).
     exit 130
@@ -443,8 +443,8 @@ prompt_to_continue() {
     # -s: silent, -n 1: read 1 char, -r: raw
     # We redirect to /dev/tty to ensure it works even if stdout is captured.
     read -rsn1 </dev/tty
-    # Move cursor up one line and clear it to remove the prompt.
-    echo -ne "\e[1A\e[2K" >/dev/tty
+    # Clear the "Press any key..." message.
+    clear_lines_up 1
 }
 
 ##
@@ -553,7 +553,7 @@ interactive_multi_select_menu() {
     local menu_height=$((num_options + 2)) # +2 for prompt and help line
 
     while true; do
-        printf "\e[${menu_height}A" >/dev/tty
+        move_cursor_up "$menu_height"
 
         # Read from the controlling terminal, not stdin which might be redirected
         key=$(read_single_char </dev/tty)
@@ -586,15 +586,8 @@ interactive_multi_select_menu() {
                 fi
                 ;;
             "$KEY_ENTER"|"$KEY_ESC"|"q")
-                # Before exiting, clear the menu from the screen.
-                # The cursor is already at the top of the menu area.
-                for ((i=0; i < menu_height; i++)); do
-                    echo -ne "${T_CLEAR_LINE}\n" >/dev/tty
-                done
-                # Move cursor back to the starting line.
-                if (( menu_height > 0 )); then
-                    printf "\e[${menu_height}A" >/dev/tty
-                fi
+                # Clear the menu from the screen before exiting the loop.
+                clear_lines_down "$menu_height"
 
                 if [[ "$key" == "$KEY_ENTER" ]]; then
                     break
@@ -700,7 +693,7 @@ interactive_single_select_menu() {
     local menu_height=$((num_options + 2))
 
     while true; do
-        printf "\e[${menu_height}A" >/dev/tty
+        move_cursor_up "$menu_height"
 
         # Read from the controlling terminal, not stdin which might be redirected
         key=$(read_single_char </dev/tty)
@@ -709,34 +702,17 @@ interactive_single_select_menu() {
             "$KEY_UP"|"k") current_option=$(( (current_option - 1 + num_options) % num_options ));;
             "$KEY_DOWN"|"j") current_option=$(( (current_option + 1) % num_options ));;
             "$KEY_ENTER")
-                # Before exiting, clear the menu from the screen.
-                # The cursor is already at the top of the menu area.
-                for ((i=0; i < menu_height; i++)); do
-                    echo -ne "${T_CLEAR_LINE}\n" >/dev/tty
-                done
-                # Move cursor back to the starting line.
-                if (( menu_height > 0 )); then
-                    printf "\e[${menu_height}A" >/dev/tty
-                fi
+                clear_lines_down "$menu_height"
                 echo "$current_option"
                 return 0
                 ;;
             "$KEY_ESC"|"q")
-                # Before exiting, clear the menu from the screen.
-                # The cursor is already at the top of the menu area.
-                for ((i=0; i < menu_height; i++)); do
-                    echo -ne "${T_CLEAR_LINE}\n" >/dev/tty
-                done
-                # Move cursor back to the starting line.
-                if (( menu_height > 0 )); then
-                    printf "\e[${menu_height}A" >/dev/tty
-                fi
+                clear_lines_down "$menu_height"
                 return 1
                 ;;
         esac
         # Redraw the menu with updated state
         menu_output=$(_build_menu_output)
-        clear_current_line >&2
         echo -ne "$menu_output" >/dev/tty
     done
 }
