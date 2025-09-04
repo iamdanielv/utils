@@ -434,7 +434,7 @@ backup_ssh_config() {
 main_loop() {
     #printf "\033[H\033[J" # Clear screen
     clear
-    #printBanner "SSH Manager"
+    printBanner "SSH Manager"
     local -a menu_options=(
         "Connect to a server"
         "Test connection to a server"
@@ -450,7 +450,7 @@ main_loop() {
     while true; do
         local selected_index
         selected_index=$(interactive_single_select_menu "What would you like to do?" "${menu_options[@]}")
-        [[ $? -ne 0 ]] && { clear_current_line; printInfoMsg "Exiting SSH Manager."; exit 0; }
+        [[ $? -ne 0 ]] && { break; }
 
         case "${menu_options[$selected_index]}" in
         "Connect to a server")
@@ -481,9 +481,11 @@ main_loop() {
             fi
             ;;
         "Backup SSH config") clear; backup_ssh_config; prompt_to_continue; clear ;;
-        "Exit") clear; printInfoMsg "Exiting SSH Manager."; exit 0 ;;
+        "Exit") break ;;
         esac
     done
+
+    printOkMsg "Goodbye!"    
 }
 
 main() {
