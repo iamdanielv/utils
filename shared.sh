@@ -693,11 +693,13 @@ interactive_single_select_menu() {
             "$KEY_DOWN"|"j") current_option=$(( (current_option + 1) % num_options ));;
             "$KEY_ENTER")
                 clear_lines_down "$menu_height"
+                clear_lines_up 2
                 echo "$current_option"
                 return 0
                 ;;
             "$KEY_ESC"|"q")
                 clear_lines_down "$menu_height"
+                clear_lines_up 2
                 return 1
                 ;;
         esac
