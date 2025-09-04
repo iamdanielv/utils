@@ -145,6 +145,22 @@ clear_lines_up() {
     echo -ne "\r" # Move cursor to the beginning of the line
 }
 
+# Clears a specified number of lines from the cursor position downwards.
+# The cursor ends up back at its starting position.
+# Usage: clear_lines_down [number_of_lines]
+clear_lines_down() {
+    local lines=${1:-1}
+    if (( lines <= 0 )); then return; fi
+
+    for ((i=0; i<lines; i++)); do
+        # \e[2K: clear entire line
+        # \n: move to next line
+        echo -ne "\e[2K\n"
+    done
+    # \e[<N>A: move cursor up N lines
+    echo -ne "\e[${lines}A"
+}
+
 # Moves the cursor up a specified number of lines without clearing them.
 # This is used for flicker-free updates of multi-line content.
 # Usage: move_cursor_up [number_of_lines]
