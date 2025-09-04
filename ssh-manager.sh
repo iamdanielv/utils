@@ -457,6 +457,7 @@ main_loop() {
 
         case "${menu_options[$selected_index]}" in
         "Connect to a server")
+            clear
             local selected_host
             selected_host=$(select_ssh_host "Select a host to connect to:")
             if [[ $? -eq 0 ]]; then
@@ -465,11 +466,11 @@ main_loop() {
                 exec ssh "$selected_host"
             fi
             ;;
-        "Test connection to a server") test_ssh_connection; prompt_to_continue; clear ;;
-        "Add a new server") add_ssh_host; prompt_to_continue; clear ;;
-        "Edit a server's configuration") edit_ssh_host; prompt_to_continue; clear ;;
-        "Remove a server") remove_ssh_host; prompt_to_continue; clear ;;
-        "Copy an SSH key to a server") copy_ssh_id; prompt_to_continue; clear ;;
+        "Test connection to a server") clear; test_ssh_connection; prompt_to_continue; clear ;;
+        "Add a new server") clear; add_ssh_host; prompt_to_continue; clear ;;
+        "Edit a server's configuration") clear; edit_ssh_host; prompt_to_continue; clear ;;
+        "Remove a server") clear; remove_ssh_host; prompt_to_continue; clear ;;
+        "Copy an SSH key to a server") clear; copy_ssh_id; prompt_to_continue; clear ;;
         "Open SSH config in editor")
             local editor="${EDITOR:-nvim}"
             if ! command -v "${editor}" &>/dev/null; then
@@ -482,8 +483,8 @@ main_loop() {
                 clear
             fi
             ;;
-        "Backup SSH config") backup_ssh_config; prompt_to_continue; clear ;;
-        "Exit") printInfoMsg "Exiting SSH Manager."; exit 0 ;;
+        "Backup SSH config") clear; backup_ssh_config; prompt_to_continue; clear ;;
+        "Exit") clear; printInfoMsg "Exiting SSH Manager."; exit 0 ;;
         esac
     done
 }
