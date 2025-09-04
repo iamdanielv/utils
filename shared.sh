@@ -166,13 +166,15 @@ clear_lines_down() {
 # Usage: move_cursor_up [number_of_lines]
 move_cursor_up() {
     local lines=${1:-1}
+    # Redirect all output of this function to /dev/tty to ensure it works
+    # even when the script's stdout is being captured (e.g., in command substitution).
     if (( lines > 0 )); then
         # Using a loop of "up 1" can be more reliable in some terminals
         # than a single "up N" command, which helps prevent screen tearing.
         for ((i=0; i<lines; i++)); do echo -ne "\e[1A"; done
     fi
     echo -ne "\r" # Move cursor to the beginning of the line
-}
+} >/dev/tty
 
 # Formats Tab-Separated Value (TSV) data into a clean, aligned table.
 # This function correctly handles cells that contain ANSI color codes.
