@@ -623,6 +623,124 @@ interactive_multi_select_menu() {
     fi
 }
 
+##
+# Displays an interactive single-select menu.
+# Allows the user to select one option using arrow keys.
+#
+# ## Usage:
+#   local -a options=("Option 1" "Option 2" "Option 3")
+#   local selected_index
+#   selected_index=$(interactive_single_select_menu "Select an item:" "${options[@]}")
+#   local exit_code=$?
+#
+#   if [[ $exit_code -eq 0 ]]; then
+#     echo "You selected index: $selected_index (${options[selected_index]})"
+#   else
+#     echo "No option was selected."
+#   fi
+#
+# ## Arguments:
+#  $1 - The prompt to display to the user.
+#  $@ - The list of options for the menu.
+#
+# ## Returns:
+#  On success (Enter pressed):
+#    - Prints the index of the selected option to stdout.
+#    - Returns with exit code 0.
+#  On cancellation (ESC or q pressed):
+#    - Prints nothing to stdout.
+#    - Returns with exit code 1.
+##
+interactive_single_select_menu() {
+    if ! [[ -t 0 ]]; then
+        printErrMsg "Not an interactive session." >&2
+        return 1
+    fi
+
+    local prompt="$1"
+    shift
+    local -a options=("$@")
+    local num_options=${#options[@]}
+
+    if [[ $num_options -eq 0 ]]; then
+        printErrMsg "No options provided to menu." >&2
+        return 1
+    fi
+
+    local current_option=0
+
+    _build_menu_output() {
+        local output=""
+        output+="${T_QST_ICON} ${prompt}\n"
+        output+="    ${C_WHITE}(Use ${C_L_CYAN}↑ ↓${C_WHITE} to navigate, ${C_L_GREEN}enter${C_WHITE} to confirm, ${C_L_YELLOW}q/esc${C_WHITE} to cancel)${T_RESET}\n"
+        for i in "${!options[@]}"; do
+            local pointer=" "
+            local highlight_start=""
+            local highlight_end=""
+            
+            if [[ $i -eq $current_option ]]; then
+                pointer="${T_BOLD}${C_L_MAGENTA}❯${T_RESET}"
+                highlight_start="${T_REVERSE}"
+                highlight_end="${T_RESET}"
+            fi
+            output+="  ${pointer} ${highlight_start}${options[i]}${highlight_end}${T_RESET}${T_CLEAR_LINE}\n"
+        done
+        echo -e "$output"
+    }
+
+    printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
+    trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
+
+    # Initial draw of the menu
+    local menu_output
+    menu_output=$(_build_menu_output)
+    echo -ne "$menu_output" >/dev/tty
+
+    local key
+    local menu_height=$((num_options + 2))
+
+    while true; do
+        printf "\e[${menu_height}A" >/dev/tty
+
+        # Read from the controlling terminal, not stdin which might be redirected
+        key=$(read_single_char </dev/tty)
+
+        case "$key" in
+            "$KEY_UP"|"k") current_option=$(( (current_option - 1 + num_options) % num_options ));;
+            "$KEY_DOWN"|"j") current_option=$(( (current_option + 1) % num_options ));;
+            "$KEY_ENTER")
+                # Before exiting, clear the menu from the screen.
+                # The cursor is already at the top of the menu area.
+                for ((i=0; i < menu_height; i++)); do
+                    echo -ne "${T_CLEAR_LINE}\n" >/dev/tty
+                done
+                # Move cursor back to the starting line.
+                if (( menu_height > 0 )); then
+                    printf "\e[${menu_height}A" >/dev/tty
+                fi
+                echo "$current_option"
+                return 0
+                ;;
+            "$KEY_ESC"|"q")
+                # Before exiting, clear the menu from the screen.
+                # The cursor is already at the top of the menu area.
+                for ((i=0; i < menu_height; i++)); do
+                    echo -ne "${T_CLEAR_LINE}\n" >/dev/tty
+                done
+                # Move cursor back to the starting line.
+                if (( menu_height > 0 )); then
+                    printf "\e[${menu_height}A" >/dev/tty
+                fi
+                return 1
+                ;;
+        esac
+        # Redraw the menu with updated state
+        menu_output=$(_build_menu_output)
+        clear_current_line >&2
+        echo -ne "$menu_output" >/dev/tty
+    done
+}
+
 # Ensures the script is running from its own directory.
 # This is useful for scripts that need to find relative files (e.g., docker-compose.yml).
 # It uses BASH_SOURCE[1] to get the path of the calling script.
