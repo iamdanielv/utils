@@ -415,6 +415,19 @@ prompt_yes_no() {
     done
 }
 
+# Prompts the user to press any key to continue, then clears the prompt.
+# This is a blocking call that waits for a single keypress, making for a
+# clean user experience by pausing the script and then removing the message.
+# Usage:
+#   prompt_to_continue
+prompt_to_continue() {
+    printInfoMsg "Press any key to continue..." >/dev/tty
+    # -s: silent, -n 1: read 1 char, -r: raw
+    # We redirect to /dev/tty to ensure it works even if stdout is captured.
+    read -rsn1 </dev/tty
+    # Move cursor up one line and clear it to remove the prompt.
+    echo -ne "\e[1A\e[2K" >/dev/tty
+}
 
 ##
 # Displays an interactive multi-select menu.
