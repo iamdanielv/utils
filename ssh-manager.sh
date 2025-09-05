@@ -84,12 +84,35 @@ get_detailed_ssh_hosts_menu_options() {
     fi
 
     for host_alias in "${hosts[@]}"; do
-        local hostname user identity_file port
-        hostname=$(get_ssh_config_value "$host_alias" "HostName")
-        user=$(get_ssh_config_value "$host_alias" "User")
-        identity_file=$(get_ssh_config_value "$host_alias" "IdentityFile")
-        port=$(get_ssh_config_value "$host_alias" "Port")
+        # Call ssh -G once per host and parse all required values in a single awk command.
+        # This is much more efficient than calling ssh -G four times for each host.
+        local details
+        details=$(ssh -G "$host_alias" 2>/dev/null | awk '
+            # Map ssh -G output keys to the shell variable names we want to use.
+            BEGIN {
+                keys["hostname"] = "hostname"
+                keys["user"] = "user"
+                keys["identityfile"] = "identity_file"
+                keys["port"] = "port"
+            }
+            # If the first field is one of our target keys, process it.
+            $1 in keys {
+                var_name = keys[$1]
+                # Reconstruct the value, which might contain spaces.
+                val = ""
+                for (i = 2; i <= NF; i++) {
+                    val = (val ? val " " : "") $i
+                }
+                # Print in KEY="VALUE" format for safe evaluation in the shell.
+                printf "%s=\"%s\"\n", var_name, val
+            }
+        ')
 
+        # Declare local variables and use eval to populate them from the awk output.
+        # This is safe because the input is controlled (from ssh -G) and the awk script
+        # only processes specific, known keys.
+        local hostname user identity_file port
+        eval "$details"
         # Clean up identity file path for display
         local key_info=""
         if [[ -n "$identity_file" ]]; then
