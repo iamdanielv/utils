@@ -295,7 +295,32 @@ prompt_for_input() {
 add_ssh_host() {
     printBanner "Add New SSH Host"
 
-    local host_alias host_name user identity_file
+    local host_alias host_name user identity_file host_to_clone
+    local default_hostname="" default_user="${USER}" default_identity_file=""
+
+    # Ask whether to create from scratch or clone
+    local -a add_options=("Create a new host from scratch" "Clone settings from an existing host")
+    local add_choice_idx
+    add_choice_idx=$(interactive_single_select_menu "How would you like to add the new host?" "${add_options[@]}")
+    if [[ $? -ne 0 ]]; then
+        printInfoMsg "Host creation cancelled."
+        return
+    fi
+
+    if [[ "${add_options[$add_choice_idx]}" == "Clone settings from an existing host" ]]; then
+        host_to_clone=$(select_ssh_host "Select a host to clone settings from:")
+        if [[ $? -ne 0 ]]; then
+            # select_ssh_host prints its own cancellation message
+            return
+        fi
+
+        # Pre-populate default values from the cloned host
+        printInfoMsg "Cloning settings from '${C_L_CYAN}${host_to_clone}${T_RESET}'."
+        default_hostname=$(get_ssh_config_value "$host_to_clone" "HostName")
+        # If user is not set on cloned host, it will be empty, so the prompt will use its own default.
+        default_user=$(get_ssh_config_value "$host_to_clone" "User")
+        default_identity_file=$(get_ssh_config_value "$host_to_clone" "IdentityFile")
+    fi
 
     while true; do
         prompt_for_input "Enter a short alias for the host (e.g., 'prod-server')" host_alias || return
@@ -308,14 +333,20 @@ add_ssh_host() {
         fi
     done
 
-    prompt_for_input "Enter the HostName (IP address or FQDN)" host_name || return
-    prompt_for_input "Enter the remote User" user "${USER}" || return
+    prompt_for_input "Enter the HostName (IP address or FQDN)" host_name "$default_hostname" || return
+    prompt_for_input "Enter the remote User" user "${default_user:-$USER}" || return
 
     local -a key_options=(
         "Generate a new dedicated key (ed25519) for this host"
         "Select an existing key"
         "Do not specify a key (use SSH defaults)"
     )
+
+    # If cloning from a host that has a key, add an option to use it.
+    if [[ -n "$default_identity_file" ]]; then
+        key_options=("Use same key as '${host_to_clone}' (${default_identity_file/#$HOME/\~})" "${key_options[@]}")
+    fi
+
     local key_choice_idx
     key_choice_idx=$(interactive_single_select_menu "How do you want to handle the SSH key for this host?" "${key_options[@]}")
     if [[ $? -ne 0 ]]; then
@@ -325,6 +356,23 @@ add_ssh_host() {
     local selected_key_option="${key_options[$key_choice_idx]}"
 
     case "$selected_key_option" in
+        "Use same key as "*) # Use a glob to match the dynamic part
+            identity_file="$default_identity_file"
+            {
+                echo ""
+                echo "Host ${host_alias}"
+                echo "    HostName ${host_name}"
+                echo "    User ${user}"
+                echo "    IdentityFile ${identity_file}"
+                echo "    IdentitiesOnly yes"
+            } >>"$SSH_CONFIG_PATH"
+            printOkMsg "Host '${host_alias}' added, using key from '${host_to_clone}'."
+
+            prompt_yes_no "Do you want to copy the public key '${identity_file}.pub' to the server now?" "n"
+            if [[ $? -eq 0 ]]; then
+                copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
+            fi
+            ;;
         "Generate a new dedicated key (ed25519) for this host")
             identity_file="${SSH_DIR}/${host_alias}_id_ed25519"
             if [[ -f "$identity_file" ]]; then
@@ -391,7 +439,7 @@ add_ssh_host() {
 
             printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH}, using key ${identity_file}."
 
-            prompt_yes_no "Do you want to copy the public key '${identity_file}.pub' to the server now?" "y"
+            prompt_yes_no "Do you want to copy the public key '${identity_file}.pub' to the server now?" "n"
             if [[ $? -eq 0 ]]; then
                 copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
             fi
@@ -625,6 +673,45 @@ edit_ssh_host_in_editor() {
     echo -e "${config_without_host}\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
 
     printOkMsg "Host '${host_to_edit}' has been updated from editor."
+}
+
+# Clones an existing SSH host configuration to a new alias.
+clone_ssh_host() {
+    printBanner "Clone SSH Host"
+
+    local host_to_clone
+    host_to_clone=$(select_ssh_host "Select a host to clone:")
+    [[ $? -ne 0 ]] && return # select_ssh_host prints messages
+
+    local new_alias
+    while true; do
+        prompt_for_input "Enter the new alias for the cloned host" new_alias || return
+
+        # Check if host alias already exists
+        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${new_alias}\s*$" "$SSH_CONFIG_PATH"; then
+            printErrMsg "Host alias '${new_alias}' already exists. Please choose another."
+        else
+            break # Alias is unique, exit loop
+        fi
+    done
+
+    local original_block
+    original_block=$(_get_host_block_from_config "$host_to_clone" "$SSH_CONFIG_PATH")
+
+    if [[ -z "$original_block" ]]; then
+        printErrMsg "Could not find configuration block for '${host_to_clone}'."
+        return 1
+    fi
+
+    # Replace the original 'Host ...' line with the new one.
+    # Use printf to avoid `echo` adding an extra newline before piping to sed.
+    local new_block
+    new_block=$(printf '%s' "$original_block" | sed -E "s/^[[:space:]]*[Hh]ost[[:space:]].*/Host ${new_alias}/")
+
+    # Append the new block to the config file, ensuring separation.
+    echo -e "\n${new_block}" >> "$SSH_CONFIG_PATH"
+
+    printOkMsg "Host '${host_to_clone}' successfully cloned to '${new_alias}'."
 }
 
 # Removes a host entry from the SSH config file.
@@ -911,6 +998,7 @@ advanced_menu() {
         printBanner "Advanced Tools"
         local -a menu_options=(
             "Edit host block in editor"
+            "Clone an existing host"
             "Open SSH config in editor"
             "Backup SSH config"
             "Export hosts to a file"
@@ -923,6 +1011,7 @@ advanced_menu() {
 
         case "${menu_options[$selected_index]}" in
         "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
+        "Clone an existing host") run_menu_action clone_ssh_host ;;
         "Open SSH config in editor")
             local editor="${EDITOR:-nvim}"
             if ! command -v "${editor}" &>/dev/null; then
