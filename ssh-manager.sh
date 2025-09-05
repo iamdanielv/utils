@@ -291,14 +291,162 @@ prompt_for_input() {
     done
 }
 
+# (Private) Prompts the user for the core details of a new SSH host.
+# It handles validating the alias is unique and uses namerefs to return values.
+# Usage: _prompt_for_host_details host_alias_var host_name_var user_var [default_hostname] [default_user]
+# Returns 0 on success, 1 on cancellation.
+_prompt_for_host_details() {
+    local -n out_alias="$1"
+    local -n out_hostname="$2"
+    local -n out_user="$3"
+    local default_hostname="${4:-}"
+    local default_user="${5:-$USER}"
+
+    while true; do
+        prompt_for_input "Enter a short alias for the host (e.g., 'prod-server')" out_alias || return 1
+
+        # Check if host alias already exists
+        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${out_alias}\s*$" "$SSH_CONFIG_PATH"; then
+            printErrMsg "Host alias '${out_alias}' already exists. Please choose another."
+        else
+            break # Alias is unique, exit loop
+        fi
+    done
+
+    prompt_for_input "Enter the HostName (IP address or FQDN)" out_hostname "$default_hostname" || return 1
+    prompt_for_input "Enter the remote User" out_user "$default_user" || return 1
+
+    return 0
+}
+
+# (Private) Manages the SSH key selection and creation process for a new host.
+# It returns the path to the selected/created IdentityFile via a nameref.
+# It also handles the post-creation action of copying the key to the server.
+# Usage: _handle_ssh_key_for_new_host identity_file_var host_alias host_name user [cloned_host] [cloned_key_path]
+# Returns 0 on success, 1 on cancellation/failure.
+_handle_ssh_key_for_new_host() {
+    local -n out_identity_file="$1"
+    local host_alias="$2"
+    local host_name="$3"
+    local user="$4"
+    local cloned_host="${5:-}"
+    local cloned_key_path="${6:-}"
+
+    out_identity_file="" # Default to no key
+
+    local -a key_options=(
+        "Generate a new dedicated key (ed25519) for this host"
+        "Select an existing key"
+        "Do not specify a key (use SSH defaults)"
+    )
+
+    if [[ -n "$cloned_key_path" ]]; then
+        key_options=("Use same key as '${cloned_host}' (${cloned_key_path/#$HOME/\~})" "${key_options[@]}")
+    fi
+
+    local key_choice_idx
+    key_choice_idx=$(interactive_single_select_menu "How do you want to handle the SSH key for this host?" "${key_options[@]}")
+    if [[ $? -ne 0 ]]; then return 1; fi
+    local selected_key_option="${key_options[$key_choice_idx]}"
+
+    case "$selected_key_option" in
+        "Use same key as "*) # Use a glob to match the dynamic part
+            out_identity_file="$cloned_key_path"
+            prompt_yes_no "Do you want to copy the public key '${out_identity_file}.pub' to the server now?" "n"
+            if [[ $? -eq 0 ]]; then
+                copy_ssh_id_for_host "$host_alias" "${out_identity_file}.pub"
+            fi
+            ;;
+        "Generate a new dedicated key (ed25519) for this host")
+            local new_key_path="${SSH_DIR}/${host_alias}_id_ed25519"
+            local should_generate=true
+            if [[ -f "$new_key_path" ]]; then
+                prompt_yes_no "Key file '${new_key_path}' already exists. Overwrite it?" "n"
+                local overwrite_choice=$?
+                if [[ $overwrite_choice -eq 1 ]]; then # No
+                    should_generate=false
+                    printInfoMsg "Using existing key file: ${new_key_path}"
+                elif [[ $overwrite_choice -eq 2 ]]; then # Cancel
+                    return 1
+                fi
+            fi
+
+            if [[ "$should_generate" == "true" ]]; then
+                run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
+                    ssh-keygen -t ed25519 -f "$new_key_path" -N "" -C "${user}@${host_name}" || return 1
+            fi
+
+            out_identity_file="$new_key_path"
+            prompt_yes_no "Do you want to copy the new public key to the server now?" "y"
+            if [[ $? -eq 0 ]]; then
+                copy_ssh_id_for_host "$host_alias" "${out_identity_file}.pub"
+            fi
+            ;;
+        "Select an existing key")
+            local -a pub_keys
+            mapfile -t pub_keys < <(find "$SSH_DIR" -maxdepth 1 -type f -name "*.pub")
+            if [[ ${#pub_keys[@]} -eq 0 ]]; then
+                printErrMsg "No existing SSH keys (.pub files) found in ${SSH_DIR}."
+                printInfoMsg "You can generate a key from the main menu first."
+                return 1
+            fi
+
+            local -a private_key_paths
+            for pub_key in "${pub_keys[@]}"; do private_key_paths+=("${pub_key%.pub}"); done
+
+            local key_idx
+            key_idx=$(interactive_single_select_menu "Select the private key to use:" "${private_key_paths[@]}")
+            if [[ $? -ne 0 ]]; then return 1; fi
+            out_identity_file="${private_key_paths[$key_idx]}"
+
+            prompt_yes_no "Do you want to copy the public key '${out_identity_file}.pub' to the server now?" "n"
+            if [[ $? -eq 0 ]]; then
+                copy_ssh_id_for_host "$host_alias" "${out_identity_file}.pub"
+            fi
+            ;;
+        "Do not specify a key (use SSH defaults)")
+            # out_identity_file is already empty
+            ;;
+    esac
+    return 0
+}
+
+# (Private) Appends a fully formed host block to the SSH config file.
+# Usage: _append_host_to_config <alias> <hostname> <user> [identity_file]
+_append_host_to_config() {
+    local host_alias="$1"
+    local host_name="$2"
+    local user="$3"
+    local identity_file="${4:-}"
+
+    # Use a subshell and a here-document for cleaner block creation.
+    (
+        echo "" # Separator
+        echo "Host ${host_alias}"
+        echo "    HostName ${host_name}"
+        echo "    User ${user}"
+        if [[ -n "$identity_file" ]]; then
+            echo "    IdentityFile ${identity_file}"
+            echo "    IdentitiesOnly yes"
+        fi
+    ) >> "$SSH_CONFIG_PATH"
+
+    local key_msg=""
+    if [[ -n "$identity_file" ]]; then
+        key_msg=" with key ${identity_file/#$HOME/\~}"
+    fi
+    printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH}${key_msg}."
+}
+
 # Prompts user for details and adds a new host to the SSH config.
 add_ssh_host() {
     printBanner "Add New SSH Host"
 
-    local host_alias host_name user identity_file host_to_clone
+    local host_alias host_name user identity_file
     local default_hostname="" default_user="${USER}" default_identity_file=""
+    local host_to_clone=""
 
-    # Ask whether to create from scratch or clone
+    # --- Step 1: Choose to create from scratch or clone ---
     local -a add_options=("Create a new host from scratch" "Clone settings from an existing host")
     local add_choice_idx
     add_choice_idx=$(interactive_single_select_menu "How would you like to add the new host?" "${add_options[@]}")
@@ -309,160 +457,32 @@ add_ssh_host() {
 
     if [[ "${add_options[$add_choice_idx]}" == "Clone settings from an existing host" ]]; then
         host_to_clone=$(select_ssh_host "Select a host to clone settings from:")
-        if [[ $? -ne 0 ]]; then
-            # select_ssh_host prints its own cancellation message
-            return
-        fi
+        if [[ $? -ne 0 ]]; then return; fi # select_ssh_host prints its own message
 
-        # Pre-populate default values from the cloned host
         printInfoMsg "Cloning settings from '${C_L_CYAN}${host_to_clone}${T_RESET}'."
         default_hostname=$(get_ssh_config_value "$host_to_clone" "HostName")
-        # If user is not set on cloned host, it will be empty, so the prompt will use its own default.
         default_user=$(get_ssh_config_value "$host_to_clone" "User")
         default_identity_file=$(get_ssh_config_value "$host_to_clone" "IdentityFile")
     fi
 
-    while true; do
-        prompt_for_input "Enter a short alias for the host (e.g., 'prod-server')" host_alias || return
-
-        # Check if host alias already exists
-        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${host_alias}\s*$" "$SSH_CONFIG_PATH"; then
-            printErrMsg "Host alias '${host_alias}' already exists. Please choose another."
-        else
-            break # Alias is unique, exit loop
-        fi
-    done
-
-    prompt_for_input "Enter the HostName (IP address or FQDN)" host_name "$default_hostname" || return
-    prompt_for_input "Enter the remote User" user "${default_user:-$USER}" || return
-
-    local -a key_options=(
-        "Generate a new dedicated key (ed25519) for this host"
-        "Select an existing key"
-        "Do not specify a key (use SSH defaults)"
-    )
-
-    # If cloning from a host that has a key, add an option to use it.
-    if [[ -n "$default_identity_file" ]]; then
-        key_options=("Use same key as '${host_to_clone}' (${default_identity_file/#$HOME/\~})" "${key_options[@]}")
-    fi
-
-    local key_choice_idx
-    key_choice_idx=$(interactive_single_select_menu "How do you want to handle the SSH key for this host?" "${key_options[@]}")
-    if [[ $? -ne 0 ]]; then
-        printInfoMsg "Host creation cancelled."
+    # --- Step 2: Get host details ---
+    if ! _prompt_for_host_details host_alias host_name user "$default_hostname" "$default_user"; then
+        # _prompt_for_host_details prints cancellation message
         return
     fi
-    local selected_key_option="${key_options[$key_choice_idx]}"
 
-    case "$selected_key_option" in
-        "Use same key as "*) # Use a glob to match the dynamic part
-            identity_file="$default_identity_file"
-            {
-                echo ""
-                echo "Host ${host_alias}"
-                echo "    HostName ${host_name}"
-                echo "    User ${user}"
-                echo "    IdentityFile ${identity_file}"
-                echo "    IdentitiesOnly yes"
-            } >>"$SSH_CONFIG_PATH"
-            printOkMsg "Host '${host_alias}' added, using key from '${host_to_clone}'."
+    # --- Step 3: Handle SSH key ---
+    if ! _handle_ssh_key_for_new_host identity_file "$host_alias" "$host_name" "$user" "$host_to_clone" "$default_identity_file"; then
+        printInfoMsg "Host creation cancelled during key selection."
+        return
+    fi
 
-            prompt_yes_no "Do you want to copy the public key '${identity_file}.pub' to the server now?" "n"
-            if [[ $? -eq 0 ]]; then
-                copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
-            fi
-            ;;
-        "Generate a new dedicated key (ed25519) for this host")
-            identity_file="${SSH_DIR}/${host_alias}_id_ed25519"
-            if [[ -f "$identity_file" ]]; then
-                prompt_yes_no "Key file '${identity_file}' already exists. Overwrite it?" "n"
-                local overwrite_choice=$?
-                if [[ $overwrite_choice -eq 0 ]]; then # Yes, overwrite
-                    run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
-                        ssh-keygen -t ed25519 -f "$identity_file" -N "" -C "${user}@${host_name}"
-                elif [[ $overwrite_choice -eq 2 ]]; then # Cancel
-                    return # Return to main menu
-                else # No, do not overwrite
-                    printInfoMsg "Using existing key file: ${identity_file}"
-                fi
-            else
-                run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
-                    ssh-keygen -t ed25519 -f "$identity_file" -N "" -C "${user}@${host_name}"
-            fi
-            {
-                echo ""
-                echo "Host ${host_alias}"
-                echo "    HostName ${host_name}"
-                echo "    User ${user}"
-                echo "    IdentityFile ${identity_file}"
-                echo "    IdentitiesOnly yes"
-            } >>"$SSH_CONFIG_PATH"
-            printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH} with a dedicated key."
-            prompt_yes_no "Do you want to copy the new public key to the server now?" "y"
-            if [[ $? -eq 0 ]]; then
-                copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
-            fi
-            ;;
-        "Select an existing key")
-            # Find all public keys to infer private keys
-            local -a pub_keys
-            mapfile -t pub_keys < <(find "$SSH_DIR" -maxdepth 1 -type f -name "*.pub")
-            if [[ ${#pub_keys[@]} -eq 0 ]]; then
-                printErrMsg "No existing SSH keys (.pub files) found in ${SSH_DIR}."
-                printInfoMsg "You can generate a key from the main menu first."
-                return 1
-            fi
+    # --- Step 4: Write to config ---
+    _append_host_to_config "$host_alias" "$host_name" "$user" "$identity_file"
 
-            # Derive private key paths for the menu. We show the full path.
-            local -a private_key_paths
-            for pub_key in "${pub_keys[@]}"; do
-                private_key_paths+=("${pub_key%.pub}")
-            done
-
-            local key_idx
-            key_idx=$(interactive_single_select_menu "Select the private key to use:" "${private_key_paths[@]}")
-            if [[ $? -ne 0 ]]; then
-                printInfoMsg "Key selection cancelled. Host not added."
-                return
-            fi
-            identity_file="${private_key_paths[$key_idx]}"
-
-            {
-                echo ""
-                echo "Host ${host_alias}"
-                echo "    HostName ${host_name}"
-                echo "    User ${user}"
-                echo "    IdentityFile ${identity_file}"
-                echo "    IdentitiesOnly yes"
-            } >>"$SSH_CONFIG_PATH"
-
-            printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH}, using key ${identity_file}."
-
-            prompt_yes_no "Do you want to copy the public key '${identity_file}.pub' to the server now?" "n"
-            if [[ $? -eq 0 ]]; then
-                copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
-            fi
-            ;;
-        "Do not specify a key (use SSH defaults)")
-            {
-                echo ""
-                echo "Host ${host_alias}"
-                echo "    HostName ${host_name}"
-                echo "    User ${user}"
-            } >>"$SSH_CONFIG_PATH"
-            printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH}."
-            ;;
-        *) # Should not happen
-            return
-            ;;
-    esac
-
-    # After adding the host, regardless of the key option chosen.
+    # --- Step 5: Post-creation actions ---
     if prompt_yes_no "Do you want to test the connection to '${host_alias}' now?" "y"; then
-        # This test uses BatchMode=yes, so it will only succeed for key-based auth
-        # or if no password is required by the server.
-        echo # Add a newline for spacing before the test starts
+        echo # Add a newline for spacing
         _test_connection_for_host "$host_alias"
     fi
 }
@@ -1082,9 +1102,9 @@ advanced_menu() {
         clear
         printBanner "Advanced Tools"
         local -a menu_options=(
+            "Open SSH config in editor"
             "Edit host block in editor"
             "Clone an existing host"
-            "Open SSH config in editor"
             "Backup SSH config"
             "Export hosts to a file"
             "Import hosts from a file"
@@ -1095,8 +1115,6 @@ advanced_menu() {
         [[ $? -ne 0 ]] && break # ESC/q returns to main menu
 
         case "${menu_options[$selected_index]}" in
-        "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
-        "Clone an existing host") run_menu_action clone_ssh_host ;;
         "Open SSH config in editor")
             local editor="${EDITOR:-nvim}"
             if ! command -v "${editor}" &>/dev/null; then
@@ -1106,6 +1124,8 @@ advanced_menu() {
                 "${editor}" "${SSH_CONFIG_PATH}"
             fi
             ;;
+        "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
+        "Clone an existing host") run_menu_action clone_ssh_host ;;
         "Backup SSH config") run_menu_action backup_ssh_config ;;
         "Export hosts to a file") run_menu_action export_ssh_hosts ;;
         "Import hosts from a file") run_menu_action import_ssh_hosts ;;
