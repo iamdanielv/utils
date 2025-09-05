@@ -55,10 +55,11 @@ Streamlines common Git workflows with:
 ### 🎨 Color Palette Viewer (`colors.sh`)
 
 **Description:**  
-A simple utility to display all 256 terminal colors.
+A utility to display all 256 terminal colors for both foreground and background.
 
 - Helps in choosing colors for shell scripts and TUIs
-- Can display colors as numbers or as solid blocks (`-b` flag)
+- Can display colors as numbers or solid blocks (`-b` flag)
+- Supports foreground (`-g fg`) and background (`-g bg`) modes
 
 ### 🔑 SSH Manager (`ssh-manager.sh`)
 
