@@ -606,6 +606,8 @@ edit_ssh_host() {
     [[ $? -ne 0 ]] && return
 
     printInfoMsg "Editing configuration for: ${C_L_CYAN}${host_to_edit}${T_RESET}"
+    printWarnMsg "This guided edit only preserves HostName, User, and IdentityFile."
+    printWarnMsg "For advanced edits of all fields, use 'Edit host block in editor'."
     printMsg "${C_L_GRAY}(Press Enter to keep the current value)${T_RESET}"
 
     # Get current values to use as defaults in prompts
