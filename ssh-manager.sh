@@ -310,11 +310,21 @@ add_ssh_host() {
     prompt_for_input "Enter the HostName (IP address or FQDN)" host_name || return
     prompt_for_input "Enter the remote User" user "${USER}" || return
 
-    prompt_yes_no "Generate a dedicated SSH key (ed25519) for this host?" "n"
-    local choice=$?
+    local -a key_options=(
+        "Generate a new dedicated key (ed25519) for this host"
+        "Select an existing key"
+        "Do not specify a key (use SSH defaults)"
+    )
+    local key_choice_idx
+    key_choice_idx=$(interactive_single_select_menu "How do you want to handle the SSH key for this host?" "${key_options[@]}")
+    if [[ $? -ne 0 ]]; then
+        printInfoMsg "Host creation cancelled."
+        return
+    fi
+    local selected_key_option="${key_options[$key_choice_idx]}"
 
-    case $choice in
-        0) # Yes, generate key
+    case "$selected_key_option" in
+        "Generate a new dedicated key (ed25519) for this host")
             identity_file="${SSH_DIR}/${host_alias}_id_ed25519"
             if [[ -f "$identity_file" ]]; then
                 prompt_yes_no "Key file '${identity_file}' already exists. Overwrite it?" "n"
@@ -331,6 +341,43 @@ add_ssh_host() {
                 run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
                     ssh-keygen -t ed25519 -f "$identity_file" -N "" -C "${user}@${host_name}"
             fi
+            {
+                echo ""
+                echo "Host ${host_alias}"
+                echo "    HostName ${host_name}"
+                echo "    User ${user}"
+                echo "    IdentityFile ${identity_file}"
+                echo "    IdentitiesOnly yes"
+            } >>"$SSH_CONFIG_PATH"
+            printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH} with a dedicated key."
+            prompt_yes_no "Do you want to copy the new public key to the server now?" "y"
+            if [[ $? -eq 0 ]]; then
+                copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
+            fi
+            ;;
+        "Select an existing key")
+            # Find all public keys to infer private keys
+            local -a pub_keys
+            mapfile -t pub_keys < <(find "$SSH_DIR" -maxdepth 1 -type f -name "*.pub")
+            if [[ ${#pub_keys[@]} -eq 0 ]]; then
+                printErrMsg "No existing SSH keys (.pub files) found in ${SSH_DIR}."
+                printInfoMsg "You can generate a key from the main menu first."
+                return 1
+            fi
+
+            # Derive private key paths for the menu. We show the full path.
+            local -a private_key_paths
+            for pub_key in "${pub_keys[@]}"; do
+                private_key_paths+=("${pub_key%.pub}")
+            done
+
+            local key_idx
+            key_idx=$(interactive_single_select_menu "Select the private key to use:" "${private_key_paths[@]}")
+            if [[ $? -ne 0 ]]; then
+                printInfoMsg "Key selection cancelled. Host not added."
+                return
+            fi
+            identity_file="${private_key_paths[$key_idx]}"
 
             {
                 echo ""
@@ -341,14 +388,14 @@ add_ssh_host() {
                 echo "    IdentitiesOnly yes"
             } >>"$SSH_CONFIG_PATH"
 
-            printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH} with a dedicated key."
+            printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH}, using key ${identity_file}."
 
-            prompt_yes_no "Do you want to copy the new public key to the server now?" "y"
+            prompt_yes_no "Do you want to copy the public key '${identity_file}.pub' to the server now?" "y"
             if [[ $? -eq 0 ]]; then
                 copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
             fi
             ;;
-        1) # No, do not generate key
+        "Do not specify a key (use SSH defaults)")
             {
                 echo ""
                 echo "Host ${host_alias}"
@@ -357,7 +404,7 @@ add_ssh_host() {
             } >>"$SSH_CONFIG_PATH"
             printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH}."
             ;;
-        2) # Cancel
+        *) # Should not happen
             return
             ;;
     esac
