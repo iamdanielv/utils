@@ -651,16 +651,27 @@ edit_ssh_host() {
     # Get current values to use as defaults in prompts
     local current_hostname
     current_hostname=$(get_ssh_config_value "$host_to_edit" "HostName")
-    local current_user
+    local current_user current_port current_identityfile
     current_user=$(get_ssh_config_value "$host_to_edit" "User")
-    local current_identityfile
+    current_port=$(get_ssh_config_value "$host_to_edit" "Port")
     current_identityfile=$(get_ssh_config_value "$host_to_edit" "IdentityFile")
 
     # Prompt for new values
-    local new_hostname new_user new_identityfile
+    local new_hostname new_user new_port new_identityfile
     prompt_for_input "HostName" new_hostname "$current_hostname" || return
     prompt_for_input "User" new_user "$current_user" || return
+    prompt_for_input "Port" new_port "${current_port:-22}" || return
     prompt_for_input "IdentityFile (optional, leave blank to remove)" new_identityfile "$current_identityfile" "true" || return
+
+    # Check if any changes were actually made before rewriting the file.
+    # This provides better feedback and avoids unnecessary file I/O.
+    if [[ "$new_hostname" == "$current_hostname" && \
+          "$new_user" == "$current_user" && \
+          "$new_port" == "${current_port:-22}" && \
+          "$new_identityfile" == "$current_identityfile" ]]; then
+        printInfoMsg "No changes detected. Host configuration remains unchanged."
+        return
+    fi
 
     # Validate the IdentityFile path if one was provided.
     if [[ -n "$new_identityfile" ]]; then
@@ -685,6 +696,9 @@ edit_ssh_host() {
             echo "Host ${host_to_edit}"
             echo "    HostName ${new_hostname}"
             echo "    User ${new_user}"
+            if [[ -n "$new_port" && "$new_port" != "22" ]]; then
+                echo "    Port ${new_port}"
+            fi
             if [[ -n "$new_identityfile" ]]; then
                 echo "    IdentityFile ${new_identityfile}"
                 echo "    IdentitiesOnly yes"
