@@ -894,6 +894,89 @@ test_ssh_connection() {
     _test_connection_for_host "$host_to_test"
 }
 
+# (Private) The actual test logic for a single host, run in the background.
+# It writes its result to a file in a temporary directory.
+# Usage: _test_single_host_in_background <host> <result_dir>
+_test_single_host_in_background() {
+    local host_to_test="$1"
+    local result_dir="$2"
+    # The result file is named after the host, with slashes replaced to be safe.
+    local result_file="${result_dir}/${host_to_test//\//_}"
+
+    if ssh -o BatchMode=yes -o ConnectTimeout=10 "${host_to_test}" 'exit' &>/dev/null; then
+        echo "success" > "$result_file"
+    else
+        # Capture the error message from SSH for later display.
+        local error_output
+        error_output=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "${host_to_test}" 'exit' 2>&1)
+        # If the file is empty (e.g., timeout), write a generic error.
+        if [[ -z "$error_output" ]]; then
+            echo "Connection timed out or failed without error message." > "$result_file"
+        else
+            echo "$error_output" > "$result_file"
+        fi
+    fi
+}
+
+# Tests all configured SSH hosts in parallel.
+test_all_ssh_connections() {
+    printBanner "Test All SSH Connections"
+
+    mapfile -t hosts < <(get_ssh_hosts)
+    if [[ ${#hosts[@]} -eq 0 ]]; then
+        printInfoMsg "No hosts found in your SSH config file to test."
+        return
+    fi
+
+    local result_dir
+    result_dir=$(mktemp -d)
+    # Ensure temp directory is cleaned up on exit or interrupt.
+    trap 'rm -rf "$result_dir"' RETURN INT TERM
+
+    local -a pids
+    printInfoMsg "Starting tests for ${#hosts[@]} hosts in parallel..."
+    for host in "${hosts[@]}"; do
+        # Run the test for each host in the background.
+        _test_single_host_in_background "$host" "$result_dir" &
+        pids+=($!)
+    done
+
+    # Wait for all background jobs to complete, with a spinner.
+    wait_for_pids_with_spinner "Running all connection tests" "${pids[@]}"
+
+    # --- Print Summary ---
+    printMsg "\n${T_ULINE}Test Results:${T_RESET}"
+    local success_count=0
+    local failure_count=0
+
+    for host in "${hosts[@]}"; do
+        local result_file="${result_dir}/${host//\//_}"
+        local result
+        result=$(<"$result_file")
+
+        if [[ "$result" == "success" ]]; then
+            ((success_count++))
+            printOkMsg "Connection to '${host}' was ${BG_GREEN}${C_BLACK} successful ${T_RESET}"
+        else
+            ((failure_count++))
+            printErrMsg "${host}"
+            # Indent the error message for readability.
+            while IFS= read -r line; do
+                printMsg "    ${C_GRAY}${line}${T_RESET}"
+            done <<< "$result"
+        fi
+    done
+
+    # Final summary line
+    echo
+    local summary_msg="Summary: ${C_L_GREEN}${success_count} successful${T_RESET}, ${C_L_RED}${failure_count} failed${T_RESET}."
+    if (( failure_count > 0 )); then
+        printErrMsg "$summary_msg"
+    else
+        printOkMsg "$summary_msg"
+    fi
+}
+
 # Backs up the SSH config file to a timestamped file.
 backup_ssh_config() {
     printBanner "Backup SSH Config"
@@ -937,7 +1020,8 @@ server_menu() {
         printBanner "Server Management"
         local -a menu_options=(
             "Connect to a server"
-            "Test connection to a server"
+            "Test connection to a single server"
+            "Test connection to ALL servers"
             "Add a new server"
             "Edit a server's configuration"
             "Remove a server"
@@ -960,7 +1044,8 @@ server_menu() {
             fi
             # If connection is cancelled, loop back to this menu
             ;;
-        "Test connection to a server") run_menu_action test_ssh_connection ;;
+        "Test connection to a single server") run_menu_action test_ssh_connection ;;
+        "Test connection to ALL servers") run_menu_action test_all_ssh_connections ;;
         "Add a new server") run_menu_action add_ssh_host ;;
         "Edit a server's configuration") run_menu_action edit_ssh_host ;;
         "Remove a server") run_menu_action remove_ssh_host ;;
