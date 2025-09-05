@@ -1154,90 +1154,46 @@ run_menu_action() {
 
 # --- Main Menu Sub-loops ---
 
-# Displays the menu for server-related actions.
-server_menu() {
+# (Private) Generic function to display and handle a submenu loop.
+# It takes a banner title, an array of ordered options, and a map of options to actions.
+# Usage: _run_submenu <banner_title> <ordered_options_array_name> <actions_map_name>
+_run_submenu() {
+    local banner_title="$1"
+    local -n options_ref="$2"
+    local -n actions_ref="$3"
+
+    # Add the 'Back' option to the list for display
+    local -a menu_options=("${options_ref[@]}" "Back to main menu")
+
     while true; do
         clear
-        printBanner "Server Management"
-        local -a menu_options=(
-            "Connect to a server"
-            "Test connection to a single server"
-            "Test connection to ALL servers"
-            "Add a new server"
-            "Edit a server's configuration"
-            "Remove a server"
-            "Back to main menu"
-        )
+        printBanner "$banner_title"
+
         local selected_index
         selected_index=$(interactive_single_select_menu "Select an action:" "${menu_options[@]}")
-        [[ $? -ne 0 ]] && break # ESC/q returns to main menu
+        [[ $? -ne 0 ]] && break # ESC/q from menu returns to the previous menu
 
-        case "${menu_options[$selected_index]}" in
-        "Connect to a server")
+        local selected_option="${menu_options[$selected_index]}"
+
+        if [[ "$selected_option" == "Back to main menu" ]]; then
+            break
+        fi
+
+        # Get the action from the map.
+        local action="${actions_ref[$selected_option]}"
+
+        # Handle special actions identified by a "SPECIAL_" prefix.
+        if [[ "$action" == "SPECIAL_CONNECT" ]]; then
             clear
             printBanner "Connect to a server"
             local selected_host
             selected_host=$(select_ssh_host "Select a host to connect to:")
             if [[ $? -eq 0 ]]; then
-                # Use 'exec' to replace the current script process with the ssh client.
-                # This ensures that after the ssh session ends, the script exits instead of returning to the menu.
+                # Replace the script process with the ssh client.
                 exec ssh "$selected_host"
             fi
-            # If connection is cancelled, loop back to this menu
-            ;;
-        "Test connection to a single server") run_menu_action test_ssh_connection ;;
-        "Test connection to ALL servers") run_menu_action test_all_ssh_connections ;;
-        "Add a new server") run_menu_action add_ssh_host ;;
-        "Edit a server's configuration") run_menu_action edit_ssh_host ;;
-        "Remove a server") run_menu_action remove_ssh_host ;;
-        "Back to main menu") break ;;
-        esac
-    done
-}
-
-# Displays the menu for SSH key-related actions.
-key_menu() {
-    while true; do
-        clear
-        printBanner "Key Management"
-        local -a menu_options=(
-            "Copy an SSH key to a server"
-            "Generate a new SSH key"
-            "Back to main menu"
-        )
-        local selected_index
-        selected_index=$(interactive_single_select_menu "Select an action:" "${menu_options[@]}")
-        [[ $? -ne 0 ]] && break # ESC/q returns to main menu
-
-        case "${menu_options[$selected_index]}" in
-        "Copy an SSH key to a server") run_menu_action copy_ssh_id ;;
-        "Generate a new SSH key") run_menu_action generate_ssh_key ;;
-        "Back to main menu") break ;;
-        esac
-    done
-}
-
-# Displays the menu for advanced and file-level actions.
-advanced_menu() {
-    while true; do
-        clear
-        printBanner "Advanced Tools"
-        local -a menu_options=(
-            "Open SSH config in editor"
-            "Edit host block in editor"
-            "Rename a host alias"
-            "Clone an existing host"
-            "Backup SSH config"
-            "Export hosts to a file"
-            "Import hosts from a file"
-            "Back to main menu"
-        )
-        local selected_index
-        selected_index=$(interactive_single_select_menu "Select an action:" "${menu_options[@]}")
-        [[ $? -ne 0 ]] && break # ESC/q returns to main menu
-
-        case "${menu_options[$selected_index]}" in
-        "Open SSH config in editor")
+            # If connection is cancelled, the loop continues.
+        elif [[ "$action" == "SPECIAL_EDIT_CONFIG" ]]; then
             local editor="${EDITOR:-nvim}"
             if ! command -v "${editor}" &>/dev/null; then
                 printErrMsg "Editor '${editor}' not found. Please set the EDITOR environment variable."
@@ -1245,16 +1201,70 @@ advanced_menu() {
             else
                 "${editor}" "${SSH_CONFIG_PATH}"
             fi
-            ;;
-        "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
-        "Rename a host alias") run_menu_action rename_ssh_host ;;
-        "Clone an existing host") run_menu_action clone_ssh_host ;;
-        "Backup SSH config") run_menu_action backup_ssh_config ;;
-        "Export hosts to a file") run_menu_action export_ssh_hosts ;;
-        "Import hosts from a file") run_menu_action import_ssh_hosts ;;
-        "Back to main menu") break ;;
-        esac
+        else
+            # This is the standard case: a function name to be passed to run_menu_action.
+            if [[ -n "$action" ]]; then
+                run_menu_action "$action"
+            else
+                printErrMsg "Internal error: No action defined for '${selected_option}'."
+                prompt_to_continue
+            fi
+        fi
     done
+}
+
+server_menu() {
+    local -a ordered_options=(
+        "Connect to a server"
+        "Test connection to a single server"
+        "Test connection to ALL servers"
+        "Add a new server"
+        "Edit a server's configuration"
+        "Remove a server"
+    )
+    local -A actions_map=(
+        ["Connect to a server"]="SPECIAL_CONNECT"
+        ["Test connection to a single server"]="test_ssh_connection"
+        ["Test connection to ALL servers"]="test_all_ssh_connections"
+        ["Add a new server"]="add_ssh_host"
+        ["Edit a server's configuration"]="edit_ssh_host"
+        ["Remove a server"]="remove_ssh_host"
+    )
+    _run_submenu "Server Management" ordered_options actions_map
+}
+
+key_menu() {
+    local -a ordered_options=(
+        "Copy an SSH key to a server"
+        "Generate a new SSH key"
+    )
+    local -A actions_map=(
+        ["Copy an SSH key to a server"]="copy_ssh_id"
+        ["Generate a new SSH key"]="generate_ssh_key"
+    )
+    _run_submenu "Key Management" ordered_options actions_map
+}
+
+advanced_menu() {
+    local -a ordered_options=(
+        "Open SSH config in editor"
+        "Edit host block in editor"
+        "Rename a host alias"
+        "Clone an existing host"
+        "Backup SSH config"
+        "Export hosts to a file"
+        "Import hosts from a file"
+    )
+    local -A actions_map=(
+        ["Open SSH config in editor"]="SPECIAL_EDIT_CONFIG"
+        ["Edit host block in editor"]="edit_ssh_host_in_editor"
+        ["Rename a host alias"]="rename_ssh_host"
+        ["Clone an existing host"]="clone_ssh_host"
+        ["Backup SSH config"]="backup_ssh_config"
+        ["Export hosts to a file"]="export_ssh_hosts"
+        ["Import hosts from a file"]="import_ssh_hosts"
+    )
+    _run_submenu "Advanced Tools" ordered_options actions_map
 }
 
 # Main application loop.
