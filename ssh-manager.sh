@@ -815,19 +815,42 @@ rename_ssh_host() {
     printOkMsg "Host '${host_to_rename}' successfully renamed to '${new_alias}'."
 }
 
-# (Private) Checks for and offers to remove orphaned key files associated with a host.
+# (Private) Checks for and offers to remove an orphaned key file.
+# An orphaned key is one that is no longer referenced by any host in the SSH config.
 # This is typically called after a host has been removed from the config.
-# It looks for a key with the conventional name format: <host_alias>_id_ed25519.
-# Usage: _cleanup_orphaned_key_for_host <host_alias>
-_cleanup_orphaned_key_for_host() {
-    local host_alias="$1"
+# Usage: _cleanup_orphaned_key <path_to_key_file>
+_cleanup_orphaned_key() {
+    local key_file_path="$1"
 
-    local key_file_private="${SSH_DIR}/${host_alias}_id_ed25519"
-    if [[ -f "$key_file_private" ]]; then
-        if prompt_yes_no "Found associated key file '${key_file_private}'. Remove it and its .pub file?" "n"; then
-            rm -f "${key_file_private}" "${key_file_private}.pub"
-            printOkMsg "Removed key files."
+    # 1. If no key file was associated with the host, there's nothing to do.
+    if [[ -z "$key_file_path" ]]; then
+        return
+    fi
+
+    # 2. Expand tilde to full path for checks.
+    local expanded_key_path="${key_file_path/#\~/$HOME}"
+
+    # 3. Check if the key file actually exists.
+    if [[ ! -f "$expanded_key_path" ]]; then
+        return
+    fi
+
+    # 4. Check if any other host in the *current* config uses this key.
+    mapfile -t remaining_hosts < <(get_ssh_hosts)
+    for host in "${remaining_hosts[@]}"; do
+        local host_key_file; host_key_file=$(get_ssh_config_value "$host" "IdentityFile")
+        local expanded_host_key_file="${host_key_file/#\~/$HOME}"
+
+        if [[ "$expanded_host_key_file" == "$expanded_key_path" ]]; then
+            printInfoMsg "The key '${key_file_path}' is still in use by host '${host}'. It will not be removed."
+            return # Key is in use, so we're done.
         fi
+    done
+
+    # 5. If we get here, the key is not used by any other host. Prompt for deletion.
+    if prompt_yes_no "The key '${key_file_path}' is no longer referenced by any host. Remove it and its .pub file?" "n"; then
+        rm -f "${expanded_key_path}" "${expanded_key_path}.pub"
+        printOkMsg "Removed key files."
     fi
 }
 
@@ -844,6 +867,10 @@ remove_ssh_host() {
         return
     fi
 
+    # Get the IdentityFile path *before* removing the host from the config.
+    local identity_file_to_check
+    identity_file_to_check=$(get_ssh_config_value "$host_to_remove" "IdentityFile")
+
     # Get the config content without the specified host block
     local new_config_content
     new_config_content=$(_remove_host_block_from_config "$host_to_remove")
@@ -853,7 +880,8 @@ remove_ssh_host() {
 
     printOkMsg "Host '${host_to_remove}' has been removed."
 
-    _cleanup_orphaned_key_for_host "$host_to_remove"
+    # Pass the actual key file path to the cleanup function.
+    _cleanup_orphaned_key "$identity_file_to_check"
 }
 
 # Exports selected SSH host configurations to a file.
