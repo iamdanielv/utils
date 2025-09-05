@@ -52,6 +52,23 @@ Streamlines common Git workflows with:
 - Commit automation
 - Repository analysis tools
 
+### 🎨 Color Palette Viewer (`colors.sh`)
+
+**Description:**  
+A simple utility to display all 256 terminal colors.
+
+- Helps in choosing colors for shell scripts and TUIs
+- Can display colors as numbers or as solid blocks (`-b` flag)
+
+### 🔑 SSH Manager (`ssh-manager.sh`)
+
+**Description:**  
+An interactive TUI for managing and connecting to SSH hosts defined in `~/.ssh/config`.
+
+- Connect, test, add, edit, clone, and remove hosts
+- Generate new SSH keys and copy them to servers
+- Backup, import, and export host configurations
+
 ## 🤝 Contributing
 
 I'm open to and encourage contributions of bug fixes, improvements, and documentation!
