@@ -245,39 +245,34 @@ prompt_for_input() {
     local default_val="${3:-}"
     local allow_empty="${4:-false}"
 
-    local prompt_suffix=""
-    if [[ -n "$default_val" ]]; then
-        prompt_suffix=" [${C_L_CYAN}${default_val}${T_RESET}]"
-    fi
-
-    local input_str=""
+    # Pre-fill the input string with the default value to allow editing/clearing it.
+    local input_str="$default_val"
     local key
 
-    # Hide cursor during line editing and ensure it's restored on function exit.
-    printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
-    trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' RETURN
-
     while true; do
-        # Draw the prompt and current input string.
+        # Draw the prompt and current input string, with the cursor visible at the end.
         clear_current_line >/dev/tty
-        printMsgNoNewline "${T_QST_ICON} ${prompt_text}${prompt_suffix}: ${input_str}" >/dev/tty
+        printMsgNoNewline "${T_QST_ICON} ${prompt_text}: ${C_L_CYAN}${input_str}${T_RESET}" >/dev/tty
 
         key=$(read_single_char </dev/tty)
 
         case "$key" in
             "$KEY_ENTER")
-                local final_input="${input_str:-$default_val}"
+                # The final value is whatever is in the input buffer.
+                # This allows the user to backspace to clear a default value.
+                local final_input="$input_str"
                 if [[ -n "$final_input" || "$allow_empty" == "true" ]]; then
                     var_ref="$final_input"
                     clear_current_line >/dev/tty
-                    printMsg "${T_QST_ICON} ${prompt_text}${prompt_suffix}: ${C_L_GREEN}${final_input}${T_RESET}"
+                    # Show the prompt again with the final selected value.
+                    printMsg "${T_QST_ICON} ${prompt_text}: ${C_L_GREEN}${final_input}${T_RESET}"
                     return 0 # Success
                 fi
                 # If not valid, loop continues, waiting for more input or ESC.
                 ;;
             "$KEY_ESC")
                 clear_current_line >/dev/tty
-                printMsg "${T_QST_ICON} ${prompt_text}${prompt_suffix}:\n ${C_L_YELLOW}-- cancelled --${T_RESET}"
+                printMsg "${T_QST_ICON} ${prompt_text}:\n ${C_L_YELLOW}-- cancelled --${T_RESET}"
                 return 1 # Cancelled
                 ;;
             "$KEY_BACKSPACE")
