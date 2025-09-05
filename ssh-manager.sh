@@ -192,6 +192,48 @@ copy_ssh_id_for_host() {
     fi
 }
 
+# Generates a new SSH key pair without associating it with a host.
+generate_ssh_key() {
+    printBanner "Generate New SSH Key"
+
+    local -a key_types=("ed25519 (recommended)" "rsa (legacy, 4096 bits)")
+    local selected_index
+    selected_index=$(interactive_single_select_menu "Select the type of key to generate:" "${key_types[@]}")
+    [[ $? -ne 0 ]] && { printInfoMsg "Operation cancelled."; return; }
+
+    local key_type_selection="${key_types[$selected_index]}"
+    local key_type="ed25519" # Default
+    local key_bits_arg=""
+    if [[ "$key_type_selection" == "rsa (legacy, 4096 bits)" ]]; then
+        key_type="rsa"
+        key_bits_arg="-b 4096"
+    fi
+
+    local key_filename
+    prompt_for_input "Enter filename for the new key (in ${SSH_DIR})" key_filename "id_${key_type}" || return
+    local full_key_path="${SSH_DIR}/${key_filename}"
+
+    if [[ -f "$full_key_path" ]]; then
+        if ! prompt_yes_no "Key file '${full_key_path}' already exists. Overwrite it?" "n"; then
+            printInfoMsg "Key generation cancelled."
+            return
+        fi
+    fi
+
+    local key_comment
+    prompt_for_input "Enter a comment for the key" key_comment "${USER}@$(hostname)" || return
+
+    if run_with_spinner "Generating new ${key_type} key..." \
+        ssh-keygen -t "${key_type}" ${key_bits_arg} -f "${full_key_path}" -N "" -C "${key_comment}"; then
+        printInfoMsg "Key pair created:"
+        printMsg "  Private key: ${C_L_BLUE}${full_key_path}${T_RESET}"
+        printMsg "  Public key:  ${C_L_BLUE}${full_key_path}.pub${T_RESET}"
+    else
+        # run_with_spinner already prints the error details.
+        printErrMsg "Failed to generate SSH key."
+    fi
+}
+
 # An interactive prompt for user input that supports cancellation.
 # It reads input character-by-character to provide a responsive feel
 # and handles ESC for cancellation.
@@ -747,6 +789,7 @@ main_loop() {
         "Edit host block in editor"
         "Remove a server"
         "Copy an SSH key to a server"
+        "Generate a new SSH key"
         "Open SSH config in editor"
         "Backup SSH config"
         "Export hosts to a file"
@@ -779,6 +822,7 @@ main_loop() {
         "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
         "Remove a server") run_menu_action remove_ssh_host ;;
         "Copy an SSH key to a server") run_menu_action copy_ssh_id ;;
+        "Generate a new SSH key") run_menu_action generate_ssh_key ;;
         "Open SSH config in editor")
             local editor="${EDITOR:-nvim}"
             if ! command -v "${editor}" &>/dev/null; then
