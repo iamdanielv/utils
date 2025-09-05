@@ -399,11 +399,14 @@ test_ssh_connection() {
     # -o BatchMode=yes: Never ask for passwords. Fails if one is needed.
     # -o ConnectTimeout=10: Fail if connection is not established in 10 seconds.
     # 'exit' is a simple command that immediately closes the connection.
-    if ! run_with_spinner "Testing connection to '${host_to_test}'..." \
+    if run_with_spinner "Testing connection to '${host_to_test}'..." \
         ssh -o BatchMode=yes -o ConnectTimeout=10 "${host_to_test}" 'exit'
     then
-        # run_with_spinner already prints the error details from ssh.
-        # We can add a helpful hint here.
+        # remove the spinner output to reduce visual clutter
+        clear_lines_up 1
+        printOkMsg "Connection to '${host_to_test}' was ${BG_GREEN}${C_BLACK} successful ${T_RESET}"
+    else
+        # run_with_spinner prints the error details from ssh
         printInfoMsg "Check your SSH config, network, firewall rules, and ensure your public key is on the server."
     fi
 }
