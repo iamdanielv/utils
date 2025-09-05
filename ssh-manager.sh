@@ -757,6 +757,70 @@ clone_ssh_host() {
     printOkMsg "Host '${host_to_clone}' successfully cloned to '${new_alias}'."
 }
 
+# Renames an SSH host alias and optionally its associated key file.
+rename_ssh_host() {
+    printBanner "Rename SSH Host Alias"
+
+    local host_to_rename
+    host_to_rename=$(select_ssh_host "Select a host to rename:")
+    [[ $? -ne 0 ]] && return # select_ssh_host prints messages
+
+    local new_alias
+    while true; do
+        prompt_for_input "Enter the new alias for '${host_to_rename}'" new_alias || return
+
+        if [[ "$new_alias" == "$host_to_rename" ]]; then
+            printInfoMsg "The new alias is the same as the old one. No changes made."
+            return
+        fi
+
+        # Check if new host alias already exists
+        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${new_alias}\s*$" "$SSH_CONFIG_PATH"; then
+            printErrMsg "Host alias '${new_alias}' already exists. Please choose another."
+        else
+            break # Alias is unique, exit loop
+        fi
+    done
+
+    # --- Config Block Modification ---
+    local original_block
+    original_block=$(_get_host_block_from_config "$host_to_rename" "$SSH_CONFIG_PATH")
+    if [[ -z "$original_block" ]]; then
+        printErrMsg "Could not find configuration block for '${host_to_rename}'."
+        return 1
+    fi
+
+    # Create a new block with the 'Host' line updated.
+    local new_block
+    new_block=$(printf '%s' "$original_block" | sed -E "s/^[[:space:]]*[Hh]ost[[:space:]].*/Host ${new_alias}/")
+
+    # --- Key File Renaming Logic ---
+    local old_key_path_convention="${SSH_DIR}/${host_to_rename}_id_ed25519"
+    local new_key_path_convention="${SSH_DIR}/${new_alias}_id_ed25519"
+    local current_identity_file; current_identity_file=$(get_ssh_config_value "$host_to_rename" "IdentityFile")
+    local expanded_identity_file="${current_identity_file/#\~/$HOME}"
+
+    # Check if a conventionally named key exists AND it's the one being used in the config.
+    if [[ -f "$old_key_path_convention" && "$expanded_identity_file" == "$old_key_path_convention" ]]; then
+        if prompt_yes_no "Found associated key file. Rename it to match the new alias?" "y"; then
+            if [[ -f "$new_key_path_convention" ]]; then
+                printErrMsg "Cannot rename key: target file '${new_key_path_convention}' already exists."
+            elif run_with_spinner "Renaming key files..." mv "$old_key_path_convention" "$new_key_path_convention" && mv "${old_key_path_convention}.pub" "${new_key_path_convention}.pub"; then
+                # Update the IdentityFile path in the new config block.
+                new_block=$(printf '%s' "$new_block" | sed -E "s|([[:space:]]*IdentityFile[[:space:]]+).*|\1${new_key_path_convention}|")
+            else
+                printErrMsg "Failed to rename key files. The host alias was not changed."
+                return 1 # Abort the whole operation
+            fi
+        fi
+    fi
+
+    # --- Finalize Config Update ---
+    local config_without_host; config_without_host=$(_remove_host_block_from_config "$host_to_rename")
+    echo -e "${config_without_host}\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
+    printOkMsg "Host '${host_to_rename}' successfully renamed to '${new_alias}'."
+}
+
 # (Private) Checks for and offers to remove orphaned key files associated with a host.
 # This is typically called after a host has been removed from the config.
 # It looks for a key with the conventional name format: <host_alias>_id_ed25519.
@@ -766,7 +830,7 @@ _cleanup_orphaned_key_for_host() {
 
     local key_file_private="${SSH_DIR}/${host_alias}_id_ed25519"
     if [[ -f "$key_file_private" ]]; then
-        if prompt_yes_no "Found associated key file. Remove it and its .pub file?" "n"; then
+        if prompt_yes_no "Found associated key file '${key_file_private}'. Remove it and its .pub file?" "n"; then
             rm -f "${key_file_private}" "${key_file_private}.pub"
             printOkMsg "Removed key files."
         fi
@@ -1137,6 +1201,7 @@ advanced_menu() {
         local -a menu_options=(
             "Open SSH config in editor"
             "Edit host block in editor"
+            "Rename a host alias"
             "Clone an existing host"
             "Backup SSH config"
             "Export hosts to a file"
@@ -1158,6 +1223,7 @@ advanced_menu() {
             fi
             ;;
         "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
+        "Rename a host alias") run_menu_action rename_ssh_host ;;
         "Clone an existing host") run_menu_action clone_ssh_host ;;
         "Backup SSH config") run_menu_action backup_ssh_config ;;
         "Export hosts to a file") run_menu_action export_ssh_hosts ;;
