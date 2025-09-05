@@ -297,15 +297,16 @@ add_ssh_host() {
 
     local host_alias host_name user identity_file
 
-    prompt_for_input "Enter a short alias for the host (e.g., 'prod-server')" host_alias || return
+    while true; do
+        prompt_for_input "Enter a short alias for the host (e.g., 'prod-server')" host_alias || return
 
-    # Check if host alias already exists
-    if [[ -f "$SSH_CONFIG_PATH" ]]; then
-        if grep -q -E "^\s*Host\s+${host_alias}\s*$" "$SSH_CONFIG_PATH"; then
-            printErrMsg "Host alias '${host_alias}' already exists in your SSH config."
-            return 1 # This is an actual error state, not a cancellation.
+        # Check if host alias already exists
+        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${host_alias}\s*$" "$SSH_CONFIG_PATH"; then
+            printErrMsg "Host alias '${host_alias}' already exists. Please choose another."
+        else
+            break # Alias is unique, exit loop
         fi
-    fi
+    done
 
     prompt_for_input "Enter the HostName (IP address or FQDN)" host_name || return
     prompt_for_input "Enter the remote User" user "${USER}" || return
