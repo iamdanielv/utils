@@ -1086,10 +1086,12 @@ test_all_ssh_connections() {
 
     # Final summary line
     echo
-    local summary_msg="Summary: ${C_L_GREEN}${success_count} successful${T_RESET}, ${C_L_RED}${failure_count} failed${T_RESET}."
+    local summary_msg
     if (( failure_count > 0 )); then
+        summary_msg="Summary: ${C_L_GREEN}${success_count} successful${T_RESET}, ${C_L_RED}${failure_count} failed${T_RESET}."
         printErrMsg "$summary_msg"
     else
+        summary_msg="Summary: ${C_L_GREEN}${success_count} successful${T_RESET}, ${C_GRAY}${failure_count} failed${T_RESET}."
         printOkMsg "$summary_msg"
     fi
 }
