@@ -321,66 +321,63 @@ add_ssh_host() {
     esac
 }
 
-# (Private) Reads the SSH config and prints a new version with a specified host block removed.
-# Used for both removing and editing hosts.
-# Usage:
-#   local new_config
-#   new_config=$(_remove_host_block_from_config "my-host")
-#   echo "$new_config" > "$SSH_CONFIG_PATH"
-_remove_host_block_from_config() {
-    local host_to_remove="$1"
+# (Private) Generic function to process an SSH config file, filtering host blocks.
+# It can either keep only the matching block or remove it and keep everything else.
+# Usage: _process_ssh_config_blocks <target_host> <config_file> <mode>
+#   mode: 'keep' - prints only the block matching the target_host.
+#   mode: 'remove' - prints the entire file except for the matching block.
+_process_ssh_config_blocks() {
+    local target_host="$1"
+    local config_file="$2"
+    local mode="$3" # 'keep' or 'remove'
 
-    # This awk script processes the config line-by-line to robustly identify and
-    # remove the correct host block, even with non-standard formatting.
-    # It is more reliable than using blank lines as a record separator.
-    awk -v host_to_remove="$host_to_remove" '
-        # Function to print the buffered block if it is not the target.
+    if [[ "$mode" != "keep" && "$mode" != "remove" ]]; then
+        printErrMsg "Invalid mode '${mode}' for _process_ssh_config_blocks" >&2
+        return 1
+    fi
+
+    awk -v target_host="$target_host" -v mode="$mode" '
+        # Flushes the buffered block based on whether it matches the target and the desired mode.
         function flush_block() {
-            if (block != "" && !is_target_block) {
-                # Use printf to avoid adding an extra trailing newline.
-                printf "%s\n", block
+            if (block != "") {
+                if ((mode == "keep" && is_target_block) || (mode == "remove" && !is_target_block)) {
+                    printf "%s\n", block
+                }
             }
         }
 
         # Match a new Host block definition.
-        # The regex is for a line starting with optional whitespace, then "Host"
-        # (case-insensitive), then more whitespace.
         /^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/ {
-            # A new block starts, so flush the previously buffered one.
-            flush_block()
+            flush_block() # Flush the previous block.
 
             # Reset state for the new block.
             block = $0
             is_target_block = 0
 
-            # Check if this new block is the one we want to remove.
-            # Create a temporary string containing just the host patterns.
+            # Check if this new block is the one we are looking for.
             line_content = $0
             sub(/^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/, "", line_content)
-
-            # Split the patterns by whitespace to check each one individually.
             n = split(line_content, patterns, /[ \t]+/)
             for (i = 1; i <= n; i++) {
-                # Stop checking at comments.
                 if (patterns[i] ~ /^#/) break
-                if (patterns[i] == host_to_remove) {
+                if (patterns[i] == target_host) {
                     is_target_block = 1
                     break
                 }
             }
-            # Continue to the next line of the input file.
             next
         }
 
         # For any other line (part of a block, a comment, or a blank line):
         {
-            # If we are inside a block, append the line.
             if (block != "") {
                 block = block "\n" $0
             } else {
-                # If we are not in a block, it means this is content
-                # before the first Host definition. Print it directly.
-                print $0
+                # This is content before the first Host definition.
+                # It is never a target block, so print it only in "remove" mode.
+                if (mode == "remove") {
+                    print $0
+                }
             }
         }
 
@@ -388,44 +385,27 @@ _remove_host_block_from_config() {
         END {
             flush_block()
         }
-    ' "$SSH_CONFIG_PATH"
+    ' "$config_file"
 }
 
-# (Private) Reads an SSH config file and prints the block for a specific host.
+# (Private) Reads the SSH config and returns a new version with a specified host block removed.
+# Usage:
+#   local new_config
+#   new_config=$(_remove_host_block_from_config "my-host")
+#   echo "$new_config" > "$SSH_CONFIG_PATH"
+_remove_host_block_from_config() {
+    local host_to_remove="$1"
+    _process_ssh_config_blocks "$host_to_remove" "$SSH_CONFIG_PATH" "remove"
+}
+
+# (Private) Reads an SSH config file and returns the block for a specific host.
 # Usage:
 #   local block
 #   block=$(_get_host_block_from_config "my-host" "/path/to/config")
 _get_host_block_from_config() {
     local host_to_find="$1"
     local config_file="$2"
-
-    # This awk script is similar to _remove_host_block_from_config, but it
-    # prints the block that IS the target.
-    awk -v host_to_find="$host_to_find" '
-        function flush_block() {
-            if (block != "" && is_target_block) {
-                printf "%s\n", block
-            }
-        }
-        /^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/ {
-            flush_block()
-            block = $0
-            is_target_block = 0
-            line_content = $0
-            sub(/^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/, "", line_content)
-            n = split(line_content, patterns, /[ \t]+/)
-            for (i = 1; i <= n; i++) {
-                if (patterns[i] ~ /^#/) break
-                if (patterns[i] == host_to_find) {
-                    is_target_block = 1
-                    break
-                }
-            }
-            next
-        }
-        { if (block != "") { block = block "\n" $0 } }
-        END { flush_block() }
-    ' "$config_file"
+    _process_ssh_config_blocks "$host_to_find" "$config_file" "keep"
 }
 
 # Edits an existing host in the SSH config.
