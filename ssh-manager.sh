@@ -493,7 +493,7 @@ main() {
         print_usage; exit 0
     fi
 
-    prereq_checks "ssh" "ssh-keygen" "ssh-copy-id" "awk" "cat" "grep" "tac" "rm" "mktemp" "cp" "date"
+    prereq_checks "ssh" "ssh-keygen" "ssh-copy-id" "awk" "cat" "grep" "rm" "mktemp" "cp" "date"
 
     # Ensure SSH directory and config file exist with correct permissions
     mkdir -p "$SSH_DIR"; chmod 700 "$SSH_DIR"
