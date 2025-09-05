@@ -42,7 +42,7 @@ export T_INFO_ICON="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
 export T_WARN_ICON="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
 export T_QST_ICON="[${T_BOLD}${C_L_CYAN}?${T_RESET}]"
 
-export DIV="-------------------------------------------------------------------------------"
+export DIV="──────────────────────────────────────────────────────────────────────"
 
 # Key Codes
 export KEY_ESC=$'\e'
@@ -545,12 +545,13 @@ interactive_multi_select_menu() {
     trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
 
     # Initial draw: Print static header once, then the dynamic options.
+    echo -e "${C_GRAY}(Use ${C_L_CYAN}↑↓${C_GRAY} to navigate, ${C_L_CYAN}space${C_GRAY} to select, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
     echo -e "${T_QST_ICON} ${prompt}" >/dev/tty
-    echo -e "    ${C_WHITE}(Use ${C_L_CYAN}↑ ↓${C_WHITE} to navigate, ${C_L_CYAN}space${C_WHITE} to select, ${C_L_GREEN}enter${C_WHITE} to confirm, ${C_L_YELLOW}q/esc${C_WHITE} to cancel)${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}${DIV}${T_RESET}" >/dev/tty
     _draw_menu_options >/dev/tty
 
     local key
-    local menu_height=$((num_options + 2)) # +2 for prompt and help line
+    local menu_height=$((num_options + 3)) # +3 for help, prompt, and divider
 
     while true; do
         # Move cursor up to the start of the options list for redraw
@@ -682,12 +683,13 @@ interactive_single_select_menu() {
     trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
 
     # Initial draw: Print static header once, then the dynamic options.
+    echo -e "${C_GRAY}(Use ${C_L_CYAN}↑↓${C_GRAY} to navigate, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
     echo -e "${T_QST_ICON} ${prompt}" >/dev/tty
-    echo -e "    ${C_WHITE}(Use ${C_L_CYAN}↑ ↓${C_WHITE} to navigate, ${C_L_GREEN}enter${C_WHITE} to confirm, ${C_L_YELLOW}q/esc${C_WHITE} to cancel)${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}${DIV}${T_RESET}" >/dev/tty
     _draw_menu_options >/dev/tty
 
     local key
-    local menu_height=$((num_options + 2))
+    local menu_height=$((num_options + 3))
 
     while true; do
         # Move cursor up to the start of the options list for redraw
@@ -699,13 +701,13 @@ interactive_single_select_menu() {
             "$KEY_DOWN"|"j") current_option=$(( (current_option + 1) % num_options ));;
             "$KEY_ENTER")
                 clear_lines_down "$menu_height"
-                clear_lines_up 2
+                clear_lines_up 3
                 echo "$current_option"
                 return 0
                 ;;
             "$KEY_ESC"|"q")
                 clear_lines_down "$menu_height"
-                clear_lines_up 2
+                clear_lines_up 3
                 return 1
                 ;;
         esac
