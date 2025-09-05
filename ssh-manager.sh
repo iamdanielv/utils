@@ -906,7 +906,7 @@ export_ssh_hosts() {
     prompt_for_input "Enter path for export file" export_file "ssh_hosts_export.conf"
 
     # Clear the file or create it
-    > "$export_file"
+    true > "$export_file"
 
     printInfoMsg "Exporting ${#hosts_to_export[@]} host(s)..."
     for host in "${hosts_to_export[@]}"; do
