@@ -195,23 +195,15 @@ copy_ssh_id() {
 copy_ssh_id_for_host() {
     local host_alias="$1"
     local key_file="$2"
-
-    local user
-    user=$(get_ssh_config_value "$host_alias" "User")
-    local hostname
-    hostname=$(get_ssh_config_value "$host_alias" "HostName")
-
-    if [[ -z "$user" || -z "$hostname" ]]; then
-        printErrMsg "Could not find User and HostName for '${host_alias}' in your SSH config."
-        printInfoMsg "Please ensure the entry for '${host_alias}' has 'User' and 'HostName' directives."
-        return 1
-    fi
-
-    printInfoMsg "Attempting to copy key to ${user}@${hostname}..."
-    printMsg "You may be prompted for the password for '${user}' on the remote server."
+    
+    # By using the host_alias directly, ssh-copy-id will respect all settings
+    # in the ~/.ssh/config file for that host, including User, HostName, and Port.
+    # This is more robust than manually extracting values.
+    printInfoMsg "Attempting to copy key to '${host_alias}'..."
+    printMsg "You may be prompted for the password for the remote user."
 
     # ssh-copy-id is interactive, so we run it directly in the foreground.
-    if ssh-copy-id -i "$key_file" "${user}@${hostname}"; then
+    if ssh-copy-id -i "$key_file" "$host_alias"; then
         printOkMsg "Key successfully copied to '${host_alias}'."
     else
         printErrMsg "Failed to copy key to '${host_alias}'."
@@ -349,12 +341,15 @@ _prompt_for_host_details() {
     local -n out_alias="$1"
     local -n out_hostname="$2"
     local -n out_user="$3"
-    local default_hostname="${4:-}"
-    local default_user="${5:-$USER}"
+    local -n out_port="$4"
+    local default_hostname="${5:-}"
+    local default_user="${6:-$USER}"
+    local default_port="${7:-22}"
 
     _prompt_for_unique_host_alias out_alias "Enter a short alias for the host (e.g., 'prod-server')" || return 1
     prompt_for_input "Enter the HostName (IP address or FQDN)" out_hostname "$default_hostname" || return 1
     prompt_for_input "Enter the remote User" out_user "$default_user" || return 1
+    prompt_for_input "Enter the Port" out_port "$default_port" || return 1
 
     return 0
 }
@@ -470,7 +465,8 @@ _append_host_to_config() {
     local host_alias="$1"
     local host_name="$2"
     local user="$3"
-    local identity_file="${4:-}"
+    local port="$4"
+    local identity_file="${5:-}"
 
     # Use a subshell and a here-document for cleaner block creation.
     (
@@ -478,6 +474,9 @@ _append_host_to_config() {
         echo "Host ${host_alias}"
         echo "    HostName ${host_name}"
         echo "    User ${user}"
+        if [[ -n "$port" && "$port" != "22" ]]; then
+            echo "    Port ${port}"
+        fi
         if [[ -n "$identity_file" ]]; then
             echo "    IdentityFile ${identity_file}"
             echo "    IdentitiesOnly yes"
@@ -495,8 +494,8 @@ _append_host_to_config() {
 add_ssh_host() {
     printBanner "Add New SSH Host"
 
-    local host_alias host_name user identity_file
-    local default_hostname="" default_user="${USER}" default_identity_file=""
+    local host_alias host_name user port identity_file
+    local default_hostname="" default_user="${USER}" default_port="22" default_identity_file=""
     local host_to_clone=""
 
     # --- Step 1: Choose to create from scratch or clone ---
@@ -515,11 +514,12 @@ add_ssh_host() {
         printInfoMsg "Cloning settings from '${C_L_CYAN}${host_to_clone}${T_RESET}'."
         default_hostname=$(get_ssh_config_value "$host_to_clone" "HostName")
         default_user=$(get_ssh_config_value "$host_to_clone" "User")
+        default_port=$(get_ssh_config_value "$host_to_clone" "Port")
         default_identity_file=$(get_ssh_config_value "$host_to_clone" "IdentityFile")
     fi
 
     # --- Step 2: Get host details ---
-    if ! _prompt_for_host_details host_alias host_name user "$default_hostname" "$default_user"; then
+    if ! _prompt_for_host_details host_alias host_name user port "$default_hostname" "$default_user" "${default_port:-22}"; then
         # _prompt_for_host_details prints cancellation message
         return
     fi
@@ -530,18 +530,19 @@ add_ssh_host() {
         return
     fi
 
+    # --- Step 4: Write to config file FIRST ---
+    # This ensures the host exists for subsequent actions like ssh-copy-id.
+    _append_host_to_config "$host_alias" "$host_name" "$user" "$port" "$identity_file"
+
     # --- Step 3.5: Ask to copy the key (if one was selected/created) ---
     if [[ -n "$identity_file" ]]; then
         # Default to 'y' if a new key was generated, 'n' otherwise.
         local default_copy="n"
         [[ "${add_options[$add_choice_idx]}" == "Create a new host from scratch" ]] && default_copy="y"
         if prompt_yes_no "Do you want to copy the public key to the server now?" "$default_copy"; then
-            copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
+            copy_ssh_id_for_host "$host_alias" "${identity_file}.pub" # This will now work as the host exists
         fi
     fi
-
-    # --- Step 4: Write to config ---
-    _append_host_to_config "$host_alias" "$host_name" "$user" "$identity_file"
 
     # --- Step 5: Post-creation actions ---
     if prompt_yes_no "Do you want to test the connection to '${host_alias}' now?" "y"; then
