@@ -291,6 +291,33 @@ prompt_for_input() {
     done
 }
 
+# (Private) Prompts for a new, unique SSH host alias.
+# It allows the user to re-enter the same alias when renaming, which is treated as a no-op.
+# Uses a nameref to return the value.
+# Usage: _prompt_for_unique_host_alias alias_var [prompt_text] [old_alias_to_allow]
+# Returns 0 on success, 1 on cancellation.
+_prompt_for_unique_host_alias() {
+    local -n out_alias_var="$1"
+    local prompt_text="${2:-Enter a short alias for the host}"
+    local old_alias_to_allow="${3:-}"
+
+    while true; do
+        prompt_for_input "$prompt_text" out_alias_var || return 1
+
+        # If renaming and the user entered the old name, it's a valid "no-op" choice.
+        if [[ -n "$old_alias_to_allow" && "$out_alias_var" == "$old_alias_to_allow" ]]; then
+            return 0
+        fi
+
+        # Check if host alias already exists in the main config file.
+        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${out_alias_var}\s*$" "$SSH_CONFIG_PATH"; then
+            printErrMsg "Host alias '${out_alias_var}' already exists. Please choose another."
+        else
+            return 0 # Alias is unique, success
+        fi
+    done
+}
+
 # (Private) Prompts the user for the core details of a new SSH host.
 # It handles validating the alias is unique and uses namerefs to return values.
 # Usage: _prompt_for_host_details host_alias_var host_name_var user_var [default_hostname] [default_user]
@@ -302,17 +329,7 @@ _prompt_for_host_details() {
     local default_hostname="${4:-}"
     local default_user="${5:-$USER}"
 
-    while true; do
-        prompt_for_input "Enter a short alias for the host (e.g., 'prod-server')" out_alias || return 1
-
-        # Check if host alias already exists
-        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${out_alias}\s*$" "$SSH_CONFIG_PATH"; then
-            printErrMsg "Host alias '${out_alias}' already exists. Please choose another."
-        else
-            break # Alias is unique, exit loop
-        fi
-    done
-
+    _prompt_for_unique_host_alias out_alias "Enter a short alias for the host (e.g., 'prod-server')" || return 1
     prompt_for_input "Enter the HostName (IP address or FQDN)" out_hostname "$default_hostname" || return 1
     prompt_for_input "Enter the remote User" out_user "$default_user" || return 1
 
@@ -606,8 +623,6 @@ edit_ssh_host() {
     [[ $? -ne 0 ]] && return
 
     printInfoMsg "Editing configuration for: ${C_L_CYAN}${host_to_edit}${T_RESET}"
-    printWarnMsg "This guided edit only preserves HostName, User, and IdentityFile."
-    printWarnMsg "For advanced edits of all fields, use 'Edit host block in editor'."
     printMsg "${C_L_GRAY}(Press Enter to keep the current value)${T_RESET}"
 
     # Get current values to use as defaults in prompts
@@ -729,16 +744,7 @@ clone_ssh_host() {
     [[ $? -ne 0 ]] && return # select_ssh_host prints messages
 
     local new_alias
-    while true; do
-        prompt_for_input "Enter the new alias for the cloned host" new_alias || return
-
-        # Check if host alias already exists
-        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${new_alias}\s*$" "$SSH_CONFIG_PATH"; then
-            printErrMsg "Host alias '${new_alias}' already exists. Please choose another."
-        else
-            break # Alias is unique, exit loop
-        fi
-    done
+    _prompt_for_unique_host_alias new_alias "Enter the new alias for the cloned host" || return
 
     local original_block
     original_block=$(_get_host_block_from_config "$host_to_clone" "$SSH_CONFIG_PATH")
@@ -767,22 +773,13 @@ rename_ssh_host() {
     host_to_rename=$(select_ssh_host "Select a host to rename:")
     [[ $? -ne 0 ]] && return # select_ssh_host prints messages
 
-    local new_alias
-    while true; do
-        prompt_for_input "Enter the new alias for '${host_to_rename}'" new_alias || return
+    local new_alias; new_alias="$host_to_rename" # Default to old name for the prompt
+    _prompt_for_unique_host_alias new_alias "Enter the new alias for '${host_to_rename}'" "$host_to_rename" || return
 
-        if [[ "$new_alias" == "$host_to_rename" ]]; then
-            printInfoMsg "The new alias is the same as the old one. No changes made."
-            return
-        fi
-
-        # Check if new host alias already exists
-        if [[ -f "$SSH_CONFIG_PATH" ]] && grep -q -E "^\s*Host\s+${new_alias}\s*$" "$SSH_CONFIG_PATH"; then
-            printErrMsg "Host alias '${new_alias}' already exists. Please choose another."
-        else
-            break # Alias is unique, exit loop
-        fi
-    done
+    if [[ "$new_alias" == "$host_to_rename" ]]; then
+        printInfoMsg "The new alias is the same as the old one. No changes made."
+        return
+    fi
 
     # --- Config Block Modification ---
     local original_block
