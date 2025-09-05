@@ -417,7 +417,7 @@ edit_ssh_host() {
     [[ $? -ne 0 ]] && return
 
     printInfoMsg "Editing configuration for: ${C_L_CYAN}${host_to_edit}${T_RESET}"
-    printMsg "${C_GRAY}(Press Enter to keep the current value)${T_RESET}"
+    printMsg "${C_L_GRAY}(Press Enter to keep the current value)${T_RESET}"
 
     # Get current values to use as defaults in prompts
     local current_hostname
@@ -457,6 +457,66 @@ edit_ssh_host() {
     echo "${config_without_host}${new_host_block}" | cat -s > "$SSH_CONFIG_PATH"
 
     printOkMsg "Host '${host_to_edit}' has been updated."
+}
+
+# Allows advanced editing of a host's config block directly in $EDITOR.
+edit_ssh_host_in_editor() {
+    printBanner "Edit Host Block in Editor"
+
+    local host_to_edit
+    host_to_edit=$(select_ssh_host "Select a host to edit:")
+    [[ $? -ne 0 ]] && return # select_ssh_host prints messages
+
+    # Get the original block content
+    local original_block
+    original_block=$(_get_host_block_from_config "$host_to_edit" "$SSH_CONFIG_PATH")
+
+    if [[ -z "$original_block" ]]; then
+        printErrMsg "Could not find a configuration block for '${host_to_edit}'."
+        return 1
+    fi
+
+    # Create a temporary file to hold the block for editing
+    local temp_file
+    temp_file=$(mktemp)
+    # Ensure temp file is cleaned up on exit or interrupt
+    trap 'rm -f "$temp_file"' RETURN
+
+    echo "$original_block" > "$temp_file"
+
+    # Determine the editor to use
+    local editor="${EDITOR:-nvim}"
+    if ! command -v "${editor}" &>/dev/null; then
+        printErrMsg "Editor '${editor}' not found. Please set the EDITOR environment variable."
+        return 1
+    fi
+
+    printInfoMsg "Opening '${host_to_edit}' in '${editor}'..."
+    printInfoMsg "(Save and close the editor to apply changes,\n    or exit without saving to cancel)"
+    # Give the user a moment to read the message before launching the editor.
+    prompt_to_continue
+
+    # clear out the instructions
+    clear_lines_up 3
+    # Open the temp file in the editor. This is a blocking call.
+    "${editor}" "$temp_file"
+
+    # Read the potentially modified content
+    local new_block
+    new_block=$(<"$temp_file")
+
+    # Compare the new content with the original.
+    if [[ "$new_block" == "$original_block" ]]; then
+        printInfoMsg "No changes detected. Configuration for '${host_to_edit}' remains unchanged."
+        return
+    fi
+
+    # Get the config content without the old host block and append the new one
+    local config_without_host
+    config_without_host=$(_remove_host_block_from_config "$host_to_edit")
+    echo -e "${config_without_host}\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
+
+    printOkMsg "Host '${host_to_edit}' has been updated from editor."
 }
 
 # Removes a host entry from the SSH config file.
@@ -674,6 +734,7 @@ main_loop() {
         "Test connection to a server"
         "Add a new server"
         "Edit a server's configuration"
+        "Edit host block in editor"
         "Remove a server"
         "Copy an SSH key to a server"
         "Open SSH config in editor"
@@ -705,6 +766,7 @@ main_loop() {
         "Test connection to a server") run_menu_action test_ssh_connection ;;
         "Add a new server") run_menu_action add_ssh_host ;;
         "Edit a server's configuration") run_menu_action edit_ssh_host ;;
+        "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
         "Remove a server") run_menu_action remove_ssh_host ;;
         "Copy an SSH key to a server") run_menu_action copy_ssh_id ;;
         "Open SSH config in editor")
