@@ -19,10 +19,13 @@ readonly SSH_CONFIG_PATH="${SSH_DIR}/config"
 
 print_usage() {
     printBanner "SSH Connection Manager"
-    printMsg "An interactive TUI to manage and connect to SSH hosts defined in ${SSH_CONFIG_PATH}."
+    printMsg "An interactive TUI to manage and connect to SSH hosts in:\n ${C_L_BLUE}${SSH_CONFIG_PATH}${T_RESET}"
     printMsg "\n${T_ULINE}Usage:${T_RESET}"
-    printMsg "  $(basename "$0") [-h]"
-    printMsg "\nThis script is fully interactive. Just run it without arguments."
+    printMsg "  $(basename "$0") [option]"
+    printMsg "\nThis script is fully interactive.\nRun without arguments to launch the main menu."
+    printMsg "\n${T_ULINE}Options:${T_RESET}"
+    printMsg "  ${C_L_BLUE}-c, --connect${T_RESET}  Go directly to host selection for connecting"
+    printMsg "  ${C_L_BLUE}-h, --help${T_RESET}     Show this help message"
 }
 
 # Parses the SSH config file to extract host aliases.
@@ -1267,6 +1270,20 @@ advanced_menu() {
     _run_submenu "Advanced Tools" ordered_options actions_map
 }
 
+# Bypasses the main menu and goes directly to the host selection for a direct connection.
+direct_connect() {
+    local selected_host
+    selected_host=$(select_ssh_host "Select a host to connect to:")
+    if [[ $? -eq 0 ]]; then
+        # Replace the script process with the ssh client.
+        exec ssh "$selected_host"
+    fi
+    # If selection is cancelled, the script will just exit.
+    # select_ssh_host prints a cancellation message, so we exit with a non-zero status
+    # to indicate the requested action was not completed.
+    exit 1
+}
+
 # Main application loop.
 main_loop() {
     while true; do
@@ -1296,12 +1313,32 @@ main_loop() {
 }
 
 main() {
-    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-        print_usage; exit 0
+    # Handle flags first
+    if [[ $# -gt 0 ]]; then
+        case "$1" in
+            -h|--help)
+                print_usage
+                exit 0
+                ;;
+            -c|--connect)
+                # Prereqs for connect mode
+                prereq_checks "ssh" "awk" "grep"
+                mkdir -p "$SSH_DIR"; chmod 700 "$SSH_DIR"
+                touch "$SSH_CONFIG_PATH"; chmod 600 "$SSH_CONFIG_PATH"
+                direct_connect
+                # direct_connect either execs or exits, so we shouldn't get here.
+                exit 1
+                ;;
+            *)
+                printErrMsg "Unknown option: $1"
+                print_usage
+                exit 1
+                ;;
+        esac
     fi
 
+    # Default interactive mode (no flags)
     prereq_checks "ssh" "ssh-keygen" "ssh-copy-id" "awk" "cat" "grep" "rm" "mktemp" "cp" "date"
-
     # Ensure SSH directory and config file exist with correct permissions
     mkdir -p "$SSH_DIR"; chmod 700 "$SSH_DIR"
     touch "$SSH_CONFIG_PATH"; chmod 600 "$SSH_CONFIG_PATH"
