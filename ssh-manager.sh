@@ -429,9 +429,19 @@ edit_ssh_host() {
 
     # Prompt for new values
     local new_hostname new_user new_identityfile
-    prompt_for_input "HostName" new_hostname "$current_hostname"
-    prompt_for_input "User" new_user "$current_user"
-    prompt_for_input "IdentityFile (optional, leave blank to remove)" new_identityfile "$current_identityfile" "true"
+    prompt_for_input "HostName" new_hostname "$current_hostname" || return
+    prompt_for_input "User" new_user "$current_user" || return
+    prompt_for_input "IdentityFile (optional, leave blank to remove)" new_identityfile "$current_identityfile" "true" || return
+
+    # Validate the IdentityFile path if one was provided.
+    if [[ -n "$new_identityfile" ]]; then
+        # Expand tilde (~) to the user's home directory for path validation.
+        local expanded_identityfile="${new_identityfile/#\~/$HOME}"
+        if [[ ! -f "$expanded_identityfile" ]]; then
+            printErrMsg "The specified IdentityFile does not exist: ${new_identityfile}"
+            return 1 # Return to the main menu
+        fi
+    fi
 
     # Get the config content without the old host block
     local config_without_host
