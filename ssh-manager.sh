@@ -319,12 +319,66 @@ _prompt_for_host_details() {
     return 0
 }
 
+# (Private) Handles the logic for generating a new dedicated key for a host.
+# Returns the path to the new key via a nameref.
+# Usage: _generate_and_get_dedicated_key identity_file_var host_alias user host_name
+# Returns 0 on success, 1 on cancellation/failure.
+_generate_and_get_dedicated_key() {
+    local -n out_identity_file="$1"
+    local host_alias="$2"
+    local user="$3"
+    local host_name="$4"
+
+    local new_key_path="${SSH_DIR}/${host_alias}_id_ed25519"
+    local should_generate=true
+    if [[ -f "$new_key_path" ]]; then
+        prompt_yes_no "Key file '${new_key_path}' already exists. Overwrite it?" "n"
+        local overwrite_choice=$?
+        if [[ $overwrite_choice -eq 1 ]]; then # No
+            should_generate=false
+            printInfoMsg "Using existing key file: ${new_key_path}"
+        elif [[ $overwrite_choice -eq 2 ]]; then # Cancel
+            return 1
+        fi
+    fi
+
+    if [[ "$should_generate" == "true" ]]; then
+        run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
+            ssh-keygen -t ed25519 -f "$new_key_path" -N "" -C "${user}@${host_name}" || return 1
+    fi
+
+    out_identity_file="$new_key_path"
+    return 0
+}
+
+# (Private) Handles the logic for selecting an existing key.
+# Returns the path to the selected key via a nameref.
+# Usage: _select_and_get_existing_key identity_file_var
+# Returns 0 on success, 1 on cancellation/failure.
+_select_and_get_existing_key() {
+    local -n out_identity_file="$1"
+    local -a pub_keys
+    mapfile -t pub_keys < <(find "$SSH_DIR" -maxdepth 1 -type f -name "*.pub")
+    if [[ ${#pub_keys[@]} -eq 0 ]]; then
+        printErrMsg "No existing SSH keys (.pub files) found in ${SSH_DIR}."
+        return 1
+    fi
+
+    local -a private_key_paths
+    for pub_key in "${pub_keys[@]}"; do private_key_paths+=("${pub_key%.pub}"); done
+
+    local key_idx
+    key_idx=$(interactive_single_select_menu "Select the private key to use:" "${private_key_paths[@]}") || return 1
+    out_identity_file="${private_key_paths[$key_idx]}"
+    return 0
+}
+
 # (Private) Manages the SSH key selection and creation process for a new host.
 # It returns the path to the selected/created IdentityFile via a nameref.
 # It also handles the post-creation action of copying the key to the server.
 # Usage: _handle_ssh_key_for_new_host identity_file_var host_alias host_name user [cloned_host] [cloned_key_path]
 # Returns 0 on success, 1 on cancellation/failure.
-_handle_ssh_key_for_new_host() {
+_get_identity_file_for_new_host() {
     local -n out_identity_file="$1"
     local host_alias="$2"
     local host_name="$3"
@@ -352,57 +406,16 @@ _handle_ssh_key_for_new_host() {
     case "$selected_key_option" in
         "Use same key as "*) # Use a glob to match the dynamic part
             out_identity_file="$cloned_key_path"
-            prompt_yes_no "Do you want to copy the public key '${out_identity_file}.pub' to the server now?" "n"
-            if [[ $? -eq 0 ]]; then
-                copy_ssh_id_for_host "$host_alias" "${out_identity_file}.pub"
-            fi
             ;;
         "Generate a new dedicated key (ed25519) for this host")
-            local new_key_path="${SSH_DIR}/${host_alias}_id_ed25519"
-            local should_generate=true
-            if [[ -f "$new_key_path" ]]; then
-                prompt_yes_no "Key file '${new_key_path}' already exists. Overwrite it?" "n"
-                local overwrite_choice=$?
-                if [[ $overwrite_choice -eq 1 ]]; then # No
-                    should_generate=false
-                    printInfoMsg "Using existing key file: ${new_key_path}"
-                elif [[ $overwrite_choice -eq 2 ]]; then # Cancel
-                    return 1
-                fi
-            fi
-
-            if [[ "$should_generate" == "true" ]]; then
-                run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
-                    ssh-keygen -t ed25519 -f "$new_key_path" -N "" -C "${user}@${host_name}" || return 1
-            fi
-
-            out_identity_file="$new_key_path"
-            prompt_yes_no "Do you want to copy the new public key to the server now?" "y"
-            if [[ $? -eq 0 ]]; then
-                copy_ssh_id_for_host "$host_alias" "${out_identity_file}.pub"
-            fi
+            _generate_and_get_dedicated_key out_identity_file "$host_alias" "$user" "$host_name" || return 1
             ;;
         "Select an existing key")
-            local -a pub_keys
-            mapfile -t pub_keys < <(find "$SSH_DIR" -maxdepth 1 -type f -name "*.pub")
-            if [[ ${#pub_keys[@]} -eq 0 ]]; then
-                printErrMsg "No existing SSH keys (.pub files) found in ${SSH_DIR}."
+            _select_and_get_existing_key out_identity_file || {
+                # If it fails, provide a helpful message.
                 printInfoMsg "You can generate a key from the main menu first."
                 return 1
-            fi
-
-            local -a private_key_paths
-            for pub_key in "${pub_keys[@]}"; do private_key_paths+=("${pub_key%.pub}"); done
-
-            local key_idx
-            key_idx=$(interactive_single_select_menu "Select the private key to use:" "${private_key_paths[@]}")
-            if [[ $? -ne 0 ]]; then return 1; fi
-            out_identity_file="${private_key_paths[$key_idx]}"
-
-            prompt_yes_no "Do you want to copy the public key '${out_identity_file}.pub' to the server now?" "n"
-            if [[ $? -eq 0 ]]; then
-                copy_ssh_id_for_host "$host_alias" "${out_identity_file}.pub"
-            fi
+            }
             ;;
         "Do not specify a key (use SSH defaults)")
             # out_identity_file is already empty
@@ -472,9 +485,19 @@ add_ssh_host() {
     fi
 
     # --- Step 3: Handle SSH key ---
-    if ! _handle_ssh_key_for_new_host identity_file "$host_alias" "$host_name" "$user" "$host_to_clone" "$default_identity_file"; then
+    if ! _get_identity_file_for_new_host identity_file "$host_alias" "$host_name" "$user" "$host_to_clone" "$default_identity_file"; then
         printInfoMsg "Host creation cancelled during key selection."
         return
+    fi
+
+    # --- Step 3.5: Ask to copy the key (if one was selected/created) ---
+    if [[ -n "$identity_file" ]]; then
+        # Default to 'y' if a new key was generated, 'n' otherwise.
+        local default_copy="n"
+        [[ "${add_options[$add_choice_idx]}" == "Create a new host from scratch" ]] && default_copy="y"
+        if prompt_yes_no "Do you want to copy the public key to the server now?" "$default_copy"; then
+            copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
+        fi
     fi
 
     # --- Step 4: Write to config ---
