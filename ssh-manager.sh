@@ -192,30 +192,60 @@ copy_ssh_id_for_host() {
     fi
 }
 
-# Prompts for user input and assigns it to a variable.
+# An interactive prompt for user input that supports cancellation.
+# It reads input character-by-character to provide a responsive feel
+# and handles ESC for cancellation.
 # Usage: prompt_for_input "Prompt text" "variable_name" ["default_value"] ["allow_empty"]
+# Returns 0 on success (Enter), 1 on cancellation (ESC).
 prompt_for_input() {
     local prompt_text="$1"
     local -n var_ref="$2" # Use nameref to assign to caller's variable
     local default_val="${3:-}"
     local allow_empty="${4:-false}"
-    local input
 
     local prompt_suffix=""
     if [[ -n "$default_val" ]]; then
         prompt_suffix=" [${C_L_CYAN}${default_val}${T_RESET}]"
     fi
 
+    local input_str=""
+    local key
+
+    # Hide cursor during line editing and ensure it's restored on function exit.
+    printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
+    trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' RETURN
+
     while true; do
-        printMsgNoNewline "${T_QST_ICON} ${prompt_text}${prompt_suffix}: " >/dev/tty
-        read -r input </dev/tty
-        input=${input:-$default_val}
-        if [[ -n "$input" || "$allow_empty" == "true" ]]; then
-            var_ref="$input"
-            break
-        else
-            printErrMsg "This field cannot be empty." >/dev/tty
-        fi
+        # Draw the prompt and current input string.
+        clear_current_line >/dev/tty
+        printMsgNoNewline "${T_QST_ICON} ${prompt_text}${prompt_suffix}: ${input_str}" >/dev/tty
+
+        key=$(read_single_char </dev/tty)
+
+        case "$key" in
+            "$KEY_ENTER")
+                local final_input="${input_str:-$default_val}"
+                if [[ -n "$final_input" || "$allow_empty" == "true" ]]; then
+                    var_ref="$final_input"
+                    clear_current_line >/dev/tty
+                    printMsg "${T_QST_ICON} ${prompt_text}${prompt_suffix}: ${C_L_GREEN}${final_input}${T_RESET}"
+                    return 0 # Success
+                fi
+                # If not valid, loop continues, waiting for more input or ESC.
+                ;;
+            "$KEY_ESC")
+                clear_current_line >/dev/tty
+                printMsg "${T_QST_ICON} ${prompt_text}${prompt_suffix}:\n ${C_L_YELLOW}-- cancelled --${T_RESET}"
+                return 1 # Cancelled
+                ;;
+            "$KEY_BACKSPACE")
+                [[ -n "$input_str" ]] && input_str="${input_str%?}"
+                ;;
+            *)
+                # Append single, printable characters. Ignore control sequences.
+                (( ${#key} == 1 )) && [[ "$key" =~ [[:print:]] ]] && input_str+="$key"
+                ;;
+        esac
     done
 }
 
@@ -225,56 +255,70 @@ add_ssh_host() {
 
     local host_alias host_name user identity_file
 
-    prompt_for_input "Enter a short alias for the host (e.g., 'prod-server')" host_alias
+    prompt_for_input "Enter a short alias for the host (e.g., 'prod-server')" host_alias || return
 
     # Check if host alias already exists
     if [[ -f "$SSH_CONFIG_PATH" ]]; then
         if grep -q -E "^\s*Host\s+${host_alias}\s*$" "$SSH_CONFIG_PATH"; then
             printErrMsg "Host alias '${host_alias}' already exists in your SSH config."
-            return 1
+            return 1 # This is an actual error state, not a cancellation.
         fi
     fi
 
-    prompt_for_input "Enter the HostName (IP address or FQDN)" host_name
-    prompt_for_input "Enter the remote User" user "${USER}"
+    prompt_for_input "Enter the HostName (IP address or FQDN)" host_name || return
+    prompt_for_input "Enter the remote User" user "${USER}" || return
 
-    if prompt_yes_no "Generate a dedicated SSH key (ed25519) for this host?" "n"; then
-        identity_file="${SSH_DIR}/${host_alias}_id_ed25519"
-        if [[ -f "$identity_file" ]]; then
-            if ! prompt_yes_no "Key file '${identity_file}' already exists. Overwrite it?" "n"; then
-                printInfoMsg "Using existing key file: ${identity_file}"
+    prompt_yes_no "Generate a dedicated SSH key (ed25519) for this host?" "n"
+    local choice=$?
+
+    case $choice in
+        0) # Yes, generate key
+            identity_file="${SSH_DIR}/${host_alias}_id_ed25519"
+            if [[ -f "$identity_file" ]]; then
+                prompt_yes_no "Key file '${identity_file}' already exists. Overwrite it?" "n"
+                local overwrite_choice=$?
+                if [[ $overwrite_choice -eq 0 ]]; then # Yes, overwrite
+                    run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
+                        ssh-keygen -t ed25519 -f "$identity_file" -N "" -C "${user}@${host_name}"
+                elif [[ $overwrite_choice -eq 2 ]]; then # Cancel
+                    return # Return to main menu
+                else # No, do not overwrite
+                    printInfoMsg "Using existing key file: ${identity_file}"
+                fi
             else
                 run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
                     ssh-keygen -t ed25519 -f "$identity_file" -N "" -C "${user}@${host_name}"
             fi
-        else
-            run_with_spinner "Generating new ed25519 key for ${host_alias}..." \
-                ssh-keygen -t ed25519 -f "$identity_file" -N "" -C "${user}@${host_name}"
-        fi
 
-        {
-            echo ""
-            echo "Host ${host_alias}"
-            echo "    HostName ${host_name}"
-            echo "    User ${user}"
-            echo "    IdentityFile ${identity_file}"
-            echo "    IdentitiesOnly yes"
-        } >>"$SSH_CONFIG_PATH"
+            {
+                echo ""
+                echo "Host ${host_alias}"
+                echo "    HostName ${host_name}"
+                echo "    User ${user}"
+                echo "    IdentityFile ${identity_file}"
+                echo "    IdentitiesOnly yes"
+            } >>"$SSH_CONFIG_PATH"
 
-        printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH} with a dedicated key."
+            printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH} with a dedicated key."
 
-        if prompt_yes_no "Do you want to copy the new public key to the server now?" "y"; then
-            copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
-        fi
-    else
-        {
-            echo ""
-            echo "Host ${host_alias}"
-            echo "    HostName ${host_name}"
-            echo "    User ${user}"
-        } >>"$SSH_CONFIG_PATH"
-        printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH}."
-    fi
+            prompt_yes_no "Do you want to copy the new public key to the server now?" "y"
+            if [[ $? -eq 0 ]]; then
+                copy_ssh_id_for_host "$host_alias" "${identity_file}.pub"
+            fi
+            ;;
+        1) # No, do not generate key
+            {
+                echo ""
+                echo "Host ${host_alias}"
+                echo "    HostName ${host_name}"
+                echo "    User ${user}"
+            } >>"$SSH_CONFIG_PATH"
+            printOkMsg "Host '${host_alias}' added to ${SSH_CONFIG_PATH}."
+            ;;
+        2) # Cancel
+            return
+            ;;
+    esac
 }
 
 # (Private) Reads the SSH config and prints a new version with a specified host block removed.
@@ -553,13 +597,23 @@ import_ssh_hosts() {
     for host in "${hosts_to_import[@]}"; do
         local should_add=false
         if grep -q -E "^\s*Host\s+${host}\s*$" "$SSH_CONFIG_PATH"; then
-            if prompt_yes_no "Host '${host}' already exists. Overwrite it?" "n"; then
-                local temp_config; temp_config=$(_remove_host_block_from_config "$host")
-                echo "$temp_config" | cat -s > "$SSH_CONFIG_PATH"
-                ((overwritten_count++)); should_add=true
-            else
-                printInfoMsg "Skipping existing host '${host}'."; ((skipped_count++)); should_add=false
-            fi
+            prompt_yes_no "Host '${host}' already exists. Overwrite it?" "n"
+            local choice=$?
+            case $choice in
+                0) # Yes
+                    local temp_config; temp_config=$(_remove_host_block_from_config "$host")
+                    echo "$temp_config" | cat -s > "$SSH_CONFIG_PATH"
+                    ((overwritten_count++)); should_add=true
+                    ;;
+                1) # No
+                    printInfoMsg "Skipping existing host '${host}'."; ((skipped_count++)); should_add=false
+                    ;;
+                2) # Cancel
+                    printInfoMsg "Import operation cancelled by user."
+                    # Break out of the for loop
+                    break
+                    ;;
+            esac
         else
             ((imported_count++)); should_add=true
         fi

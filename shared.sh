@@ -391,6 +391,7 @@ get_docker_compose_cmd() {
 # Returns:
 #   0 (success) if the user answers Yes (or default is 'y' and user presses Enter).
 #   1 (failure) if the user answers No (or default is 'n' and user presses Enter).
+#   2 if the user cancels (ESC or 'q').
 prompt_yes_no() {
     local question="$1"
     local default_answer="${2:-}" # Optional second argument
@@ -423,6 +424,11 @@ prompt_yes_no() {
             [Nn])
                 clear_current_line
                 return 1 # Failure (No)
+                ;;
+            "$KEY_ESC"|"q")
+                clear_current_line
+                printMsg "${T_QST_ICON} ${question} ${prompt_suffix}\n ${C_L_YELLOW}-- cancelled --${T_RESET}"
+                return 2 # Cancelled
                 ;;
             *)
                 clear_current_line
