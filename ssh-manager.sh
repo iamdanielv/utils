@@ -339,6 +339,43 @@ _remove_host_block_from_config() {
     ' "$SSH_CONFIG_PATH"
 }
 
+# (Private) Reads an SSH config file and prints the block for a specific host.
+# Usage:
+#   local block
+#   block=$(_get_host_block_from_config "my-host" "/path/to/config")
+_get_host_block_from_config() {
+    local host_to_find="$1"
+    local config_file="$2"
+
+    # This awk script is similar to _remove_host_block_from_config, but it
+    # prints the block that IS the target.
+    awk -v host_to_find="$host_to_find" '
+        function flush_block() {
+            if (block != "" && is_target_block) {
+                printf "%s\n", block
+            }
+        }
+        /^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/ {
+            flush_block()
+            block = $0
+            is_target_block = 0
+            line_content = $0
+            sub(/^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/, "", line_content)
+            n = split(line_content, patterns, /[ \t]+/)
+            for (i = 1; i <= n; i++) {
+                if (patterns[i] ~ /^#/) break
+                if (patterns[i] == host_to_find) {
+                    is_target_block = 1
+                    break
+                }
+            }
+            next
+        }
+        { if (block != "") { block = block "\n" $0 } }
+        END { flush_block() }
+    ' "$config_file"
+}
+
 # Edits an existing host in the SSH config.
 edit_ssh_host() {
     printBanner "Edit SSH Host"
@@ -421,6 +458,113 @@ remove_ssh_host() {
     fi
 }
 
+# Exports selected SSH host configurations to a file.
+export_ssh_hosts() {
+    printBanner "Export SSH Hosts"
+
+    mapfile -t hosts < <(get_ssh_hosts)
+    if [[ ${#hosts[@]} -eq 0 ]]; then
+        printInfoMsg "No hosts found to export."
+        return
+    fi
+
+    # The menu will show the actual host aliases for selection.
+    # The "All" option is a feature of interactive_multi_select_menu.
+    local menu_output
+    menu_output=$(interactive_multi_select_menu "Select hosts to export (space to toggle, enter to confirm):" "All" "${hosts[@]}")
+    if [[ $? -ne 0 ]]; then
+        printInfoMsg "Export cancelled."
+        return
+    fi
+
+    mapfile -t selected_indices < <(echo "$menu_output")
+
+    if [[ ${#selected_indices[@]} -eq 0 ]]; then
+        printInfoMsg "No hosts selected for export."
+        return
+    fi
+
+    local -a hosts_to_export
+    for index in "${selected_indices[@]}"; do
+        # The menu options are "All", then hosts[0], hosts[1], ...
+        # So index 1 from menu corresponds to hosts[0].
+        if (( index > 0 )); then
+            hosts_to_export+=("${hosts[index-1]}")
+        fi
+    done
+
+    if [[ ${#hosts_to_export[@]} -eq 0 ]]; then
+        printInfoMsg "No hosts selected for export."
+        return
+    fi
+
+    local export_file
+    prompt_for_input "Enter path for export file" export_file "ssh_hosts_export.conf"
+
+    # Clear the file or create it
+    > "$export_file"
+
+    printInfoMsg "Exporting ${#hosts_to_export[@]} host(s)..."
+    for host in "${hosts_to_export[@]}"; do
+        # Get the block for the host and append it to the export file
+        echo "" >> "$export_file" # Add a newline for separation
+        _get_host_block_from_config "$host" "$SSH_CONFIG_PATH" >> "$export_file"
+    done
+
+    # Clean up potential leading newline from the first entry
+    sed -i '1{/^$/d;}' "$export_file"
+
+    printOkMsg "Successfully exported ${#hosts_to_export[@]} host(s) to ${C_L_BLUE}${export_file}${T_RESET}."
+}
+
+# Imports SSH host configurations from a file.
+import_ssh_hosts() {
+    printBanner "Import SSH Hosts"
+
+    local import_file
+    prompt_for_input "Enter path of file to import from" import_file
+
+    if [[ ! -f "$import_file" ]]; then
+        printErrMsg "Import file not found: ${import_file}"
+        return 1
+    fi
+
+    # Get hosts from the import file
+    local -a hosts_to_import
+    mapfile -t hosts_to_import < <(awk '/^[Hh]ost / && $2 != "*" {for (i=2; i<=NF; i++) print $i}' "$import_file")
+
+    if [[ ${#hosts_to_import[@]} -eq 0 ]]; then
+        printInfoMsg "No valid 'Host' entries found in ${import_file}."
+        return
+    fi
+
+    printInfoMsg "Found ${#hosts_to_import[@]} host(s) to import: ${C_L_CYAN}${hosts_to_import[*]}${T_RESET}"
+
+    local imported_count=0 overwritten_count=0 skipped_count=0
+
+    for host in "${hosts_to_import[@]}"; do
+        local should_add=false
+        if grep -q -E "^\s*Host\s+${host}\s*$" "$SSH_CONFIG_PATH"; then
+            if prompt_yes_no "Host '${host}' already exists. Overwrite it?" "n"; then
+                local temp_config; temp_config=$(_remove_host_block_from_config "$host")
+                echo "$temp_config" | cat -s > "$SSH_CONFIG_PATH"
+                ((overwritten_count++)); should_add=true
+            else
+                printInfoMsg "Skipping existing host '${host}'."; ((skipped_count++)); should_add=false
+            fi
+        else
+            ((imported_count++)); should_add=true
+        fi
+
+        if [[ "$should_add" == "true" ]]; then
+            echo "" >> "$SSH_CONFIG_PATH"; _get_host_block_from_config "$host" "$import_file" >> "$SSH_CONFIG_PATH"
+        fi
+    done
+
+    local summary="Import complete. Added: ${imported_count}, Overwrote: ${overwritten_count}, Skipped: ${skipped_count}."
+    printOkMsg "$summary"
+}
+
 # Tests the SSH connection to a selected server.
 test_ssh_connection() {
     printBanner "Test SSH Connection"
@@ -492,6 +636,8 @@ main_loop() {
         "Copy an SSH key to a server"
         "Open SSH config in editor"
         "Backup SSH config"
+        "Export hosts to a file"
+        "Import hosts from a file"
         "Exit"
     )
 
@@ -528,6 +674,8 @@ main_loop() {
                 clear
             fi
             ;;
+        "Export hosts to a file") run_menu_action export_ssh_hosts ;;
+        "Import hosts from a file") run_menu_action import_ssh_hosts ;;
         "Backup SSH config") run_menu_action backup_ssh_config ;;
         "Exit") break ;;
         esac
