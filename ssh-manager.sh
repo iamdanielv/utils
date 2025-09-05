@@ -409,6 +409,14 @@ add_ssh_host() {
             return
             ;;
     esac
+
+    # After adding the host, regardless of the key option chosen.
+    if prompt_yes_no "Do you want to test the connection to '${host_alias}' now?" "y"; then
+        # This test uses BatchMode=yes, so it will only succeed for key-based auth
+        # or if no password is required by the server.
+        echo # Add a newline for spacing before the test starts
+        _test_connection_for_host "$host_alias"
+    fi
 }
 
 # (Private) Generic function to process an SSH config file, filtering host blocks.
@@ -767,14 +775,10 @@ import_ssh_hosts() {
     printOkMsg "$summary"
 }
 
-# Tests the SSH connection to a selected server.
-test_ssh_connection() {
-    printBanner "Test SSH Connection"
-
-    local host_to_test
-    host_to_test=$(select_ssh_host "Select a host to test:")
-    [[ $? -ne 0 ]] && return
-
+# (Private) Helper to test connection to a specific host using BatchMode.
+# Usage: _test_connection_for_host <host_alias>
+_test_connection_for_host() {
+    local host_to_test="$1"
     # -o BatchMode=yes: Never ask for passwords. Fails if one is needed.
     # -o ConnectTimeout=10: Fail if connection is not established in 10 seconds.
     # 'exit' is a simple command that immediately closes the connection.
@@ -784,10 +788,23 @@ test_ssh_connection() {
         # remove the spinner output to reduce visual clutter
         clear_lines_up 1
         printOkMsg "Connection to '${host_to_test}' was ${BG_GREEN}${C_BLACK} successful ${T_RESET}"
+        return 0
     else
         # run_with_spinner prints the error details from ssh
         printInfoMsg "Check your SSH config, network, firewall rules, and ensure your public key is on the server."
+        return 1
     fi
+}
+
+# Tests the SSH connection to a selected server.
+test_ssh_connection() {
+    printBanner "Test SSH Connection"
+
+    local host_to_test
+    host_to_test=$(select_ssh_host "Select a host to test:")
+    [[ $? -ne 0 ]] && return
+
+    _test_connection_for_host "$host_to_test"
 }
 
 # Backs up the SSH config file to a timestamped file.
