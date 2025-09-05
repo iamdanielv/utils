@@ -69,7 +69,10 @@ An interactive TUI for managing and connecting to SSH hosts defined in `~/.ssh/c
 - Connect, test, add, edit, clone, and remove hosts
 - Generate new SSH keys and copy them to servers
 - Backup, import, and export host configurations
-- Bypass menus for quick connection with the `-c` flag
+- Bypass menus for quick actions:
+  - `-c, --connect`: Directly connect to a host
+  - `-a, --add`: Directly add a new host
+  - `-t, --test [host|all]`: Test connection to one or all hosts
 
 ## 🤝 Contributing
 

@@ -25,6 +25,8 @@ print_usage() {
     printMsg "\nThis script is fully interactive.\nRun without arguments to launch the main menu."
     printMsg "\n${T_ULINE}Options:${T_RESET}"
     printMsg "  ${C_L_BLUE}-c, --connect${T_RESET}  Go directly to host selection for connecting"
+    printMsg "  ${C_L_BLUE}-a, --add${T_RESET}      Go directly to the 'Add a new server' menu"
+    printMsg "  ${C_L_BLUE}-t, --test [host|all]${T_RESET}  Test connection to a host, all hosts, or show menu"
     printMsg "  ${C_L_BLUE}-h, --help${T_RESET}     Show this help message"
 }
 
@@ -1284,6 +1286,50 @@ direct_connect() {
     exit 1
 }
 
+# Bypasses the main menu and goes directly to testing connections.
+# Handles interactive selection, a specific host, or all hosts.
+direct_test() {
+    local target="$1"
+
+    if [[ -z "$target" ]]; then
+        # No target specified, run interactive selection.
+        # This function already has a banner, so we just call it.
+        test_ssh_connection
+        return
+    fi
+
+    if [[ "$target" == "all" ]]; then
+        # Target is 'all', test all connections.
+        test_all_ssh_connections
+        return
+    fi
+
+    # Target is a specific host. First, validate it exists.
+    local host_exists=false
+    while IFS= read -r host; do
+        if [[ "$host" == "$target" ]]; then
+            host_exists=true
+            break
+        fi
+    done < <(get_ssh_hosts)
+
+    if [[ "$host_exists" == "true" ]]; then
+        printBanner "Test SSH Connection"
+        _test_connection_for_host "$target"
+    else
+        printErrMsg "Host '${target}' not found in your SSH config."
+        return 1
+    fi
+}
+
+# (Private) Ensures prerequisites are met and SSH directory/config are set up.
+# Usage: _setup_environment "cmd1" "cmd2" ...
+_setup_environment() {
+    prereq_checks "$@"
+    mkdir -p "$SSH_DIR"; chmod 700 "$SSH_DIR"
+    touch "$SSH_CONFIG_PATH"; chmod 600 "$SSH_CONFIG_PATH"
+}
+
 # Main application loop.
 main_loop() {
     while true; do
@@ -1320,28 +1366,38 @@ main() {
                 print_usage
                 exit 0
                 ;;
+            -a|--add)
+                # Prereqs for add mode
+                _setup_environment "ssh" "ssh-keygen" "ssh-copy-id" "awk" "grep"
+                # The add_ssh_host function is fully interactive and self-contained.
+                add_ssh_host
+                exit 0
+                ;;
             -c|--connect)
                 # Prereqs for connect mode
-                prereq_checks "ssh" "awk" "grep"
-                mkdir -p "$SSH_DIR"; chmod 700 "$SSH_DIR"
-                touch "$SSH_CONFIG_PATH"; chmod 600 "$SSH_CONFIG_PATH"
+                _setup_environment "ssh" "awk" "grep"
                 direct_connect
                 # direct_connect either execs or exits, so we shouldn't get here.
                 exit 1
                 ;;
+            -t|--test)
+                # Prereqs for test mode
+                _setup_environment "ssh" "awk" "grep"
+                # The second argument ($2) is the target for the test.
+                direct_test "$2"
+                exit $?
+                ;;
             *)
-                printErrMsg "Unknown option: $1"
                 print_usage
+                echo
+                printErrMsg "Unknown option: $1"
                 exit 1
                 ;;
         esac
     fi
 
     # Default interactive mode (no flags)
-    prereq_checks "ssh" "ssh-keygen" "ssh-copy-id" "awk" "cat" "grep" "rm" "mktemp" "cp" "date"
-    # Ensure SSH directory and config file exist with correct permissions
-    mkdir -p "$SSH_DIR"; chmod 700 "$SSH_DIR"
-    touch "$SSH_CONFIG_PATH"; chmod 600 "$SSH_CONFIG_PATH"
+    _setup_environment "ssh" "ssh-keygen" "ssh-copy-id" "awk" "cat" "grep" "rm" "mktemp" "cp" "date"
 
     main_loop
 }
