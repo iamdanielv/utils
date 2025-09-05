@@ -79,23 +79,31 @@ get_detailed_ssh_hosts_menu_options() {
     fi
 
     for host_alias in "${hosts[@]}"; do
-        local hostname user identity_file
+        local hostname user identity_file port
         hostname=$(get_ssh_config_value "$host_alias" "HostName")
         user=$(get_ssh_config_value "$host_alias" "User")
         identity_file=$(get_ssh_config_value "$host_alias" "IdentityFile")
+        port=$(get_ssh_config_value "$host_alias" "Port")
 
         # Clean up identity file path for display
         local key_info=""
         if [[ -n "$identity_file" ]]; then
             # Using #$HOME is safer than a simple string replacement
-            key_info="(${C_WHITE}${identity_file/#$HOME/\~}${T_RESET})"
+            key_info=" (${C_WHITE}${identity_file/#$HOME/\~}${T_RESET})"
+        fi
+
+        # Format port info, only show if not the default port 22
+        local port_info=""
+        if [[ -n "$port" && "$port" != "22" ]]; then
+            port_info=":${C_L_YELLOW}${port}${T_RESET}"
         fi
 
         local formatted_string
-        formatted_string=$(printf "%s - ${C_L_CYAN}%s@%s ${T_RESET}%s" \
+        formatted_string=$(printf "%-20s - ${C_L_CYAN}%s@%s%s${T_RESET}%s" \
             "${host_alias}" \
             "${user:-?}" \
             "${hostname:-?}" \
+            "${port_info}" \
             "${key_info}"
         )
         out_array+=("$formatted_string")
