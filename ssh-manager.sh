@@ -757,6 +757,22 @@ clone_ssh_host() {
     printOkMsg "Host '${host_to_clone}' successfully cloned to '${new_alias}'."
 }
 
+# (Private) Checks for and offers to remove orphaned key files associated with a host.
+# This is typically called after a host has been removed from the config.
+# It looks for a key with the conventional name format: <host_alias>_id_ed25519.
+# Usage: _cleanup_orphaned_key_for_host <host_alias>
+_cleanup_orphaned_key_for_host() {
+    local host_alias="$1"
+
+    local key_file_private="${SSH_DIR}/${host_alias}_id_ed25519"
+    if [[ -f "$key_file_private" ]]; then
+        if prompt_yes_no "Found associated key file. Remove it and its .pub file?" "n"; then
+            rm -f "${key_file_private}" "${key_file_private}.pub"
+            printOkMsg "Removed key files."
+        fi
+    fi
+}
+
 # Removes a host entry from the SSH config file.
 remove_ssh_host() {
     printBanner "Remove SSH Host"
@@ -779,13 +795,7 @@ remove_ssh_host() {
 
     printOkMsg "Host '${host_to_remove}' has been removed."
 
-    local key_file_private="${SSH_DIR}/${host_to_remove}_id_ed25519"
-    if [[ -f "$key_file_private" ]]; then
-        if prompt_yes_no "Found associated key file. Remove it and its .pub file?" "y"; then
-            rm -f "${key_file_private}" "${key_file_private}.pub"
-            printOkMsg "Removed key files."
-        fi
-    fi
+    _cleanup_orphaned_key_for_host "$host_to_remove"
 }
 
 # Exports selected SSH host configurations to a file.
