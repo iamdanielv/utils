@@ -433,6 +433,18 @@ backup_ssh_config() {
     fi
 }
 
+# Helper to run a menu action, clearing the screen before and after,
+# and pausing for the user to see the result.
+run_menu_action() {
+    local action_func="$1"
+    shift # The rest of the arguments are for the action function
+    clear
+    # Call the function that was passed as an argument
+    "$action_func" "$@"
+    prompt_to_continue
+    clear
+}
+
 # Main application loop.
 main_loop() {
     #printf "\033[H\033[J" # Clear screen
@@ -466,11 +478,11 @@ main_loop() {
                 exec ssh "$selected_host"
             fi
             ;;
-        "Test connection to a server") clear; test_ssh_connection; prompt_to_continue; clear ;;
-        "Add a new server") clear; add_ssh_host; prompt_to_continue; clear ;;
-        "Edit a server's configuration") clear; edit_ssh_host; prompt_to_continue; clear ;;
-        "Remove a server") clear; remove_ssh_host; prompt_to_continue; clear ;;
-        "Copy an SSH key to a server") clear; copy_ssh_id; prompt_to_continue; clear ;;
+        "Test connection to a server") run_menu_action test_ssh_connection ;;
+        "Add a new server") run_menu_action add_ssh_host ;;
+        "Edit a server's configuration") run_menu_action edit_ssh_host ;;
+        "Remove a server") run_menu_action remove_ssh_host ;;
+        "Copy an SSH key to a server") run_menu_action copy_ssh_id ;;
         "Open SSH config in editor")
             local editor="${EDITOR:-nvim}"
             if ! command -v "${editor}" &>/dev/null; then
@@ -483,7 +495,7 @@ main_loop() {
                 clear
             fi
             ;;
-        "Backup SSH config") clear; backup_ssh_config; prompt_to_continue; clear ;;
+        "Backup SSH config") run_menu_action backup_ssh_config ;;
         "Exit") break ;;
         esac
     done
