@@ -278,30 +278,63 @@ add_ssh_host() {
 _remove_host_block_from_config() {
     local host_to_remove="$1"
 
-    # This awk script treats each blank-line-separated block as a record.
-    # It checks if the record contains the target host and skips printing it if it does.
-    awk -v host="$host_to_remove" '
-        BEGIN {
-            # Set record separator to blank lines, and preserve blank lines between records on output.
-            RS = ""; ORS = "\n\n"
+    # This awk script processes the config line-by-line to robustly identify and
+    # remove the correct host block, even with non-standard formatting.
+    # It is more reliable than using blank lines as a record separator.
+    awk -v host_to_remove="$host_to_remove" '
+        # Function to print the buffered block if it is not the target.
+        function flush_block() {
+            if (block != "" && !is_target_block) {
+                # Use printf to avoid adding an extra trailing newline.
+                printf "%s\n", block
+            }
         }
-        {
-            is_target = 0
-            # Split the record (block) into lines
-            n = split($0, lines, "\n")
+
+        # Match a new Host block definition.
+        # The regex is for a line starting with optional whitespace, then "Host"
+        # (case-insensitive), then more whitespace.
+        /^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/ {
+            # A new block starts, so flush the previously buffered one.
+            flush_block()
+
+            # Reset state for the new block.
+            block = $0
+            is_target_block = 0
+
+            # Check if this new block is the one we want to remove.
+            # Create a temporary string containing just the host patterns.
+            line_content = $0
+            sub(/^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/, "", line_content)
+
+            # Split the patterns by whitespace to check each one individually.
+            n = split(line_content, patterns, /[ \t]+/)
             for (i = 1; i <= n; i++) {
-                current_line = lines[i]
-                # Trim leading whitespace to reliably match "Host"
-                sub(/^[ \t]+/, "", current_line)
-                # Check if the line is the "Host" directive for our target.
-                # The regex ensures we match "Host my-host" but not "Host my-host-2".
-                if (current_line ~ ("^Host[ \t]+" host "([ \t]|$)")) {
-                    is_target = 1
+                # Stop checking at comments.
+                if (patterns[i] ~ /^#/) break
+                if (patterns[i] == host_to_remove) {
+                    is_target_block = 1
                     break
                 }
             }
-            # If this block is not the target, print it.
-            if (!is_target) { print $0 }
+            # Continue to the next line of the input file.
+            next
+        }
+
+        # For any other line (part of a block, a comment, or a blank line):
+        {
+            # If we are inside a block, append the line.
+            if (block != "") {
+                block = block "\n" $0
+            } else {
+                # If we are not in a block, it means this is content
+                # before the first Host definition. Print it directly.
+                print $0
+            }
+        }
+
+        # At the end of the file, flush the last remaining block.
+        END {
+            flush_block()
         }
     ' "$SSH_CONFIG_PATH"
 }
