@@ -649,12 +649,15 @@ main_loop() {
         case "${menu_options[$selected_index]}" in
         "Connect to a server")
             clear
+            printBanner "Connect to a server"
             local selected_host
             selected_host=$(select_ssh_host "Select a host to connect to:")
             if [[ $? -eq 0 ]]; then
                 # Use 'exec' to replace the current script process with the ssh client.
                 # This ensures that after the ssh session ends, the script exits instead of returning to the menu.
                 exec ssh "$selected_host"
+            else
+                clear
             fi
             ;;
         "Test connection to a server") run_menu_action test_ssh_connection ;;
