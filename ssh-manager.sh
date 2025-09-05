@@ -824,31 +824,24 @@ run_menu_action() {
     clear
 }
 
-# Main application loop.
-main_loop() {
-    #printf "\033[H\033[J" # Clear screen
-    clear
-    printBanner "SSH Manager"
-    local -a menu_options=(
-        "Connect to a server"
-        "Test connection to a server"
-        "Add a new server"
-        "Edit a server's configuration"
-        "Edit host block in editor"
-        "Remove a server"
-        "Copy an SSH key to a server"
-        "Generate a new SSH key"
-        "Open SSH config in editor"
-        "Backup SSH config"
-        "Export hosts to a file"
-        "Import hosts from a file"
-        "Exit"
-    )
+# --- Main Menu Sub-loops ---
 
+# Displays the menu for server-related actions.
+server_menu() {
     while true; do
+        clear
+        printBanner "Server Management"
+        local -a menu_options=(
+            "Connect to a server"
+            "Test connection to a server"
+            "Add a new server"
+            "Edit a server's configuration"
+            "Remove a server"
+            "Back to main menu"
+        )
         local selected_index
-        selected_index=$(interactive_single_select_menu "What would you like to do?" "${menu_options[@]}")
-        [[ $? -ne 0 ]] && { break; }
+        selected_index=$(interactive_single_select_menu "Select an action:" "${menu_options[@]}")
+        [[ $? -ne 0 ]] && break # ESC/q returns to main menu
 
         case "${menu_options[$selected_index]}" in
         "Connect to a server")
@@ -860,37 +853,102 @@ main_loop() {
                 # Use 'exec' to replace the current script process with the ssh client.
                 # This ensures that after the ssh session ends, the script exits instead of returning to the menu.
                 exec ssh "$selected_host"
-            else
-                clear
             fi
+            # If connection is cancelled, loop back to this menu
             ;;
         "Test connection to a server") run_menu_action test_ssh_connection ;;
         "Add a new server") run_menu_action add_ssh_host ;;
         "Edit a server's configuration") run_menu_action edit_ssh_host ;;
-        "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
         "Remove a server") run_menu_action remove_ssh_host ;;
+        "Back to main menu") break ;;
+        esac
+    done
+}
+
+# Displays the menu for SSH key-related actions.
+key_menu() {
+    while true; do
+        clear
+        printBanner "Key Management"
+        local -a menu_options=(
+            "Copy an SSH key to a server"
+            "Generate a new SSH key"
+            "Back to main menu"
+        )
+        local selected_index
+        selected_index=$(interactive_single_select_menu "Select an action:" "${menu_options[@]}")
+        [[ $? -ne 0 ]] && break # ESC/q returns to main menu
+
+        case "${menu_options[$selected_index]}" in
         "Copy an SSH key to a server") run_menu_action copy_ssh_id ;;
         "Generate a new SSH key") run_menu_action generate_ssh_key ;;
+        "Back to main menu") break ;;
+        esac
+    done
+}
+
+# Displays the menu for advanced and file-level actions.
+advanced_menu() {
+    while true; do
+        clear
+        printBanner "Advanced Tools"
+        local -a menu_options=(
+            "Edit host block in editor"
+            "Open SSH config in editor"
+            "Backup SSH config"
+            "Export hosts to a file"
+            "Import hosts from a file"
+            "Back to main menu"
+        )
+        local selected_index
+        selected_index=$(interactive_single_select_menu "Select an action:" "${menu_options[@]}")
+        [[ $? -ne 0 ]] && break # ESC/q returns to main menu
+
+        case "${menu_options[$selected_index]}" in
+        "Edit host block in editor") run_menu_action edit_ssh_host_in_editor ;;
         "Open SSH config in editor")
             local editor="${EDITOR:-nvim}"
             if ! command -v "${editor}" &>/dev/null; then
                 printErrMsg "Editor '${editor}' not found. Please set the EDITOR environment variable."
                 prompt_to_continue
-                clear
             else
-                # printInfoMsg "Opening ${SSH_CONFIG_PATH} with '${editor}'..."
                 "${editor}" "${SSH_CONFIG_PATH}"
-                clear
             fi
             ;;
+        "Backup SSH config") run_menu_action backup_ssh_config ;;
         "Export hosts to a file") run_menu_action export_ssh_hosts ;;
         "Import hosts from a file") run_menu_action import_ssh_hosts ;;
-        "Backup SSH config") run_menu_action backup_ssh_config ;;
+        "Back to main menu") break ;;
+        esac
+    done
+}
+
+# Main application loop.
+main_loop() {
+    while true; do
+        clear
+        printBanner "SSH Manager"
+        local -a menu_options=(
+            "Server Management"
+            "Key Management"
+            "Advanced Tools"
+            "Exit"
+        )
+
+        local selected_index
+        selected_index=$(interactive_single_select_menu "What would you like to do?" "${menu_options[@]}")
+        [[ $? -ne 0 ]] && { break; }
+
+        case "${menu_options[$selected_index]}" in
+        "Server Management") server_menu ;;
+        "Key Management") key_menu ;;
+        "Advanced Tools") advanced_menu ;;
         "Exit") break ;;
         esac
     done
 
-    printOkMsg "Goodbye!"    
+    clear
+    printOkMsg "Goodbye!"
 }
 
 main() {
