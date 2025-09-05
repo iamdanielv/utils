@@ -1373,19 +1373,18 @@ main() {
                 add_ssh_host
                 exit 0
                 ;;
-            -c|--connect)
-                # Prereqs for connect mode
+            -c|--connect | -t|--test)
+                # Prereqs for connect and test modes are the same
                 _setup_environment "ssh" "awk" "grep"
-                direct_connect
-                # direct_connect either execs or exits, so we shouldn't get here.
-                exit 1
-                ;;
-            -t|--test)
-                # Prereqs for test mode
-                _setup_environment "ssh" "awk" "grep"
-                # The second argument ($2) is the target for the test.
-                direct_test "$2"
-                exit $?
+                if [[ "$1" == "-c" || "$1" == "--connect" ]]; then
+                    direct_connect
+                    # direct_connect either execs or exits, so we shouldn't get here.
+                    exit 1
+                else
+                    # The second argument ($2) is the target for the test.
+                    direct_test "$2"
+                    exit $?
+                fi
                 ;;
             *)
                 print_usage
