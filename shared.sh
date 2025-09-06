@@ -1293,8 +1293,8 @@ _run_string_test() {
         sanitized_expected=$(printf '%q' "$expected")
         sanitized_actual=$(printf '%q' "$actual")
         _test_failed "${description}"
-        printErrMsg "    Expected: ${sanitized_expected}"
-        printErrMsg "    Got:      ${sanitized_actual}"
+        printErrMsg "Expected: ${sanitized_expected}"
+        printErrMsg "Got:      ${sanitized_actual}"
         ((failures++))
     fi
 }
