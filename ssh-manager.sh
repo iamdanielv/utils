@@ -568,10 +568,16 @@ _process_ssh_config_blocks() {
 
     awk -v target_host="$target_host" -v mode="$mode" '
         # Flushes the buffered block based on whether it matches the target and the desired mode.
+        # It manages a single newline separator between printed blocks.
         function flush_block() {
             if (block != "") {
                 if ((mode == "keep" && is_target_block) || (mode == "remove" && !is_target_block)) {
-                    printf "%s\n", block
+                    # If we have printed a block before, add a newline separator.
+                    if (output_started) {
+                        printf "\n"
+                    }
+                    printf "%s", block
+                    output_started = 1
                 }
             }
         }
@@ -606,7 +612,8 @@ _process_ssh_config_blocks() {
                 # This is content before the first Host definition.
                 # It is never a target block, so print it only in "remove" mode.
                 if (mode == "remove") {
-                    print $0
+                    printf "%s\n", $0
+                    output_started = 1
                 }
             }
         }
@@ -614,6 +621,9 @@ _process_ssh_config_blocks() {
         # At the end of the file, flush the last remaining block.
         END {
             flush_block()
+            if (output_started) {
+                printf "\n"
+            }
         }
     ' "$config_file"
 }
