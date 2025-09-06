@@ -823,6 +823,90 @@ clone_ssh_host() {
     printOkMsg "Host '${host_to_clone}' successfully cloned to '${new_alias}'."
 }
 
+# (Private) The worker function that performs the file re-ordering.
+# This is separated to be used with `run_with_spinner`.
+# It assumes a backup has already been made.
+_reorder_ssh_hosts_worker() {
+    local backup_file="$1"
+    shift
+    local -a new_ordered_hosts=("$@")
+
+    # 1. Extract header (content before any Host block) from the backup.
+    local header_content
+    header_content=$(awk '/^[ \t]*[Hh][Oo][Ss][Tt][ \t]/ {exit} 1' "$backup_file")
+
+    # 2. Extract the footer (Host * block) from the backup, if it exists.
+    local footer_content
+    footer_content=$(_get_host_block_from_config "*" "$backup_file")
+
+    # 3. Extract all managed host blocks from the backup into a map.
+    local -A host_blocks
+    mapfile -t original_hosts < <(get_ssh_hosts) # Read from original config to get keys
+    for host in "${original_hosts[@]}"; do
+        host_blocks["$host"]=$(_get_host_block_from_config "$host" "$backup_file")
+    done
+
+    # 4. Overwrite the original config file by assembling the pieces.
+    # Start with the header.
+    echo -n "$header_content" > "$SSH_CONFIG_PATH"
+
+    # Append the re-ordered managed host blocks.
+    for host in "${new_ordered_hosts[@]}"; do
+        # Ensure there's a newline before appending each block.
+        echo -e "\n${host_blocks[$host]}" >> "$SSH_CONFIG_PATH"
+    done
+
+    # Append the footer if it existed.
+    if [[ -n "$footer_content" ]]; then
+        echo -e "\n${footer_content}" >> "$SSH_CONFIG_PATH"
+    fi
+
+    # 5. Clean up multiple blank lines that may have been introduced.
+    local temp_file; temp_file=$(mktemp)
+    cat -s "$SSH_CONFIG_PATH" > "$temp_file" && mv "$temp_file" "$SSH_CONFIG_PATH"
+}
+
+# Allows the user to interactively re-order the host blocks in the config file.
+reorder_ssh_hosts() {
+    printBanner "Re-order SSH Hosts"
+    mapfile -t original_hosts < <(get_ssh_hosts)
+    if [[ ${#original_hosts[@]} -lt 2 ]]; then
+        printInfoMsg "Fewer than two hosts found. Nothing to re-order."
+        return
+    fi
+
+    local reordered_output
+    reordered_output=$(interactive_reorder_menu "Re-order hosts:" "${original_hosts[@]}")
+    [[ $? -ne 0 ]] && { printInfoMsg "Re-ordering cancelled."; return; }
+    mapfile -t new_ordered_hosts <<< "$reordered_output"
+
+    if [[ "${new_ordered_hosts[*]}" == "${original_hosts[*]}" ]]; then
+        printInfoMsg "Order is unchanged. No action taken."
+        return
+    fi
+
+    printWarnMsg "This action will rewrite your SSH config file to apply the new order."
+    if ! prompt_yes_no "It preserves most content but may lose comments between hosts. A backup will be created. Continue?" "n"; then
+        printInfoMsg "Re-ordering cancelled."
+        return
+    fi
+
+    # Create a backup first.
+    local backup_dir="${SSH_DIR}/backups"; mkdir -p "$backup_dir"
+    local timestamp; timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+    local backup_file="${backup_dir}/config_reorder_${timestamp}.bak"
+    cp "$SSH_CONFIG_PATH" "$backup_file"
+    printInfoMsg "Backup created at: ${C_L_BLUE}${backup_file}${T_RESET}"
+
+    if run_with_spinner "Applying new host order..." \
+        _reorder_ssh_hosts_worker "$backup_file" "${new_ordered_hosts[@]}"; then
+        printOkMsg "SSH config file has been re-ordered successfully."
+    else
+        printErrMsg "Failed to re-order hosts. Your original config is safe."
+        printInfoMsg "The backup of your config is available at: ${backup_file}"
+    fi
+}
+
 # Renames an SSH host alias and optionally its associated key file.
 rename_ssh_host() {
     printBanner "Rename SSH Host Alias"
@@ -1314,6 +1398,7 @@ advanced_menu() {
         "Edit host block in editor"
         "Rename a host alias"
         "Clone an existing host"
+        "Reorder hosts in config file"
         "Backup SSH config"
         "Export hosts to a file"
         "Import hosts from a file"
@@ -1323,6 +1408,7 @@ advanced_menu() {
         ["Edit host block in editor"]="edit_ssh_host_in_editor"
         ["Rename a host alias"]="rename_ssh_host"
         ["Clone an existing host"]="clone_ssh_host"
+        ["Reorder hosts in config file"]="reorder_ssh_hosts"
         ["Backup SSH config"]="backup_ssh_config"
         ["Export hosts to a file"]="export_ssh_hosts"
         ["Import hosts from a file"]="import_ssh_hosts"
