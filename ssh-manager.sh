@@ -12,8 +12,8 @@ if ! source "$(dirname "$0")/shared.sh"; then
 fi
 
 # --- Constants ---
-readonly SSH_DIR="${HOME}/.ssh"
-readonly SSH_CONFIG_PATH="${SSH_DIR}/config"
+SSH_DIR="${SSH_DIR:-${HOME}/.ssh}"
+SSH_CONFIG_PATH="${SSH_CONFIG_PATH:-${SSH_DIR}/config}"
 
 # --- Script Functions ---
 
