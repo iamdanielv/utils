@@ -721,7 +721,9 @@ edit_ssh_host() {
 
     # Combine the existing config (minus the old block) with the new block and write to the file
     # The `\n` ensures separation if the old block was the last one in the file.
-    echo -e "${config_without_host}\n${new_host_block}" | cat -s > "$SSH_CONFIG_PATH"
+    # We use `\n\n` to ensure a blank line separator, and `cat -s` squeezes any potential
+    # extra blank lines if the remaining config already had them.
+    echo -e "${config_without_host}\n\n${new_host_block}" | cat -s > "$SSH_CONFIG_PATH"
 
     printOkMsg "Host '${host_to_edit}' has been updated."
 
@@ -788,7 +790,7 @@ edit_ssh_host_in_editor() {
     # Get the config content without the old host block and append the new one
     local config_without_host
     config_without_host=$(_remove_host_block_from_config "$host_to_edit")
-    echo -e "${config_without_host}\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
+    echo -e "${config_without_host}\n\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
 
     printOkMsg "Host '${host_to_edit}' has been updated from editor."
 }
@@ -946,7 +948,7 @@ rename_ssh_host() {
         if prompt_yes_no "Found associated key file. Rename it to match the new alias?" "y"; then
             if [[ -f "$new_key_path_convention" ]]; then
                 printErrMsg "Cannot rename key: target file '${new_key_path_convention}' already exists."
-            elif run_with_spinner "Renaming key files..." mv "$old_key_path_convention" "$new_key_path_convention" && mv "${old_key_path_convention}.pub" "${new_key_path_convention}.pub"; then
+            elif run_with_spinner "Renaming key files..." _rename_key_pair "$old_key_path_convention" "$new_key_path_convention"; then
                 # Update the IdentityFile path in the new config block.
                 new_block=$(printf '%s' "$new_block" | sed -E "s|([[:space:]]*IdentityFile[[:space:]]+).*|\1${new_key_path_convention}|")
             else
@@ -958,8 +960,18 @@ rename_ssh_host() {
 
     # --- Finalize Config Update ---
     local config_without_host; config_without_host=$(_remove_host_block_from_config "$host_to_rename")
-    echo -e "${config_without_host}\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
+    echo -e "${config_without_host}\n\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
     printOkMsg "Host '${host_to_rename}' successfully renamed to '${new_alias}'."
+}
+
+# (Private) Helper function to rename both private and public key files.
+# This is designed to be called by `run_with_spinner`.
+# Usage: _rename_key_pair <old_base_path> <new_base_path>
+_rename_key_pair() {
+    local old_base="$1"
+    local new_base="$2"
+    # The `&&` ensures we only try to move the public key if the private key move succeeds.
+    mv "${old_base}" "${new_base}" && mv "${old_base}.pub" "${new_base}.pub"
 }
 
 # (Private) Checks for and offers to remove an orphaned key file.
@@ -1125,7 +1137,7 @@ import_ssh_hosts() {
                     # Atomically replace the host block
                     local config_without_host; config_without_host=$(_remove_host_block_from_config "$host")
                     local new_block; new_block=$(_get_host_block_from_config "$host" "$import_file")
-                    echo -e "${config_without_host}\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
+                    echo -e "${config_without_host}\n\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
                     ((overwritten_count++))
                     ;;
                 1) # No
