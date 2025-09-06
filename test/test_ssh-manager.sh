@@ -70,11 +70,19 @@ mv() {
 
 # Mock for `prompt_for_input`.
 # Usage: MOCK_PROMPT_INPUTS["var_name"]="value"
+#        MOCK_PROMPT_CANCEL_ON_VAR="var_name_to_cancel_on"
 declare -A MOCK_PROMPT_INPUTS
+MOCK_PROMPT_CANCEL_ON_VAR=""
 prompt_for_input() {
-    local -n var_ref="$2"
+    local var_name="$2"
+    local -n var_ref="$var_name"
+
+    if [[ -n "$MOCK_PROMPT_CANCEL_ON_VAR" && "$var_name" == "$MOCK_PROMPT_CANCEL_ON_VAR" ]]; then
+        return 1 # Simulate cancellation (ESC key)
+    fi
+
     # Return mock value, or the default value if no mock is set.
-    var_ref="${MOCK_PROMPT_INPUTS[$2]:-${3:-}}"
+    var_ref="${MOCK_PROMPT_INPUTS[$var_name]:-${3:-}}"
     return 0
 }
 
@@ -251,6 +259,7 @@ test_edit_host() {
 
     # --- Case 1: Edit user and port ---
     reset_test_state # Reset config
+    MOCK_PROMPT_CANCEL_ON_VAR="" # Ensure no cancellation is configured
     MOCK_SELECT_HOST_RETURN="test-server-1"
     MOCK_PROMPT_INPUTS=(
         ["new_hostname"]="192.168.1.101" # Keep same
@@ -288,6 +297,7 @@ EOF
 
     # --- Case 2: Change IdentityFile and trigger cleanup ---
     reset_test_state
+    MOCK_PROMPT_CANCEL_ON_VAR=""
     # Create dummy key files
     touch "${SSH_DIR}/id_test1"
     touch "${SSH_DIR}/id_test1.pub"
@@ -304,6 +314,21 @@ EOF
 
     local expected_rm_call="-f ${SSH_DIR}/id_test1 ${SSH_DIR}/id_test1.pub"
     _run_string_test "${MOCK_RM_CALLS[0]}" "$expected_rm_call" "Should call rm to clean up old orphaned key"
+
+    # --- Case 3: User cancels during prompt ---
+    reset_test_state
+    local initial_config; initial_config=$(<"$SSH_CONFIG_PATH")
+
+    MOCK_SELECT_HOST_RETURN="test-server-1"
+    MOCK_PROMPT_INPUTS=(
+        ["new_hostname"]="should_not_be_applied"
+    )
+    MOCK_PROMPT_CANCEL_ON_VAR="new_user" # Cancel when prompted for the user
+
+    edit_ssh_host
+
+    local final_config; final_config=$(<"$SSH_CONFIG_PATH")
+    _run_string_test "$final_config" "$initial_config" "Should not modify config file if user cancels"
 }
 
 test_rename_host() {
@@ -311,6 +336,7 @@ test_rename_host() {
 
     # --- Case 1: Simple rename, no key involved ---
     reset_test_state
+    MOCK_PROMPT_CANCEL_ON_VAR=""
     MOCK_SELECT_HOST_RETURN="test-server-2"
     # The `rename_ssh_host` function calls `_prompt_for_unique_host_alias`,
     # which uses a local nameref variable `out_alias_var` to call `prompt_for_input`.
@@ -344,6 +370,7 @@ EOF
 
     # --- Case 2: Rename host and its conventionally-named key ---
     reset_test_state
+    MOCK_PROMPT_CANCEL_ON_VAR=""
     # Modify config to use a conventional key for test-server-1
     sed -i "s|~/.ssh/id_test1|${SSH_DIR}/test-server-1_id_ed25519|" "$SSH_CONFIG_PATH"
     # Create the dummy key files
