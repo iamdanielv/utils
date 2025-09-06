@@ -1018,12 +1018,14 @@ import_ssh_hosts() {
             local choice=$?
             case $choice in
                 0) # Yes
-                    local temp_config; temp_config=$(_remove_host_block_from_config "$host")
-                    echo "$temp_config" | cat -s > "$SSH_CONFIG_PATH"
-                    ((overwritten_count++)); should_add=true
+                    # Atomically replace the host block
+                    local config_without_host; config_without_host=$(_remove_host_block_from_config "$host")
+                    local new_block; new_block=$(_get_host_block_from_config "$host" "$import_file")
+                    echo -e "${config_without_host}\n${new_block}" | cat -s > "$SSH_CONFIG_PATH"
+                    ((overwritten_count++))
                     ;;
                 1) # No
-                    printInfoMsg "Skipping existing host '${host}'."; ((skipped_count++)); should_add=false
+                    printInfoMsg "Skipping existing host '${host}'."; ((skipped_count++))
                     ;;
                 2) # Cancel
                     printInfoMsg "Import operation cancelled by user."
@@ -1032,11 +1034,9 @@ import_ssh_hosts() {
                     ;;
             esac
         else
-            ((imported_count++)); should_add=true
-        fi
-
-        if [[ "$should_add" == "true" ]]; then
+            # Host is new, so append it.
             echo "" >> "$SSH_CONFIG_PATH"; _get_host_block_from_config "$host" "$import_file" >> "$SSH_CONFIG_PATH"
+            ((imported_count++))
         fi
     done
 
