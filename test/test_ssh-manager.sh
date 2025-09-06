@@ -231,7 +231,7 @@ test_remove_host() {
     MOCK_RM_CALLS=() # Reset rm call log
     # At this point, the config still has test-server-1, which uses id_test1.
     # _cleanup_orphaned_key should see this and not attempt to remove the key.
-    _cleanup_orphaned_key "~/.ssh/id_test1"
+    _cleanup_orphaned_key "~/.ssh/id_test1" >/dev/null 2>&1
     _run_string_test "${#MOCK_RM_CALLS[@]}" "0" "Should not attempt to remove a key that is still in use"
 
     # --- Now, actually orphan the key by removing the host from the config ---
@@ -242,13 +242,13 @@ test_remove_host() {
     # --- Case 2: Key is orphaned, but user answers 'no' to removal prompt ---
     MOCK_PROMPT_RESULT=1 # Answer "no"
     MOCK_RM_CALLS=()
-    _cleanup_orphaned_key "~/.ssh/id_test1"
+    _cleanup_orphaned_key "~/.ssh/id_test1" >/dev/null 2>&1
     _run_string_test "${#MOCK_RM_CALLS[@]}" "0" "Should not call 'rm' when user answers 'no' to cleanup"
 
     # --- Case 3: Key is orphaned, and user answers 'yes' to removal prompt ---
     MOCK_PROMPT_RESULT=0 # Answer "yes"
     MOCK_RM_CALLS=()
-    _cleanup_orphaned_key "~/.ssh/id_test1"
+    _cleanup_orphaned_key "~/.ssh/id_test1" >/dev/null 2>&1
 
     local expected_rm_call_1="-f ${SSH_DIR}/id_test1 ${SSH_DIR}/id_test1.pub"
     _run_string_test "${MOCK_RM_CALLS[0]}" "$expected_rm_call_1" "Should call 'rm' with correct private and public key paths"
@@ -268,7 +268,7 @@ test_edit_host() {
         ["new_identityfile"]="~/.ssh/id_test1" # Keep same
     )
 
-    edit_ssh_host # Run the function
+    edit_ssh_host >/dev/null 2>&1 # Run the function
 
     local expected_config
     expected_config=$(cat <<'EOF'
@@ -310,7 +310,7 @@ EOF
     MOCK_PROMPT_RESULT=0 # Answer "yes" to cleanup prompt
     MOCK_RM_CALLS=()
 
-    edit_ssh_host
+    edit_ssh_host >/dev/null 2>&1
 
     local expected_rm_call="-f ${SSH_DIR}/id_test1 ${SSH_DIR}/id_test1.pub"
     _run_string_test "${MOCK_RM_CALLS[0]}" "$expected_rm_call" "Should call rm to clean up old orphaned key"
@@ -325,7 +325,7 @@ EOF
     )
     MOCK_PROMPT_CANCEL_ON_VAR="new_user" # Cancel when prompted for the user
 
-    edit_ssh_host
+    edit_ssh_host >/dev/null 2>&1
 
     local final_config; final_config=$(<"$SSH_CONFIG_PATH")
     _run_string_test "$final_config" "$initial_config" "Should not modify config file if user cancels"
@@ -343,7 +343,7 @@ test_rename_host() {
     # Our mock for `prompt_for_input` uses the variable name as the key, so we must use `out_alias_var`.
     MOCK_PROMPT_INPUTS=( ["out_alias_var"]="renamed-server-2" )
 
-    rename_ssh_host
+    rename_ssh_host >/dev/null 2>&1
 
     local expected_config
     expected_config=$(cat <<'EOF'
@@ -384,7 +384,7 @@ EOF
     MOCK_PROMPT_INPUTS=( ["out_alias_var"]="renamed-server-1" )
     MOCK_PROMPT_RESULT=0 # Answer "yes" to rename key
 
-    rename_ssh_host
+    rename_ssh_host >/dev/null 2>&1
 
     # Read the logged calls from the file into an array for assertion
     local -a MOCK_MV_CALLS
@@ -406,7 +406,7 @@ test_clone_host() {
     MOCK_SELECT_HOST_RETURN="test-server-1"
     MOCK_PROMPT_INPUTS=( ["out_alias_var"]="cloned-server-1" )
 
-    clone_ssh_host
+    clone_ssh_host >/dev/null 2>&1
 
     local expected_config
     expected_config=$(cat <<'EOF'
