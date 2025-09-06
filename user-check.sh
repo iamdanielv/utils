@@ -27,37 +27,42 @@ print_usage() {
     printMsg "  $(basename "$0") www-data"
 }
 
-# --- Main Script ---
+main() {
+    # Check for help flag first
+    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+        print_usage
+        exit 0
+    fi
 
-# Check for help flag first
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    print_usage
-    exit 0
+    # Set default value for TARGET_USER if not provided as an argument
+    local TARGET_USER=${1:-daniel}
+
+    printBanner "User Check"
+    printMsg "Current user: ${C_L_BLUE}${USER}${T_RESET}"
+    printMsg "Target user:  ${C_L_BLUE}${TARGET_USER}${T_RESET}"
+
+    # Check if we are already running as the target user
+    if [[ "${USER}" == "${TARGET_USER}" ]]; then
+        printOkMsg "Already running as target user (${USER})."
+        exit 0
+    fi
+
+    # If not the target user, check if sudo is available
+    if ! command -v sudo &>/dev/null; then
+        printErrMsg "sudo command not found. Cannot switch to user '${TARGET_USER}'."
+        exit 1
+    fi
+
+    printMsg "${T_INFO_ICON} Not running as target user. Attempting to switch with sudo..."
+
+    # Re-execute the script with sudo, replacing the current process.
+    # "$0" is the path to the current script. "$@" passes along all original arguments.
+    # If sudo fails (e.g., wrong password), it will exit with a non-zero status,
+    # and 'set -e' will terminate this script.
+    exec sudo -H -u "${TARGET_USER}" -- "$0" "$@"
+}
+
+# This block will only run when the script is executed directly, not when sourced.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
 fi
-
-# Set default value for TARGET_USER if not provided as an argument
-TARGET_USER=${1:-daniel}
-
-printBanner "User Check"
-printMsg "Current user: ${C_L_BLUE}${USER}${T_RESET}"
-printMsg "Target user:  ${C_L_BLUE}${TARGET_USER}${T_RESET}"
-
-# Check if we are already running as the target user
-if [[ "${USER}" == "${TARGET_USER}" ]]; then
-    printOkMsg "Already running as target user (${USER})."
-    exit 0
-fi
-
-# If not the target user, check if sudo is available
-if ! command -v sudo &>/dev/null; then
-    printErrMsg "sudo command not found. Cannot switch to user '${TARGET_USER}'."
-    exit 1
-fi
-
-printMsg "${T_INFO_ICON} Not running as target user. Attempting to switch with sudo..."
-
-# Re-execute the script with sudo, replacing the current process.
-# "$0" is the path to the current script. "$@" passes along all original arguments.
-# If sudo fails (e.g., wrong password), it will exit with a non-zero status,
-# and 'set -e' will terminate this script.
-exec sudo -H -u "${TARGET_USER}" -- "$0" "$@"

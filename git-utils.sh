@@ -92,43 +92,49 @@ switchToBranch() {
   performCommandOnGitDirectories "git checkout ${branchName}"
 }
 
-# --- Main Execution ---
-# This block will only run when the script is executed directly.
-if [ $# -eq 0 ]; then
-  # No arguments provided, print help
-  print_usage
-  exit 0
-fi
-
-# parameters
-while [[ $# -gt 0 ]]; do
-  case $1 in
-  "-gs" | "gs")
-    gitStatus
-    shift #go to next argument
-    ;;
-  "-gp" | "gp")
-    gitPull
-    shift #go to next argument
-    ;;
-  "-gvb" | "gvb")
-    gitViewBranches
-    shift #go to next argument
-    ;;
-  "-gb" | "gb")
-    switchToBranch "$2"
-    shift #go to next argument
-    shift #skip the branch name
-    ;;
-  "-h" | "h")
+main() {
+  # This block will only run when the script is executed directly.
+  if [ $# -eq 0 ]; then
+    # No arguments provided, print help
     print_usage
     exit 0
-    ;;
-  -* | *)
-    printMsg " ${T_ERR_ICON} Unknown argument ${T_ERR}$1${T_RESET}"
-    print_usage
-    exit 1
-    ;;
+  fi
 
-  esac
-done
+  # parameters
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+    "-gs" | "gs")
+      gitStatus
+      shift #go to next argument
+      ;;
+    "-gp" | "gp")
+      gitPull
+      shift #go to next argument
+      ;;
+    "-gvb" | "gvb")
+      gitViewBranches
+      shift #go to next argument
+      ;;
+    "-gb" | "gb")
+      switchToBranch "$2"
+      shift #go to next argument
+      shift #skip the branch name
+      ;;
+    "-h" | "h")
+      print_usage
+      exit 0
+      ;;
+    -* | *)
+      printMsg " ${T_ERR_ICON} Unknown argument ${T_ERR}$1${T_RESET}"
+      print_usage
+      exit 1
+      ;;
+
+    esac
+  done
+}
+
+# This block will only run when the script is executed directly, not when sourced.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

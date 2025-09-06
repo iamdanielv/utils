@@ -243,5 +243,7 @@ main() {
     monitor_temperatures "$interval" "$delta" "$avg_count"
 }
 
-# Script entry point
-main "$@"
+# This block will only run when the script is executed directly, not when sourced.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

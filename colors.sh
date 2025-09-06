@@ -46,53 +46,58 @@ get_contrasting_fg_color() {
     fi
 }
 
-# --- Main Script ---
+main() {
+    # Default values
+    local use_blocks=0
+    local mode="fg"
 
-# Default values
-use_blocks=0
-mode="fg"
+    # Process arguments using getopts
+    while getopts ":bg:h" opt; do
+        case ${opt} in
+            b) use_blocks=1 ;;
+            g) mode="$OPTARG" ;;
+            h) print_usage; exit 0 ;;
+            \?) printErrMsg "Invalid option: -$OPTARG" >&2; print_usage; exit 1 ;;
+            :) printErrMsg "Option -$OPTARG requires an argument." >&2; print_usage; exit 1 ;;
+        esac
+    done
 
-# Process arguments using getopts
-while getopts ":bg:h" opt; do
-    case ${opt} in
-        b) use_blocks=1 ;;
-        g) mode="$OPTARG" ;;
-        h) print_usage; exit 0 ;;
-        \?) printErrMsg "Invalid option: -$OPTARG" >&2; print_usage; exit 1 ;;
-        :) printErrMsg "Option -$OPTARG requires an argument." >&2; print_usage; exit 1 ;;
-    esac
-done
+    if [[ "$mode" != "fg" && "$mode" != "bg" ]]; then
+        printErrMsg "Invalid mode for -g: '${mode}'. Must be 'fg' or 'bg'." >&2
+        print_usage
+        exit 1
+    fi
 
-if [[ "$mode" != "fg" && "$mode" != "bg" ]]; then
-    printErrMsg "Invalid mode for -g: '${mode}'. Must be 'fg' or 'bg'." >&2
-    print_usage
-    exit 1
+    local block_char="██"
+
+    # Loop through all 256 colors
+    for i in {0..255}; do
+        if [[ "$mode" == "bg" ]]; then
+            if (( use_blocks == 1 )); then
+                printf "\x1b[48;5;%dm%-4s" "$i" "$block_char"
+            else
+                local fg_color; fg_color=$(get_contrasting_fg_color "$i")
+                printf "\x1b[48;5;%dm\x1b[38;5;%dm%3d " "$i" "$fg_color" "$i"
+            fi
+        else
+            if (( use_blocks == 1 )); then
+                printf "\x1b[38;5;%dm%-4s" "$i" "$block_char"
+            else
+                printf "\x1b[38;5;%dm%3d " "$i" "$i"
+            fi
+        fi
+
+        # Group items into 16 per line for a more grid-like view
+        if (( (i + 1) % 16 == 0 )); then
+            printf "%b\n" "$T_RESET"
+        fi
+    done
+
+    # Reset the color at the end
+    printf "%b\n" "$T_RESET"
+}
+
+# This block will only run when the script is executed directly, not when sourced.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
 fi
-
-block_char="██"
-
-# Loop through all 256 colors
-for i in {0..255}; do
-    if [[ "$mode" == "bg" ]]; then
-        if (( use_blocks == 1 )); then
-            printf "\x1b[48;5;%dm%-4s" "$i" "$block_char"
-        else
-            fg_color=$(get_contrasting_fg_color "$i")
-            printf "\x1b[48;5;%dm\x1b[38;5;%dm%3d " "$i" "$fg_color" "$i"
-        fi
-    else
-        if (( use_blocks == 1 )); then
-            printf "\x1b[38;5;%dm%-4s" "$i" "$block_char"
-        else
-            printf "\x1b[38;5;%dm%3d " "$i" "$i"
-        fi
-    fi
-
-    # Group items into 16 per line for a more grid-like view
-    if (( (i + 1) % 16 == 0 )); then
-        printf "%b\n" "$T_RESET"
-    fi
-done
-
-# Reset the color at the end
-printf "%b\n" "$T_RESET"

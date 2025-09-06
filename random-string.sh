@@ -46,46 +46,51 @@ generate_random_string() {
     (set +o pipefail; < /dev/urandom tr -dc 'a-f0-9' | head -c "$length")
 }
 
-# --- Main Script ---
+main() {
+    # Default values
+    local NUM_STRINGS=3
+    local LENGTH=5
 
-# Default values
-NUM_STRINGS=3
-LENGTH=5
-
-# Process arguments using getopts for robust option parsing
-while getopts ":n:l:h" opt; do
-    case ${opt} in
-        n)
-            if ! [[ $OPTARG =~ ^[0-9]+$ ]]; then
-                printErrMsg "Value for -n must be a positive integer." >&2
+    # Process arguments using getopts for robust option parsing
+    while getopts ":n:l:h" opt; do
+        case ${opt} in
+            n)
+                if ! [[ $OPTARG =~ ^[0-9]+$ ]]; then
+                    printErrMsg "Value for -n must be a positive integer." >&2
+                    exit 1
+                fi
+                NUM_STRINGS=$OPTARG
+                ;;
+            l)
+                if ! [[ $OPTARG =~ ^[0-9]+$ ]]; then
+                    printErrMsg "Value for -l must be a positive integer." >&2
+                    exit 1
+                fi
+                LENGTH=$OPTARG
+                ;;
+            h)
+                print_usage
+                exit 0
+                ;;
+            \?)
+                printErrMsg "Invalid option: -$OPTARG" >&2
                 exit 1
-            fi
-            NUM_STRINGS=$OPTARG
-            ;;
-        l)
-            if ! [[ $OPTARG =~ ^[0-9]+$ ]]; then
-                printErrMsg "Value for -l must be a positive integer." >&2
+                ;;
+            :)
+                printErrMsg "Option -$OPTARG requires an argument." >&2
                 exit 1
-            fi
-            LENGTH=$OPTARG
-            ;;
-        h)
-            print_usage
-            exit 0
-            ;;
-        \?)
-            printErrMsg "Invalid option: -$OPTARG" >&2
-            exit 1
-            ;;
-        :)
-            printErrMsg "Option -$OPTARG requires an argument." >&2
-            exit 1
-            ;;
-    esac
-done
+                ;;
+        esac
+    done
 
-# Generate and print the random strings to stdout, one per line.
-for ((i = 0; i < NUM_STRINGS; i++)); do
-    generate_random_string "$LENGTH"
-    echo # Add a newline after each string
-done
+    # Generate and print the random strings to stdout, one per line.
+    for ((i = 0; i < NUM_STRINGS; i++)); do
+        generate_random_string "$LENGTH"
+        echo # Add a newline after each string
+    done
+}
+
+# This block will only run when the script is executed directly, not when sourced.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
