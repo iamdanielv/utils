@@ -66,6 +66,35 @@ get_ssh_config_value() {
     '
 }
 
+# (Private) Gets all relevant config values for a given host in one go.
+# Returns a string of `eval`-safe variable assignments.
+# Usage:
+#   local details; details=$(_get_all_ssh_config_values_as_string <host_alias>)
+#   eval "$details"
+_get_all_ssh_config_values_as_string() {
+    local host_alias="$1"
+    # Call ssh -G once per host and parse all required values in a single awk command.
+    # This is much more efficient than calling ssh -G multiple times.
+    ssh -G "$host_alias" 2>/dev/null | awk '
+        # Map ssh -G output keys to the shell variable names we want to use.
+        BEGIN {
+            keys["hostname"] = "current_hostname"
+            keys["user"] = "current_user"
+            keys["identityfile"] = "current_identityfile"
+            keys["port"] = "current_port"
+        }
+        # If the first field is one of our target keys, process it.
+        $1 in keys {
+            var_name = keys[$1]
+            # Reconstruct the value, which might contain spaces.
+            val = ""
+            for (i = 2; i <= NF; i++) { val = (val ? val " " : "") $i }
+            # Print in KEY="VALUE" format for safe evaluation in the shell.
+            printf "%s=\"%s\"\n", var_name, val
+        }
+    '
+}
+
 # Generates a list of formatted strings for the interactive menu,
 # showing details for each SSH host.
 # Populates an array whose name is passed as the first argument.
@@ -84,53 +113,30 @@ get_detailed_ssh_hosts_menu_options() {
     fi
 
     for host_alias in "${hosts[@]}"; do
-        # Call ssh -G once per host and parse all required values in a single awk command.
-        # This is much more efficient than calling ssh -G four times for each host.
-        local details
-        details=$(ssh -G "$host_alias" 2>/dev/null | awk '
-            # Map ssh -G output keys to the shell variable names we want to use.
-            BEGIN {
-                keys["hostname"] = "hostname"
-                keys["user"] = "user"
-                keys["identityfile"] = "identity_file"
-                keys["port"] = "port"
-            }
-            # If the first field is one of our target keys, process it.
-            $1 in keys {
-                var_name = keys[$1]
-                # Reconstruct the value, which might contain spaces.
-                val = ""
-                for (i = 2; i <= NF; i++) {
-                    val = (val ? val " " : "") $i
-                }
-                # Print in KEY="VALUE" format for safe evaluation in the shell.
-                printf "%s=\"%s\"\n", var_name, val
-            }
-        ')
-
         # Declare local variables and use eval to populate them from the awk output.
         # This is safe because the input is controlled (from ssh -G) and the awk script
         # only processes specific, known keys.
-        local hostname user identity_file port
+        local current_hostname current_user current_identityfile current_port
+        local details; details=$(_get_all_ssh_config_values_as_string "$host_alias")
         eval "$details"
         # Clean up identity file path for display
         local key_info=""
-        if [[ -n "$identity_file" ]]; then
+        if [[ -n "$current_identityfile" ]]; then
             # Using #$HOME is safer than a simple string replacement
-            key_info=" (${C_WHITE}${identity_file/#$HOME/\~}${T_RESET})"
+            key_info=" (${C_WHITE}${current_identityfile/#$HOME/\~}${T_RESET})"
         fi
 
         # Format port info, only show if not the default port 22
         local port_info=""
-        if [[ -n "$port" && "$port" != "22" ]]; then
-            port_info=":${C_L_YELLOW}${port}${T_RESET}"
+        if [[ -n "$current_port" && "$current_port" != "22" ]]; then
+            port_info=":${C_L_YELLOW}${current_port}${T_RESET}"
         fi
 
         local formatted_string
         formatted_string=$(printf "%-20s - ${C_L_CYAN}%s@%s%s${T_RESET}%s" \
             "${host_alias}" \
-            "${user:-?}" \
-            "${hostname:-?}" \
+            "${current_user:-?}" \
+            "${current_hostname:-?}" \
             "${port_info}" \
             "${key_info}"
         )
@@ -459,18 +465,17 @@ _get_identity_file_for_new_host() {
     return 0
 }
 
-# (Private) Appends a fully formed host block to the SSH config file.
-# Usage: _append_host_to_config <alias> <hostname> <user> [identity_file]
-_append_host_to_config() {
+# (Private) Builds a host block as a string. Does not write to any file.
+# Usage: _build_host_block_string <alias> <hostname> <user> <port> [identity_file]
+_build_host_block_string() {
     local host_alias="$1"
     local host_name="$2"
     local user="$3"
     local port="$4"
     local identity_file="${5:-}"
 
-    # Use a subshell and a here-document for cleaner block creation.
-    (
-        echo "" # Separator
+    # Use a subshell to capture the output of multiple echo commands
+    {
         echo "Host ${host_alias}"
         echo "    HostName ${host_name}"
         echo "    User ${user}"
@@ -481,6 +486,21 @@ _append_host_to_config() {
             echo "    IdentityFile ${identity_file}"
             echo "    IdentitiesOnly yes"
         fi
+    }
+}
+
+# (Private) Appends a fully formed host block to the SSH config file.
+# Usage: _append_host_to_config <alias> <hostname> <user> <port> [identity_file]
+_append_host_to_config() {
+    local host_alias="$1"
+    local host_name="$2"
+    local user="$3"
+    local port="$4"
+    local identity_file="${5:-}"
+
+    (
+        echo "" # Separator
+        _build_host_block_string "$host_alias" "$host_name" "$user" "$port" "$identity_file"
     ) >> "$SSH_CONFIG_PATH"
 
     local key_msg=""
@@ -659,13 +679,10 @@ edit_ssh_host() {
     printInfoMsg "Editing configuration for: ${C_L_CYAN}${host_to_edit}${T_RESET}"
     printMsg "${C_L_GRAY}(Press Enter to keep the current value)${T_RESET}"
 
-    # Get current values to use as defaults in prompts
-    local current_hostname
-    current_hostname=$(get_ssh_config_value "$host_to_edit" "HostName")
-    local current_user current_port current_identityfile
-    current_user=$(get_ssh_config_value "$host_to_edit" "User")
-    current_port=$(get_ssh_config_value "$host_to_edit" "Port")
-    current_identityfile=$(get_ssh_config_value "$host_to_edit" "IdentityFile")
+    # Get current values to use as defaults in prompts, using the efficient helper.
+    local current_hostname current_user current_port current_identityfile
+    local details; details=$(_get_all_ssh_config_values_as_string "$host_to_edit")
+    eval "$details"
 
     # Prompt for new values
     local new_hostname new_user new_port new_identityfile
@@ -698,29 +715,22 @@ edit_ssh_host() {
     local config_without_host
     config_without_host=$(_remove_host_block_from_config "$host_to_edit")
 
-    # Build the new host block as a string
+    # Build the new host block using the shared helper function
     local new_host_block
-    new_host_block=$(
-        # Use a subshell to capture the output of multiple echo commands
-        {
-            echo "" # Start with a newline to separate from previous block
-            echo "Host ${host_to_edit}"
-            echo "    HostName ${new_hostname}"
-            echo "    User ${new_user}"
-            if [[ -n "$new_port" && "$new_port" != "22" ]]; then
-                echo "    Port ${new_port}"
-            fi
-            if [[ -n "$new_identityfile" ]]; then
-                echo "    IdentityFile ${new_identityfile}"
-                echo "    IdentitiesOnly yes"
-            fi
-        }
-    )
+    new_host_block=$(_build_host_block_string "$host_to_edit" "$new_hostname" "$new_user" "$new_port" "$new_identityfile")
 
     # Combine the existing config (minus the old block) with the new block and write to the file
-    echo "${config_without_host}${new_host_block}" | cat -s > "$SSH_CONFIG_PATH"
+    # The `\n` ensures separation if the old block was the last one in the file.
+    echo -e "${config_without_host}\n${new_host_block}" | cat -s > "$SSH_CONFIG_PATH"
 
     printOkMsg "Host '${host_to_edit}' has been updated."
+
+    # --- Cleanup ---
+    # If the identity file was changed or removed, check if the old key is now orphaned.
+    if [[ -n "$current_identityfile" && "$current_identityfile" != "$new_identityfile" ]]; then
+        # The _cleanup_orphaned_key function will check if any other hosts are still using it.
+        _cleanup_orphaned_key "$current_identityfile"
+    fi
 }
 
 # Allows advanced editing of a host's config block directly in $EDITOR.
