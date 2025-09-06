@@ -1,11 +1,12 @@
 # utils 🛠️
 
-A collection of command-line utilities for system monitoring, string generation, and Git automation.
+A collection of command-line utilities for SSH management, system monitoring, string generation, and Git automation.
 
 ## 🧠 Overview
 
 This repository contains shell scripts for:
 
+- SSH host and key management
 - System monitoring (temperature, user checks)
 - String generation
 - Git automation
