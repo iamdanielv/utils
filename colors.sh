@@ -8,7 +8,8 @@ set -o pipefail
 
 # Source common utilities for colors and functions
 # shellcheck source=./shared.sh
-if ! source "$(dirname "$0")/shared.sh"; then
+# shellcheck disable=SC1091
+if ! source "$(dirname "${BASH_SOURCE[0]}")/shared.sh"; then
     echo "Error: Could not source shared.sh. Make sure it's in the same directory." >&2
     exit 1
 fi
