@@ -545,7 +545,7 @@ interactive_multi_select_menu() {
     trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
 
     # Initial draw: Print static header once, then the dynamic options.
-    echo -e "${C_GRAY}(Use ${C_L_CYAN}↑↓${C_GRAY} to navigate, ${C_L_CYAN}space${C_GRAY} to select, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}(Use ${C_L_CYAN}↓/↑${C_GRAY} to navigate, ${C_L_CYAN}space${C_GRAY} to select, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
     echo -e "${T_QST_ICON} ${prompt}" >/dev/tty
     echo -e "${C_GRAY}${DIV}${T_RESET}" >/dev/tty
     _draw_menu_options >/dev/tty
@@ -683,7 +683,7 @@ interactive_single_select_menu() {
     trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
 
     # Initial draw: Print static header once, then the dynamic options.
-    echo -e "${C_GRAY}(Use ${C_L_CYAN}↑↓${C_GRAY} to navigate, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}(Use ${C_L_CYAN}↓/↑${C_GRAY} to navigate, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
     echo -e "${T_QST_ICON} ${prompt}" >/dev/tty
     echo -e "${C_GRAY}${DIV}${T_RESET}" >/dev/tty
     _draw_menu_options >/dev/tty
@@ -713,6 +713,123 @@ interactive_single_select_menu() {
         esac
         # Redraw only the options part of the menu
         _draw_menu_options >/dev/tty
+    done
+}
+
+##
+# Displays an interactive menu for reordering a list of items.
+#
+# ## Usage:
+#   local -a items=("First" "Second" "Third")
+#   local reordered_output
+#   reordered_output=$(interactive_reorder_menu "Reorder items:" "${items[@]}")
+#   local exit_code=$?
+#
+#   if [[ $exit_code -eq 0 ]]; then
+#     mapfile -t reordered_items <<< "$reordered_output"
+#     echo "New order:"
+#     printf " - %s\n" "${reordered_items[@]}"
+#   else
+#     echo "Reordering was cancelled."
+#   fi
+#
+# ## Arguments:
+#  $1 - The prompt to display to the user.
+#  $@ - The list of options to reorder.
+#
+# ## Returns:
+#  On success (Enter pressed):
+#    - Prints the reordered items to stdout, one per line.
+#    - Returns with exit code 0.
+#  On cancellation (ESC or q pressed):
+#    - Prints nothing to stdout.
+#    - Returns with exit code 1.
+##
+interactive_reorder_menu() {
+    if ! [[ -t 0 ]]; then
+        printErrMsg "Not an interactive session." >&2
+        return 1
+    fi
+
+    local prompt="$1"
+    shift
+    # Use a different name for the array to avoid conflicts with the caller's array
+    local -a current_items=("$@")
+    local num_items=${#current_items[@]}
+
+    if [[ $num_items -eq 0 ]]; then
+        printErrMsg "No items provided to reorder menu." >&2
+        return 1
+    fi
+
+    local current_pos=0
+    local held_item_idx=-1 # -1 means no item is currently "held"
+
+    _draw_reorder_menu() {
+        local output=""
+        for i in "${!current_items[@]}"; do
+            local pointer=" "
+            local highlight_start=""
+            local highlight_end=""
+
+            if (( i == current_pos )); then
+                pointer="${T_BOLD}${C_L_MAGENTA}❯${T_RESET}"
+            fi
+            if (( i == held_item_idx )); then
+                highlight_start="${T_REVERSE}"
+                highlight_end="${T_RESET}"
+            fi
+
+            output+="  ${pointer} ${highlight_start}${current_items[i]}${highlight_end}${T_RESET}${T_CLEAR_LINE}\n"
+        done
+        echo -ne "$output"
+    }
+
+    printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
+    trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
+
+    echo -e "${C_GRAY}(${C_L_CYAN}↓/↑/j/k${C_GRAY} move, ${C_L_CYAN}space${C_GRAY} grab/drop, ${C_L_GREEN}enter${C_GRAY} save, ${C_L_YELLOW}q/esc${C_GRAY} cancel)${T_RESET}" >/dev/tty
+    echo -e "${T_QST_ICON} ${prompt}" >/dev/tty
+    echo -e "${C_GRAY}${DIV}${T_RESET}" >/dev/tty
+    _draw_reorder_menu >/dev/tty
+
+    local key
+    local menu_height=$((num_items + 3))
+
+    while true; do
+        move_cursor_up "$num_items"
+        key=$(read_single_char </dev/tty)
+
+        case "$key" in
+            "$KEY_UP"|"k")
+                if (( held_item_idx != -1 )); then
+                    # An item is held, so move it up if not at the top.
+                    if (( held_item_idx > 0 )); then
+                        local next_idx=$((held_item_idx - 1))
+                        local tmp="${current_items[held_item_idx]}"; current_items[held_item_idx]="${current_items[next_idx]}"; current_items[next_idx]="$tmp"
+                        held_item_idx=$next_idx; current_pos=$next_idx
+                    fi
+                else
+                    # No item is held, just navigate.
+                    current_pos=$(( (current_pos - 1 + num_items) % num_items ))
+                fi;;
+            "$KEY_DOWN"|"j")
+                if (( held_item_idx != -1 )); then
+                    # An item is held, so move it down if not at the bottom.
+                    if (( held_item_idx < num_items - 1 )); then
+                        local next_idx=$((held_item_idx + 1))
+                        local tmp="${current_items[held_item_idx]}"; current_items[held_item_idx]="${current_items[next_idx]}"; current_items[next_idx]="$tmp"
+                        held_item_idx=$next_idx; current_pos=$next_idx
+                    fi
+                else
+                    # No item is held, just navigate.
+                    current_pos=$(( (current_pos + 1) % num_items ))
+                fi;;
+            ' ') (( held_item_idx == current_pos )) && held_item_idx=-1 || held_item_idx=$current_pos ;;
+            "$KEY_ENTER") clear_lines_down "$menu_height"; printf "%s\n" "${current_items[@]}"; return 0;;
+            "$KEY_ESC"|"q") clear_lines_down "$menu_height"; return 1;;
+        esac
+        _draw_reorder_menu >/dev/tty
     done
 }
 
