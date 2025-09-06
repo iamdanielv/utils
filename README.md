@@ -2,11 +2,6 @@
 
 A collection of command-line utilities for system monitoring, string generation, and Git automation.
 
-## 🎁 Bonus: Shell Aliases (` .bash_aliases `)
-
-**Description:**  
-Provides enhanced shell aliases for tools like `vim`, `cat`,
-
 ## 🧠 Overview
 
 This repository contains shell scripts for:
@@ -38,19 +33,20 @@ Ensures the script is running as a specific user, attempting to switch with sudo
 ### 🎲 Random String Generator (`random-string.sh`)
 
 **Description:**  
-Generates random hexadecimal strings with configurable:
+Generates one or more random hexadecimal strings with configurable:
 
-- Length (default: 5 characters)
-- Output format options
+- Number of strings to generate (`-n`, default: 3)
+- Length of each string (`-l`, default: 5)
 
 ### 🧾 Git Utilities (`git-utils.sh`)
 
 **Description:**  
-Streamlines common Git workflows with:
+Recursively performs Git commands on the current directory and all subdirectories that are Git repositories.
 
-- Branch management shortcuts
-- Commit automation
-- Repository analysis tools
+- Check status of all repos (`-gs`)
+- Pull changes for all repos (`-gp`)
+- View all local and remote branches (`-gvb`)
+- Switch all repos to a specific branch (`-gb <branch>`)
 
 ### 🎨 Color Palette Viewer (`colors.sh`)
 
@@ -66,7 +62,7 @@ A utility to display all 256 terminal colors for both foreground and background.
 **Description:**  
 An interactive TUI for managing and connecting to SSH hosts defined in `~/.ssh/config`.
 
-- Connect, test, add, edit, clone, and remove hosts
+- Connect, test, add, edit, rename, clone, reorder, and remove hosts
 - Generate new SSH keys and copy them to servers
 - Backup, import, and export host configurations
 - Bypass menus for quick actions:
