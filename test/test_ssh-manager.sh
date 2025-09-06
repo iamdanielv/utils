@@ -107,6 +107,12 @@ prompt_yes_no() {
     return "$MOCK_PROMPT_RESULT"
 }
 
+# Mock for `prompt_to_continue` to avoid interactive waits in tests.
+prompt_to_continue() {
+    # Do nothing, just return success.
+    return 0
+}
+
 # --- Test Harness ---
 
 reset_test_state() {
@@ -438,6 +444,78 @@ EOF
     _run_string_test "$(echo "$actual_config" | cat -s)" "$(echo "$expected_config" | cat -s)" "Should clone host and append it to the config"
 }
 
+test_edit_host_in_editor() {
+    printTestSectionHeader "Testing edit_ssh_host_in_editor"
+
+    # --- Case 1: Successful edit ---
+    reset_test_state # Reset config
+
+    # Mock the host selection
+    MOCK_SELECT_HOST_RETURN="test-server-1"
+
+    # Create a mock editor script that will "edit" the temp file
+    local mock_editor_path="${TEST_DIR}/mock_editor.sh"
+    # The new block we want the "editor" to save.
+    local new_block_content
+    new_block_content=$(cat <<'EOF'
+Host test-server-1
+    HostName 192.168.1.99
+    User new-editor-user
+    # This comment was added by the editor
+EOF
+)
+    # The mock editor script takes the temp file path ($1) and overwrites it.
+    # It must also preserve the modeline that the function under test adds.
+    cat > "$mock_editor_path" <<EOF
+#!/bin/bash
+echo "# vim: set filetype=sshconfig:" > "\$1"
+echo "$new_block_content" >> "\$1"
+EOF
+    chmod +x "$mock_editor_path"
+    export EDITOR="$mock_editor_path"
+
+    # Run the function
+    edit_ssh_host_in_editor >/dev/null 2>&1
+
+    # The expected final config file content
+    local expected_config
+    expected_config=$(cat <<EOF
+Host test-server-2
+    HostName server2.example.com
+    User user2
+    # No port, should default to 22
+
+Host test-server-3
+    HostName 192.168.1.103
+    User user3
+    IdentityFile /absolute/path/to/key
+
+$new_block_content
+EOF
+)
+    local actual_config
+    actual_config=$(<"$SSH_CONFIG_PATH")
+    _run_string_test "$(echo "$actual_config" | cat -s)" "$(echo "$expected_config" | cat -s)" "Should update config with content from editor"
+
+    # --- Case 2: No changes made in editor ---
+    reset_test_state
+    local initial_config; initial_config=$(<"$SSH_CONFIG_PATH")
+    MOCK_SELECT_HOST_RETURN="test-server-1"
+
+    # This time, the mock editor makes no changes. It just exits.
+    # The function should detect this and not modify the config.
+    echo -e '#!/bin/bash\nexit 0' > "$mock_editor_path"
+    chmod +x "$mock_editor_path"
+
+    edit_ssh_host_in_editor >/dev/null 2>&1
+
+    local final_config; final_config=$(<"$SSH_CONFIG_PATH")
+    _run_string_test "$final_config" "$initial_config" "Should not modify config if editor makes no changes"
+
+    # Unset the editor override for other tests
+    unset EDITOR
+}
+
 # --- Main Test Runner ---
 
 main() {
@@ -455,9 +533,10 @@ main() {
     test_edit_host
     test_rename_host
     test_clone_host
+    test_edit_host_in_editor
 
     # Print summary and exit with appropriate code
-    print_test_summary "ssh" "rm" "mv" "prompt_yes_no" "prompt_for_input" "select_ssh_host"
+    print_test_summary "ssh" "rm" "mv" "prompt_yes_no" "prompt_for_input" "select_ssh_host" "prompt_to_continue"
 }
 
 main

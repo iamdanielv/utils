@@ -752,11 +752,16 @@ edit_ssh_host_in_editor() {
 
     # Create a temporary file to hold the block for editing
     local temp_file
-    temp_file=$(mktemp)
+    # Use a suffix that editors like Vim/Neovim will recognize for ssh_config syntax highlighting.
+    temp_file=$(mktemp --suffix=.sshconfig)
     # Ensure temp file is cleaned up on exit or interrupt
     trap 'rm -f "$temp_file"' RETURN
 
-    echo "$original_block" > "$temp_file"
+    # Add a Vim/Neovim modeline to the top of the temp file to explicitly set the filetype.
+    # This is more reliable than relying on just the filename extension.
+    # The modeline will be stripped out before saving.
+    echo "# vim: set filetype=sshconfig:" > "$temp_file"
+    echo "$original_block" >> "$temp_file"
 
     # Determine the editor to use
     local editor="${EDITOR:-nvim}"
@@ -777,9 +782,11 @@ edit_ssh_host_in_editor() {
 
     # Read the potentially modified content
     local new_block
-    new_block=$(<"$temp_file")
+    # Strip the modeline we added. The rest is the user's content.
+    new_block=$(grep -v "vim: set filetype=sshconfig:" "$temp_file")
 
-    # Compare the new content with the original.
+    # Command substitution `$(...)` strips trailing newlines from both original_block and new_block,
+    # making them directly comparable if no changes were made.
     if [[ "$new_block" == "$original_block" ]]; then
         printInfoMsg "No changes detected. Configuration for '${host_to_edit}' remains unchanged."
         return
