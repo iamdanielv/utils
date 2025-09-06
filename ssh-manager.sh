@@ -610,13 +610,11 @@ _process_ssh_config_blocks() {
             block = $0
             is_target_block = 0
 
-            # Check if this new block is the one we are looking for.
-            line_content = $0
-            sub(/^[ \t]*[Hh][Oo][Ss][Tt][ \t]+/, "", line_content)
-            n = split(line_content, patterns, /[ \t]+/)
-            for (i = 1; i <= n; i++) {
-                if (patterns[i] ~ /^#/) break
-                if (patterns[i] == target_host) {
+            # Check if this new block is the one we are looking for by iterating
+            # through the fields on the line, starting from the second field.
+            for (i = 2; i <= NF; i++) {
+                if ($i ~ /^#/) break # Stop at the first comment
+                if ($i == target_host) {
                     is_target_block = 1
                     break
                 }
