@@ -397,6 +397,47 @@ EOF
     _run_string_test "${MOCK_MV_CALLS[1]}" "$expected_mv_call_2" "Should call 'mv' to rename public key"
 }
 
+test_clone_host() {
+    printTestSectionHeader "Testing clone_ssh_host"
+
+    # --- Case 1: Clone a host ---
+    reset_test_state
+    MOCK_PROMPT_CANCEL_ON_VAR=""
+    MOCK_SELECT_HOST_RETURN="test-server-1"
+    MOCK_PROMPT_INPUTS=( ["out_alias_var"]="cloned-server-1" )
+
+    clone_ssh_host
+
+    local expected_config
+    expected_config=$(cat <<'EOF'
+Host test-server-1
+    HostName 192.168.1.101
+    User user1
+    Port 2222
+    IdentityFile ~/.ssh/id_test1
+
+Host test-server-2
+    HostName server2.example.com
+    User user2
+    # No port, should default to 22
+
+Host test-server-3
+    HostName 192.168.1.103
+    User user3
+    IdentityFile /absolute/path/to/key
+
+Host cloned-server-1
+    HostName 192.168.1.101
+    User user1
+    Port 2222
+    IdentityFile ~/.ssh/id_test1
+EOF
+)
+    local actual_config
+    actual_config=$(<"$SSH_CONFIG_PATH")
+    _run_string_test "$(echo "$actual_config" | cat -s)" "$(echo "$expected_config" | cat -s)" "Should clone host and append it to the config"
+}
+
 # --- Main Test Runner ---
 
 main() {
@@ -413,6 +454,7 @@ main() {
     test_remove_host
     test_edit_host
     test_rename_host
+    test_clone_host
 
     # Print summary and exit with appropriate code
     print_test_summary "ssh" "rm" "mv" "prompt_yes_no" "prompt_for_input" "select_ssh_host"
