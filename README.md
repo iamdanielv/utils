@@ -71,6 +71,19 @@ An interactive TUI for managing and connecting to SSH hosts defined in `~/.ssh/c
   - `-a, --add`: Directly add a new host
   - `-t, --test [host|all]`: Test connection to one or all hosts
 
+### 🚀 LazyVim Installer (`install-lazyvim.sh`)
+
+**Description:**  
+A comprehensive script to automate the installation of LazyVim and all its prerequisites.
+
+- Supports Debian/Ubuntu-based Linux distributions on x86_64 architecture.
+- Installs dependencies like `ripgrep`, `fd`, and build tools
+- Installs `fzf` from its official repository
+- Downloads, installs, and updates the latest stable Neovim AppImage
+- Installs the FiraCode Nerd Font for proper icon display
+- Sets up a custom fzf configuration in `.bashrc` for enhanced fuzzy finding
+- Backs up your existing Neovim config and sets up the LazyVim starter template
+
 ## 🤝 Contributing
 
 I'm open to and encourage contributions of bug fixes, improvements, and documentation!
