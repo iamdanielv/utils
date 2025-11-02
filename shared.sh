@@ -454,6 +454,52 @@ prompt_to_continue() {
 }
 
 ##
+# An interactive prompt for user input that supports cancellation.
+# It reads input character-by-character to provide a responsive feel
+# and handles ESC for cancellation.
+#
+# ## Usage:
+#   local user_name
+#   prompt_for_input "Enter your name" user_name "Guest"
+#   if [[ $? -eq 0 ]]; then
+#     echo "Hello, $user_name"
+#   fi
+#
+# ## Arguments:
+#  $1 - The prompt text to display.
+#  $2 - The name of the variable to store the result in.
+#  $3 - (Optional) The default value for the input.
+#  $4 - (Optional) "true" to allow the final value to be empty. Default is "false".
+#
+# ## Returns:
+#  - 0 on success (Enter pressed with valid input).
+#  - 1 on cancellation (ESC or 'q' pressed).
+##
+prompt_for_input() {
+    local prompt_text="$1"
+    local -n var_ref="$2" # Use nameref to assign to caller's variable
+    local default_val="${3:-}"
+    local allow_empty="${4:-false}"
+
+    local input_str="$default_val"
+    local key
+
+    while true; do
+        clear_current_line >/dev/tty
+        printMsgNoNewline "${T_QST_ICON} ${prompt_text}: ${C_L_CYAN}${input_str}${T_RESET}" >/dev/tty
+        key=$(read_single_char </dev/tty)
+        case "$key" in
+            "$KEY_ENTER")
+                if [[ -n "$input_str" || "$allow_empty" == "true" ]]; then
+                    var_ref="$input_str"; clear_current_line >/dev/tty; printMsg "${T_QST_ICON} ${prompt_text}: ${C_L_GREEN}${input_str}${T_RESET}"; return 0;
+                fi ;;
+            "$KEY_ESC"|"q") clear_current_line >/dev/tty; printMsg "${T_QST_ICON} ${prompt_text}:\n ${C_L_YELLOW}-- cancelled --${T_RESET}"; return 1 ;;
+            "$KEY_BACKSPACE") [[ -n "$input_str" ]] && input_str="${input_str%?}" ;;
+            *) (( ${#key} == 1 )) && [[ "$key" =~ [[:print:]] ]] && input_str+="$key" ;;
+        esac
+    done
+}
+##
 # Displays an interactive multi-select menu.
 # Allows the user to select multiple options using arrow keys and the spacebar.
 #
@@ -546,8 +592,7 @@ interactive_multi_select_menu() {
 
     # Initial draw: Print static header once, then the dynamic options.
     echo -e "${C_GRAY}(Use ${C_L_CYAN}↓/↑${C_GRAY} to navigate, ${C_L_CYAN}space${C_GRAY} to select, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
-    echo -e "${T_QST_ICON} ${prompt}" >/dev/tty
-    echo -e "${C_GRAY}${DIV}${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}${DIV}${T_RESET}\r${T_QST_ICON} ${prompt}" >/dev/tty
     _draw_menu_options >/dev/tty
 
     local key
@@ -684,8 +729,7 @@ interactive_single_select_menu() {
 
     # Initial draw: Print static header once, then the dynamic options.
     echo -e "${C_GRAY}(Use ${C_L_CYAN}↓/↑${C_GRAY} to navigate, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
-    echo -e "${T_QST_ICON} ${prompt}" >/dev/tty
-    echo -e "${C_GRAY}${DIV}${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}${DIV}${T_RESET}\r${T_QST_ICON} ${prompt}" >/dev/tty
     _draw_menu_options >/dev/tty
 
     local key
@@ -789,8 +833,7 @@ interactive_reorder_menu() {
     trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
 
     echo -e "${C_GRAY}(${C_L_CYAN}↓/↑/j/k${C_GRAY} move, ${C_L_CYAN}space${C_GRAY} grab/drop, ${C_L_GREEN}enter${C_GRAY} save, ${C_L_YELLOW}q/esc${C_GRAY} cancel)${T_RESET}" >/dev/tty
-    echo -e "${T_QST_ICON} ${prompt}" >/dev/tty
-    echo -e "${C_GRAY}${DIV}${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}${DIV}${T_RESET}\r${T_QST_ICON} ${prompt}" >/dev/tty
     _draw_reorder_menu >/dev/tty
 
     local key

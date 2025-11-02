@@ -260,58 +260,6 @@ generate_ssh_key() {
     fi
 }
 
-# An interactive prompt for user input that supports cancellation.
-# It reads input character-by-character to provide a responsive feel
-# and handles ESC for cancellation.
-# Usage: prompt_for_input "Prompt text" "variable_name" ["default_value"] ["allow_empty"]
-# Returns 0 on success (Enter), 1 on cancellation (ESC).
-prompt_for_input() {
-    local prompt_text="$1"
-    local -n var_ref="$2" # Use nameref to assign to caller's variable
-    local default_val="${3:-}"
-    local allow_empty="${4:-false}"
-
-    # Pre-fill the input string with the default value to allow editing/clearing it.
-    local input_str="$default_val"
-    local key
-
-    while true; do
-        # Draw the prompt and current input string, with the cursor visible at the end.
-        clear_current_line >/dev/tty
-        printMsgNoNewline "${T_QST_ICON} ${prompt_text}: ${C_L_CYAN}${input_str}${T_RESET}" >/dev/tty
-
-        key=$(read_single_char </dev/tty)
-
-        case "$key" in
-            "$KEY_ENTER")
-                # The final value is whatever is in the input buffer.
-                # This allows the user to backspace to clear a default value.
-                local final_input="$input_str"
-                if [[ -n "$final_input" || "$allow_empty" == "true" ]]; then
-                    var_ref="$final_input"
-                    clear_current_line >/dev/tty
-                    # Show the prompt again with the final selected value.
-                    printMsg "${T_QST_ICON} ${prompt_text}: ${C_L_GREEN}${final_input}${T_RESET}"
-                    return 0 # Success
-                fi
-                # If not valid, loop continues, waiting for more input or ESC.
-                ;;
-            "$KEY_ESC")
-                clear_current_line >/dev/tty
-                printMsg "${T_QST_ICON} ${prompt_text}:\n ${C_L_YELLOW}-- cancelled --${T_RESET}"
-                return 1 # Cancelled
-                ;;
-            "$KEY_BACKSPACE")
-                [[ -n "$input_str" ]] && input_str="${input_str%?}"
-                ;;
-            *)
-                # Append single, printable characters. Ignore control sequences.
-                (( ${#key} == 1 )) && [[ "$key" =~ [[:print:]] ]] && input_str+="$key"
-                ;;
-        esac
-    done
-}
-
 # (Private) Prompts for a new, unique SSH host alias.
 # It allows the user to re-enter the same alias when renaming, which is treated as a no-op.
 # Uses a nameref to return the value.
