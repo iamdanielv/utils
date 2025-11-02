@@ -32,6 +32,7 @@ print_usage() {
     printMsg "  4. Backs up any existing Neovim configuration."
     printMsg "  5. Clones the LazyVim starter template."
     printMsg "  6. Sets up custom fzf configuration with previews in '~/.bashrc'."
+    printMsg "  7. Ensures '~/.local/bin' is in your PATH."
     printMsg "  7. Installs the FiraCode Nerd Font for proper icon display."
     printMsg "\nRun without arguments to start the installation."
 }
@@ -78,6 +79,27 @@ install_package() {
     printOkMsg "Successfully installed ${package_name}."
 }
 
+# Installs bat or batcat for file previews.
+# On newer Debian/Ubuntu, 'bat' provides 'batcat'. On older ones, it's reversed.
+# We need either command to be available for fzf previews.
+install_bat_or_batcat() {
+    # fzf-preview.sh prefers 'batcat' then 'bat'.
+    if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
+        printInfoMsg "bat/batcat is already installed. Skipping."
+        return
+    fi
+
+    printInfoMsg "Attempting to install 'bat'..."
+    # Temporarily disable exit-on-error to allow fallback
+    (set +e; sudo apt-get install -y bat &>/dev/null)
+    if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
+        printOkMsg "Successfully installed bat/batcat."
+    else
+        printWarnMsg "'bat' installation failed, trying 'batcat'. This may not provide file previews."
+        install_package "batcat"
+    fi
+}
+
 # Installs core dependencies required for building and running plugins.
 install_dependencies() {
     printBanner "Installing Core Dependencies"
@@ -85,6 +107,7 @@ install_dependencies() {
     # Update package manager repositories first
     printInfoMsg "Updating package lists..."
     sudo apt-get update
+    install_package "curl"
 
     # Install build tools, git, and other essentials
     install_package "build-essential" "gcc"
@@ -95,9 +118,7 @@ install_dependencies() {
     install_package "fd-find" "fd"
 
     # For fzf preview script
-    # On newer Debian/Ubuntu, 'bat' is the package, but the binary is 'batcat'.
-    # On older ones, the package is 'batcat'. We'll install 'bat' and check for 'bat'.
-    install_package "bat" "bat" || install_package "batcat" "bat"
+    install_bat_or_batcat
     install_package "tree"
     install_package "fontconfig" "fc-cache"
     install_package "unzip"
@@ -191,14 +212,35 @@ install_neovim() {
     fi
 }
 
+# Checks if ~/.local/bin is in the user's PATH and provides instructions if not.
+check_local_bin_in_path() {
+    printBanner "Checking PATH Environment Variable"
+    local local_bin_dir="${HOME}/.local/bin"
+
+    # Check if the directory is in the PATH. The colons are important for matching.
+    if [[ ":$PATH:" == *":${local_bin_dir}:"* ]]; then
+        printOkMsg "'${local_bin_dir}' is already in your PATH."
+    else
+        printWarnMsg "'${local_bin_dir}' is not in your current PATH."
+        printInfoMsg "Temporarily adding it to the PATH for this session."
+        export PATH="${local_bin_dir}:${PATH}"
+        printOkMsg "PATH updated for current session."
+        printInfoMsg "For this change to be permanent, add the following line to your ~/.bashrc or ~/.zshrc:"
+        printMsg "  ${C_L_CYAN}export PATH=\"\$HOME/.local/bin:\$PATH\"${T_RESET}"
+        prompt_to_continue "Press any key to continue with the installation..."
+    fi
+}
+
 # Downloads and installs the FiraCode Nerd Font.
 install_nerd_font() {
     printBanner "Installing Nerd Font (FiraCode)"
     local font_dir="${HOME}/.local/share/fonts/FiraCodeNerdFont"
-
-    if [[ -d "$font_dir" ]]; then
-        printInfoMsg "FiraCode Nerd Font directory already exists. Skipping installation."
-        printInfoMsg "To reinstall, please remove the directory: ${font_dir}"
+    
+    # Use fc-list to check if the font is already installed and available system-wide.
+    if fc-list | grep -q "FiraCode Nerd Font"; then
+        printInfoMsg "FiraCode Nerd Font is already installed. Skipping."
+        # Also check for our specific directory and give a hint if it exists.
+        [[ -d "$font_dir" ]] && printInfoMsg "(To reinstall via this script, remove: ${font_dir})"
         return
     fi
 
@@ -381,12 +423,20 @@ main() {
     install_dependencies
     install_fzf_from_source
     install_neovim
+    check_local_bin_in_path
     install_nerd_font
     setup_fzf_config
     setup_lazyvim
 
     echo
-    printOkMsg "All steps completed successfully!"
+    printBanner "Installation Complete!"
+    printOkMsg "All steps finished."
+    printMsg "\n${T_ULINE}Next Steps:${T_RESET}"
+    printMsg "  1. ${C_L_YELLOW}Restart your terminal${T_RESET} or run ${C_L_CYAN}source ~/.bashrc${T_RESET} to apply PATH and fzf changes."
+    printMsg "  2. ${C_L_YELLOW}Change your terminal font${T_RESET} to 'FiraCode Nerd Font' to see all icons correctly."
+    printMsg "  3. Start Neovim by running: ${C_L_CYAN}nvim${T_RESET}"
+    printMsg "     LazyVim will finish its setup on the first run. This may take a few minutes."
+    echo
 }
 
 # This block will only run when the script is executed directly, not when sourced.
