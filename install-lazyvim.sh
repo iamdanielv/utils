@@ -207,10 +207,10 @@ install_neovim() {
     local nvim_appimage_path="${bin_dir}/nvim-linux-x86_64.appimage"
     local nvim_url="https://github.com/neovim/neovim/releases/download/v${latest_version}/nvim-linux-x86_64.appimage"
     
-    printInfoMsg "Downloading Neovim AppImage v${latest_version}..."
-    printInfoMsg "URL: ${nvim_url}"
-    if curl -L -f "$nvim_url" -o "$nvim_appimage_path"; then
-        printOkMsg "Download complete."
+    printInfoMsg "Downloading Neovim AppImage v${latest_version} from:"
+    printMsg "  ${C_L_BLUE}${nvim_url}${T_RESET}"
+    # Use -L to follow redirects, -f to fail silently on server errors, and show progress.
+    if curl -L -f --progress-bar "$nvim_url" -o "$nvim_appimage_path"; then
         chmod +x "$nvim_appimage_path"
         ln -sf "$nvim_appimage_path" "${bin_dir}/nvim"
         echo "$latest_version" > "$version_file"

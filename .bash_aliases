@@ -42,6 +42,9 @@ alias gc='git commit -m'
 # Push commits to the remote repository.
 alias gp='git push'
 
+# Launch lazygit, a terminal UI for git.
+alias lg='lazygit'
+
 # A compact and graphical view of commit history.
 # Using a function for better readability and to handle arguments.
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
