@@ -21,7 +21,7 @@ All scripts are designed to be run in Unix-like environments.
 **Description:**  
 Script to set up a new dev machine.
 
-- Installs essential CLI tools like `eza`, `ag` (the_silver_searcher), and `net-tools`.
+- Installs essential CLI tools like `eza`, `ag` (the_silver_searcher), `net-tools`, and `lazygit`.
 - Copies the `.bash_aliases` file to the home directory.
 - Runs the `install-lazyvim.sh` script to provide a full Neovim and LazyVim environment.
 
