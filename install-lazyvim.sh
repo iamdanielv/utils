@@ -240,51 +240,70 @@ check_local_bin_in_path() {
     fi
 }
 
-# Downloads and installs the FiraCode Nerd Font.
-install_nerd_font() {
-    printBanner "Installing Nerd Font (FiraCode)"
-    local font_dir="${HOME}/.local/share/fonts/FiraCodeNerdFont"
-    
-    # Use fc-list to check if the font is already installed and available system-wide.
-    if fc-list | grep -q "FiraCode Nerd Font"; then
-        printInfoMsg "FiraCode Nerd Font is already installed. Skipping."
-        # Also check for our specific directory and give a hint if it exists.
-        [[ -d "$font_dir" ]] && printInfoMsg "(To reinstall via this script, remove: ${font_dir})"
-        return
-    fi
+# Downloads and installs Nerd Fonts
+install_nerd_fonts() {
+    printBanner "Installing Nerd Fonts"
 
-    if ! prompt_yes_no "Install FiraCode Nerd Font? (Recommended for icons)" "y"; then
-        printInfoMsg "Skipping Nerd Font installation."
-        return
-    fi
+    # An associative array mapping the font's display name to its details.
+    # Format: "Display Name"="GrepPattern|ZipFileName"
+    declare -A font_map=(
+        ["FiraCode Nerd Font"]="FiraCode|FiraCode"
+        ["Meslo Nerd Font"]="Meslo|Meslo"
+        ["CaskaydiaCove Nerd Font"]="CaskaydiaCove|CascadiaCode"
+    )
 
-    printInfoMsg "Finding latest Nerd Fonts release..."
-    local latest_nerd_font_version
-    latest_nerd_font_version=$(curl -s -I https://github.com/ryanoasis/nerd-fonts/releases/latest \
-        | grep -i "location:" \
-        | sed 's|.*/v||' | tr -d '\r')
+    local fonts_installed=0
+    for font_name in "${!font_map[@]}"; do
+        # Parse details: "GrepPattern|ZipFileName"
+        IFS='|' read -r font_grep_pattern font_zip_name <<< "${font_map[$font_name]}"
+        local font_dir_name="${font_zip_name}NerdFont"
+        local font_dir="${HOME}/.local/share/fonts/${font_dir_name}"
 
-    if [[ -z "$latest_nerd_font_version" ]]; then
-        printErrMsg "Could not determine latest Nerd Fonts version from GitHub."
-        return 1
-    fi
+        # Use fc-list to check if the font is already installed and available system-wide.
+        if fc-list | grep -q "$font_grep_pattern Nerd Font"; then
+            printInfoMsg "'${font_name}' is already installed. Skipping."
+            continue
+        fi
 
-    local font_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v${latest_nerd_font_version}/FiraCode.zip"
-    local temp_dir; temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' RETURN
+        if ! prompt_yes_no "Install '${font_name}'? (Recommended for icons)" "n"; then
+            printInfoMsg "Skipping '${font_name}' installation."
+            continue
+        fi
 
-    printInfoMsg "Downloading FiraCode Nerd Font..."
-    printInfoMsg "URL: ${font_url}"
-    if curl -L -f "$font_url" -o "${temp_dir}/FiraCode.zip"; then
-        printOkMsg "Download complete."
-        mkdir -p "$font_dir"
-        unzip -o "${temp_dir}/FiraCode.zip" -d "$font_dir"
+        printInfoMsg "Finding latest Nerd Fonts release..."
+        local latest_nerd_font_version
+        latest_nerd_font_version=$(curl -s -I https://github.com/ryanoasis/nerd-fonts/releases/latest \
+            | grep -i "location:" \
+            | sed 's|.*/v||' | tr -d '\r')
+
+        if [[ -z "$latest_nerd_font_version" ]]; then
+            printErrMsg "Could not determine latest Nerd Fonts version from GitHub. Skipping font installs."
+            return # Exit the function if we can't get the version
+        fi
+
+        local font_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v${latest_nerd_font_version}/${font_zip_name}.zip"
+        local temp_dir; temp_dir=$(mktemp -d)
+        trap 'rm -rf "$temp_dir"' RETURN
+
+        printInfoMsg "Downloading ${font_name}..."
+        printInfoMsg "URL: ${font_url}"
+        if curl -L -f "$font_url" -o "${temp_dir}/${font_zip_name}.zip"; then
+            printOkMsg "Download complete."
+            mkdir -p "$font_dir"
+            unzip -o "${temp_dir}/${font_zip_name}.zip" -d "$font_dir"
+            fonts_installed=1 # Mark that we need to update the cache
+            printOkMsg "'${font_name}' files extracted."
+        else
+            printErrMsg "Failed to download '${font_name}'."
+        fi
+        echo # Add a newline for spacing before the next prompt
+    done
+
+    if [[ $fonts_installed -eq 1 ]]; then
         printInfoMsg "Updating font cache... (this may take a moment)"
         fc-cache -f -v
-        printOkMsg "FiraCode Nerd Font installed successfully."
-        printInfoMsg "Please set it as your terminal font to see the icons correctly."
-    else
-        printErrMsg "Failed to download FiraCode Nerd Font."
+        printOkMsg "Font cache updated."
+        printInfoMsg "Please set one of the installed Nerd Fonts in your terminal to see icons correctly."
     fi
 }
 
@@ -433,7 +452,7 @@ main() {
     install_fzf_from_source
     install_neovim
     check_local_bin_in_path
-    install_nerd_font
+    install_nerd_fonts
     setup_fzf_config
     setup_lazyvim
 
@@ -442,7 +461,7 @@ main() {
     printOkMsg "All steps finished."
     printMsg "\n${T_ULINE}Next Steps:${T_RESET}"
     printMsg "  1. ${C_L_YELLOW}Restart your terminal${T_RESET} or run ${C_L_CYAN}source ~/.bashrc${T_RESET} to apply PATH and fzf changes."
-    printMsg "  2. ${C_L_YELLOW}Change your terminal font${T_RESET} to 'FiraCode Nerd Font' to see all icons correctly."
+    printMsg "  2. ${C_L_YELLOW}Change your terminal font${T_RESET} to one of the installed Nerd Fonts to see all icons correctly."
     printMsg "  3. Start Neovim by running: ${C_L_CYAN}nvim${T_RESET}"
     printMsg "     LazyVim will finish its setup on the first run. This may take a few minutes."
     echo
