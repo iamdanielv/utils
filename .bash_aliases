@@ -47,23 +47,23 @@ alias gp='git push'
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
 unalias gl 2>/dev/null
 gl() {
-    # The format string is built as a single argument to --pretty=format.
-    local format_string=""
-    format_string+="%C(red)%h%Creset %C(bold magenta)%d%Creset%n"
-    format_string+="%C(green)%cr %C(blue)%an%Creset%n"
-    format_string+=" %C(bold cyan)%s%Creset%n"
-    format_string+="%w(72,2,2)%b%Creset"
-    git log --graph --pretty=format:"${format_string}%n" "$@"
+  # The format string is built as a single argument to --pretty=format.
+  local format_string=""
+  format_string+="%C(red)%h%Creset %C(bold magenta)%d%Creset%n"
+  format_string+="%C(green)%cr %C(blue)%an%Creset%n"
+  format_string+=" %C(bold cyan)%s%Creset%n"
+  format_string+="%w(72,2,2)%b%Creset"
+  git log --graph --pretty=format:"${format_string}%n" "$@"
 }
 
 # See the commit history for a specific file, tracking renames.
 # Usage: glf <file_path>
 unalias glf 2>/dev/null
 glf() {
-    # The '--' separates log options from file paths.
-    git log --follow \
-        --pretty=format:'%C(red)%h %C(green)%cr %C(blue)%an %C(bold cyan)%s%Creset' \
-        -- "$@"
+  # The '--' separates log options from file paths.
+  git log --follow \
+    --pretty=format:'%C(red)%h %C(green)%cr %C(blue)%an %C(bold cyan)%s%Creset' \
+    -- "$@"
 }
 
 # -------------------
@@ -81,7 +81,7 @@ alias ports='netstat -tulpn'
 
 # For a detailed, tree-like view of all running processes.
 alias psa='ps auxf'
- 
+
 # -------------------
 # File & Directory Listing (using eza)
 # -------------------
@@ -90,52 +90,35 @@ alias psa='ps auxf'
 
 # Default 'ls' replacement, grouping directories first.
 alias ls='eza --group-directories-first'
- 
+
 # List only directories in a detailed, human-readable format.
 alias ld='eza -Dhal --no-filesize --smart-group --icons'
- 
+
 # Long format listing with block size, Git status, and file indicators.
 alias ll='eza -lbGF --group-directories-first'
- 
+
 # Tree view of the current directory, one level deep, with icons.
 alias lt='eza --tree --level=1 --icons --group-directories-first'
- 
+
 # Detailed listing, sorted by size, with Git status (using eza).
 # This is a function to improve readability and handle arguments correctly.
 unalias la 2>/dev/null
 la() {
-    eza -al --git --smart-group --color=auto --icons \
-        --sort=size --group-directories-first "$@"
+  eza -al --git --smart-group --color=auto --icons \
+    --sort=size --group-directories-first "$@"
 }
- 
+
 # Simple listing with file type indicators (e.g., / for directories).
 alias l='eza --group-directories-first -F'
- 
+
 # -------------------
 # Interactive Tools & Keybindings
 # -------------------
- 
+
 # Interactively find a directory using fzf and cd into it.
 # Excludes hidden directories and provides a 'tree' preview.
 # - Preview can be toggled with Ctrl-V.
 # - Invoke this function by pressing Ctrl-F.
-unalias fd 2>/dev/null
-fd() {
-  local dir
-  dir="$(
-    find "${1:-.}" -path '*/\.*' -prune -o -type d -print 2> /dev/null \
-      | fzf +m \
-          --preview='tree -C {} | head -n 30' \
-          --preview-window='right:hidden:wrap' \
-          --bind=ctrl-v:toggle-preview \
-          --bind=ctrl-x:toggle-sort \
-          --header='(view:ctrl-v) (sort:ctrl-x)' \
-  )" || return
-  cd "$dir" || return
-}
 
-# Bind Ctrl+F to the 'fd' function for quick directory navigation.
-bind -x '"\C-f":fd'
- 
 # Bind Ctrl+X to the standard 'clear-screen' readline command.
 bind '"\C-x":clear-screen'
