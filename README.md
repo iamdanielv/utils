@@ -6,6 +6,7 @@ A collection of command-line utilities for SSH management, system monitoring, st
 
 This repository contains shell scripts for:
 
+- Developer machine setup
 - SSH host and key management
 - System monitoring (temperature, user checks)
 - String generation
@@ -14,6 +15,15 @@ This repository contains shell scripts for:
 All scripts are designed to be run in Unix-like environments.
 
 ## 🧩 Scripts
+
+### 💻 Developer Machine Setup (`setup-dev-machine.sh`)
+
+**Description:**  
+Script to set up a new dev machine.
+
+- Installs essential CLI tools like `eza`, `ag` (the_silver_searcher), and `net-tools`.
+- Copies the `.bash_aliases` file to the home directory.
+- Runs the `install-lazyvim.sh` script to provide a full Neovim and LazyVim environment.
 
 ### 🌡️ System Temperature Monitor (`temp-monitor.sh`)
 
