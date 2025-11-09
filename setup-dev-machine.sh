@@ -121,7 +121,7 @@ install_core_tools() {
     sudo apt-get update
 
     # For 'ag' alias
-    install_package "the-silver-searcher" "ag"
+    install_package "silversearcher-ag" "ag"
     # For 'ports' alias (netstat)
     install_package "net-tools" "netstat"
     # For 'ls', 'll', 'lt', etc. aliases
