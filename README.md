@@ -59,6 +59,17 @@ Recursively performs Git commands on the current directory and all subdirectorie
 - View all local and remote branches (`-gvb`)
 - Switch all repos to a specific branch (`-gb <branch>`)
 
+### 🐳 Docker Compose Autoscaler (`docker-autoscale.sh`)
+
+**Description:**  
+A utility to automatically scale a Docker Compose service up or down based on resource utilization.
+
+- Scales based on CPU, Memory, or a combination of both.
+- Configurable upper and lower thresholds for scaling triggers.
+- Cooldown periods to prevent rapid scaling fluctuations.
+- Supports both `docker compose` (v2) and `docker-compose` (v1).
+- Configurable via command-line flags for service name, replica limits, thresholds, and polling interval.
+
 ### 🎨 Color Palette Viewer (`colors.sh`)
 
 **Description:**  
