@@ -12,11 +12,13 @@ MEM_UPPER_THRESHOLD=80          # Scale up when Memory usage is above this perce
 MEM_LOWER_THRESHOLD=30          # Scale down when Memory usage is below this percentage
 SCALE_UP_COOLDOWN=20            # Seconds to wait after scaling up before scaling again
 SCALE_DOWN_COOLDOWN=20          # Seconds to wait after scaling down before scaling again
+SCALE_DOWN_CHECKS=2             # Number of consecutive checks before scaling down.
 POLL_INTERVAL=15                # Seconds between each metric check
 
 # --- State Variables ---
 LAST_SCALE_EVENT_TS=0
 LAST_SCALE_DIRECTION="none" # 'up' or 'down'
+CONSECUTIVE_SCALE_DOWN_CHECKS=0
 
 print_usage() {
     cat <<EOF
@@ -37,6 +39,7 @@ Options:
   --mem-down <%>        Memory percentage threshold to scale down. (Default: $MEM_LOWER_THRESHOLD)
   --cooldown-up <sec>   Cooldown in seconds after scaling up. (Default: $SCALE_UP_COOLDOWN)
   --cooldown-down <sec> Cooldown in seconds after scaling down. (Default: $SCALE_DOWN_COOLDOWN)
+  --scale-down-checks <num> Number of consecutive checks before scaling down. (Default: $SCALE_DOWN_CHECKS)
   --poll <sec>          Interval in seconds to check metrics. (Default: $POLL_INTERVAL)
   -h, --help            Show this help message.
 EOF
@@ -55,6 +58,7 @@ while [[ "$#" -gt 0 ]]; do
         --mem-down) MEM_LOWER_THRESHOLD="$2"; shift ;;
         --cooldown-up) SCALE_UP_COOLDOWN="$2"; shift ;;
         --cooldown-down) SCALE_DOWN_COOLDOWN="$2"; shift ;;
+        --scale-down-checks) SCALE_DOWN_CHECKS="$2"; shift ;;
         --poll) POLL_INTERVAL="$2"; shift ;;
         -h|--help) print_usage; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; print_usage; exit 1 ;;
@@ -112,7 +116,7 @@ if ! $COMPOSE_CMD config --services | grep -q "^${SERVICE_NAME}$"; then
 fi
 
 
-for var in MIN_REPLICAS MAX_REPLICAS CPU_UPPER_THRESHOLD CPU_LOWER_THRESHOLD MEM_UPPER_THRESHOLD MEM_LOWER_THRESHOLD SCALE_UP_COOLDOWN SCALE_DOWN_COOLDOWN POLL_INTERVAL; do
+for var in MIN_REPLICAS MAX_REPLICAS CPU_UPPER_THRESHOLD CPU_LOWER_THRESHOLD MEM_UPPER_THRESHOLD MEM_LOWER_THRESHOLD SCALE_UP_COOLDOWN SCALE_DOWN_COOLDOWN POLL_INTERVAL SCALE_DOWN_CHECKS; do
     if ! [[ "${!var}" =~ ^[0-9]+$ ]]; then
         log_msg "Error: Value for '$var' is not a valid integer: '${!var}'"
         exit 1
@@ -214,12 +218,11 @@ scale_service() {
 
 # --- Main Loop ---
 log_msg "Starting auto-scaler for service: '$SERVICE_NAME'"
-if [[ "$SCALE_METRIC" == "cpu" ]]; then
-    log_msg "Configuration: Metric=CPU Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Threshold=$CPU_UPPER_THRESHOLD% Down-Threshold=$CPU_LOWER_THRESHOLD% Poll=$POLL_INTERVALs"
-elif [[ "$SCALE_METRIC" == "mem" ]]; then
-    log_msg "Configuration: Metric=Memory Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Threshold=$MEM_UPPER_THRESHOLD% Down-Threshold=$MEM_LOWER_THRESHOLD% Poll=$POLL_INTERVALs"
+if [[ "$SCALE_METRIC" == "cpu" || "$SCALE_METRIC" == "mem" ]]; then
+    metric_name=$(echo "$SCALE_METRIC" | tr '[:lower:]' '[:upper:]')
+    log_msg "Configuration: Metric=$metric_name Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Threshold=$CPU_UPPER_THRESHOLD% Down-Threshold=$CPU_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s"
 else # any
-    log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Poll=$POLL_INTERVALs"
+    log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s"
 fi
 
 while true; do
@@ -249,46 +252,52 @@ while true; do
     # Fetch stats once for efficiency
     read -r avg_cpu avg_mem < <(get_avg_stats)
 
+    # Determine if a scale-up or scale-down is needed based on the chosen metric.
+    should_scale_up=false
+    should_scale_down=false
+    scale_reason=""
+
+    if [[ "$SCALE_METRIC" == "cpu" || "$SCALE_METRIC" == "any" ]]; then
+        if (( avg_cpu > CPU_UPPER_THRESHOLD )); then should_scale_up=true; scale_reason="CPU ($avg_cpu% > $CPU_UPPER_THRESHOLD%)"; fi
+        if (( avg_cpu < CPU_LOWER_THRESHOLD )); then should_scale_down=true; fi
+    fi
+
+    if [[ "$SCALE_METRIC" == "mem" || "$SCALE_METRIC" == "any" ]]; then
+        if (( avg_mem > MEM_UPPER_THRESHOLD )); then
+            should_scale_up=true
+            if [[ -n "$scale_reason" ]]; then scale_reason+=" and "; fi
+            scale_reason+="Memory ($avg_mem% > $MEM_UPPER_THRESHOLD%)"
+        fi
+        if (( avg_mem < MEM_LOWER_THRESHOLD )); then should_scale_down=true; else should_scale_down=false; fi
+    fi
+
+    # For 'any' metric, scale down only if BOTH are low.
     if [[ "$SCALE_METRIC" == "any" ]]; then
         log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%, AvgMem=${avg_mem}%"
-
-        # Scale up if EITHER metric is high
-        if (( avg_cpu > CPU_UPPER_THRESHOLD || avg_mem > MEM_UPPER_THRESHOLD )) && (( current_replicas < MAX_REPLICAS )); then
-            scale_up_reason=""
-            if (( avg_cpu > CPU_UPPER_THRESHOLD )); then
-                scale_up_reason+="CPU ($avg_cpu% > $CPU_UPPER_THRESHOLD%)"
-            fi
-            if (( avg_mem > MEM_UPPER_THRESHOLD )); then
-                if [ -n "$scale_up_reason" ]; then
-                    scale_up_reason+=" and "
-                fi
-                scale_up_reason+="Memory ($avg_mem% > $MEM_UPPER_THRESHOLD%)"
-            fi
-            log_msg "Scale up triggered by: $scale_up_reason. Scaling up."
-            scale_service $((current_replicas + 1)) "up"
-        # Scale down only if BOTH metrics are low
-        elif (( avg_cpu < CPU_LOWER_THRESHOLD && avg_mem < MEM_LOWER_THRESHOLD )) && (( current_replicas > MIN_REPLICAS )); then
-            log_msg "Both CPU ($avg_cpu% < $CPU_LOWER_THRESHOLD%) and Memory ($avg_mem% < $MEM_LOWER_THRESHOLD%) are below thresholds. Scaling down."
-            scale_service $((current_replicas - 1)) "down"
+        if ! (( avg_cpu < CPU_LOWER_THRESHOLD && avg_mem < MEM_LOWER_THRESHOLD )); then
+            should_scale_down=false
         fi
     elif [[ "$SCALE_METRIC" == "cpu" ]]; then
         log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%"
-        if (( avg_cpu > CPU_UPPER_THRESHOLD && current_replicas < MAX_REPLICAS )); then
-            log_msg "CPU threshold breached ($avg_cpu% > $CPU_UPPER_THRESHOLD%). Scaling up."
-            scale_service $((current_replicas + 1)) "up"
-        elif (( avg_cpu < CPU_LOWER_THRESHOLD && current_replicas > MIN_REPLICAS )); then
-            log_msg "CPU is below threshold ($avg_cpu% < $CPU_LOWER_THRESHOLD%). Scaling down."
-            scale_service $((current_replicas - 1)) "down"
-        fi
     elif [[ "$SCALE_METRIC" == "mem" ]]; then
         log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgMem=${avg_mem}%"
-        if (( avg_mem > MEM_UPPER_THRESHOLD && current_replicas < MAX_REPLICAS )); then
-            log_msg "Memory threshold breached ($avg_mem% > $MEM_UPPER_THRESHOLD%). Scaling up."
-            scale_service $((current_replicas + 1)) "up"
-        elif (( avg_mem < MEM_LOWER_THRESHOLD && current_replicas > MIN_REPLICAS )); then
-            log_msg "Memory is below threshold ($avg_mem% < $MEM_LOWER_THRESHOLD%). Scaling down."
+    fi
+
+    if $should_scale_up && (( current_replicas < MAX_REPLICAS )); then
+        log_msg "Scale up triggered by: $scale_reason. Scaling up."
+        scale_service $((current_replicas + 1)) "up"
+        CONSECUTIVE_SCALE_DOWN_CHECKS=0 # Reset counter on any scale up
+    elif $should_scale_down && (( current_replicas > MIN_REPLICAS )); then
+        CONSECUTIVE_SCALE_DOWN_CHECKS=$((CONSECUTIVE_SCALE_DOWN_CHECKS + 1))
+        log_msg "Scale down condition met ($CONSECUTIVE_SCALE_DOWN_CHECKS/$SCALE_DOWN_CHECKS)."
+        if (( CONSECUTIVE_SCALE_DOWN_CHECKS >= SCALE_DOWN_CHECKS )); then
+            log_msg "Scaling down: threshold met for $CONSECUTIVE_SCALE_DOWN_CHECKS consecutive checks."
             scale_service $((current_replicas - 1)) "down"
+            CONSECUTIVE_SCALE_DOWN_CHECKS=0 # Reset counter after scaling
         fi
+    else
+        # If neither scale up nor scale down condition is met, reset the down-check counter.
+        CONSECUTIVE_SCALE_DOWN_CHECKS=0
     fi
 
     sleep "$POLL_INTERVAL"
