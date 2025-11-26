@@ -40,6 +40,8 @@ services:
       - "cpu"
       - "--poll"
       - "2"
+      - "--initial-grace-period"
+      - "5" # Wait 5 seconds after startup before checking metrics
       #- "--dry-run"
     environment:
       # This ensures the compose command inside the container targets the correct project.

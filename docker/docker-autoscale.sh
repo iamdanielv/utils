@@ -16,6 +16,7 @@ SCALE_UP_STEP=2                 # Number of instances to add during a scale-up e
 SCALE_DOWN_CHECKS=2             # Number of consecutive checks before scaling down.
 POLL_INTERVAL=15                # Seconds between each metric check
 LOG_HEARTBEAT_INTERVAL=30       # Log a status message even if nothing changes, after this many seconds.
+INITIAL_GRACE_PERIOD=0          # Seconds to wait on startup before the first check.
 
 # --- State Variables ---
 LAST_SCALE_EVENT_TS=0
@@ -51,6 +52,7 @@ Options:
   --scale-down-checks <num> Number of consecutive checks before scaling down. (Default: $SCALE_DOWN_CHECKS)
   --heartbeat <sec>     Interval in seconds to log a heartbeat status. (Default: $LOG_HEARTBEAT_INTERVAL)
   --poll <sec>          Interval in seconds to check metrics. (Default: $POLL_INTERVAL)
+  --initial-grace-period <sec> Seconds to wait on startup before the first check. (Default: $INITIAL_GRACE_PERIOD)
   --dry-run             Log scaling actions without executing them. (Default: disabled)
   -h, --help            Show this help message.
 EOF
@@ -73,6 +75,7 @@ while [[ "$#" -gt 0 ]]; do
         --scale-down-checks) SCALE_DOWN_CHECKS="$2"; shift ;;
         --heartbeat) LOG_HEARTBEAT_INTERVAL="$2"; shift ;;
         --poll) POLL_INTERVAL="$2"; shift ;;
+        --initial-grace-period) INITIAL_GRACE_PERIOD="$2"; shift ;;
         --dry-run) DRY_RUN=true ;;
         -h|--help) print_usage; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; print_usage; exit 1 ;;
@@ -130,7 +133,7 @@ if ! $COMPOSE_CMD config --services | grep -q "^${SERVICE_NAME}$"; then
 fi
 
 
-for var in MIN_REPLICAS MAX_REPLICAS CPU_UPPER_THRESHOLD CPU_LOWER_THRESHOLD MEM_UPPER_THRESHOLD MEM_LOWER_THRESHOLD SCALE_UP_COOLDOWN SCALE_DOWN_COOLDOWN SCALE_UP_STEP POLL_INTERVAL SCALE_DOWN_CHECKS LOG_HEARTBEAT_INTERVAL; do
+for var in MIN_REPLICAS MAX_REPLICAS CPU_UPPER_THRESHOLD CPU_LOWER_THRESHOLD MEM_UPPER_THRESHOLD MEM_LOWER_THRESHOLD SCALE_UP_COOLDOWN SCALE_DOWN_COOLDOWN SCALE_UP_STEP POLL_INTERVAL SCALE_DOWN_CHECKS LOG_HEARTBEAT_INTERVAL INITIAL_GRACE_PERIOD; do
     if ! [[ "${!var}" =~ ^[0-9]+$ ]]; then
         log_msg "Error: Value for '$var' is not a valid integer: '${!var}'"
         exit 1
@@ -239,6 +242,12 @@ case "$SCALE_METRIC" in
         log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Step=$SCALE_UP_STEP CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
         ;;
 esac
+
+# --- Initial Grace Period ---
+if (( INITIAL_GRACE_PERIOD > 0 )); then
+    log_msg "Initial grace period active. Waiting for ${INITIAL_GRACE_PERIOD} seconds before starting monitoring..."
+    sleep "$INITIAL_GRACE_PERIOD"
+fi
 
 while true; do
     current_replicas=$(get_current_replicas)
