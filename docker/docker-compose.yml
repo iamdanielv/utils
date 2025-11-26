@@ -1,0 +1,50 @@
+
+services:
+  # This is the reverse proxy that exposes a single port and load balances
+  # traffic across all webapp instances.
+  proxy:
+    image: nginx:alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - webapp
+
+  # This is the sample application we want to autoscale
+  webapp:
+    image: nginx:alpine
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5' # Limit CPU to make it easier to stress
+          memory: 128M
+
+  # This service runs the autoscaler script
+  autoscaler:
+    build:
+      context: .
+      dockerfile: Dockerfile # Explicitly point to the Dockerfile inside the 'docker' directory
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount this docker-compose.yml file so the autoscaler can find it
+      - ./docker-compose.yml:/app/docker-compose.yml
+    command:
+      - "--service"
+      - "webapp"
+      - "--cpu-up"
+      - "20" # Scale up when CPU is > 20%
+      - "--cpu-down"
+      - "5" # Scale down when CPU is < 15%
+      - "--metric"
+      - "cpu"
+      - "--poll"
+      - "2"
+    environment:
+      # This ensures the compose command inside the container targets the correct project.
+      # The project name is derived from the directory name containing this file.
+      - COMPOSE_PROJECT_NAME=${PROJECT_NAME}
+      - PROJECT_NAME=${PROJECT_NAME}
+    depends_on:
+      - proxy
+    restart: "no"
