@@ -13,7 +13,6 @@ MEM_LOWER_THRESHOLD=30          # Scale down when Memory usage is below this per
 SCALE_UP_COOLDOWN=20            # Seconds to wait after scaling up before scaling again
 SCALE_DOWN_COOLDOWN=20          # Seconds to wait after scaling down before scaling again
 POLL_INTERVAL=15                # Seconds between each metric check
-LOG_FILE="/tmp/docker-autoscale.log" # Log file location
 
 # --- State Variables ---
 LAST_SCALE_EVENT_TS=0
@@ -39,7 +38,6 @@ Options:
   --cooldown-up <sec>   Cooldown in seconds after scaling up. (Default: $SCALE_UP_COOLDOWN)
   --cooldown-down <sec> Cooldown in seconds after scaling down. (Default: $SCALE_DOWN_COOLDOWN)
   --poll <sec>          Interval in seconds to check metrics. (Default: $POLL_INTERVAL)
-  --log-file <path>     Path to the log file. (Default: $LOG_FILE)
   -h, --help            Show this help message.
 EOF
 }
@@ -58,7 +56,6 @@ while [[ "$#" -gt 0 ]]; do
         --cooldown-up) SCALE_UP_COOLDOWN="$2"; shift ;;
         --cooldown-down) SCALE_DOWN_COOLDOWN="$2"; shift ;;
         --poll) POLL_INTERVAL="$2"; shift ;;
-        --log-file) LOG_FILE="$2"; shift ;;
         -h|--help) print_usage; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; print_usage; exit 1 ;;
     esac
@@ -80,15 +77,9 @@ fi
 
 # --- Helper Functions ---
 log_msg() {
-    local message="[$(date '+%Y-%m-%d %H:%M:%S')] - $1"
+    local message="[$(date '+%m-%d %H:%M:%S')] - $1"
     echo "$message"
-    # Log to file only after LOG_FILE is confirmed, to avoid errors on startup
-    if [ -w "$(dirname "$LOG_FILE")" ] && [ -f "$LOG_FILE" ]; then
-        echo "$message" >> "$LOG_FILE"
-    fi
 }
-
-touch "$LOG_FILE" 2>/dev/null || { log_msg "Warning: Cannot write to log file $LOG_FILE. Continuing with stdout logging only."; }
 
 # --- Dependency Check & Setup ---
 COMPOSE_CMD=""
@@ -157,7 +148,7 @@ get_avg_stats() {
 
     # Use awk to calculate the average of both columns at once.
     # It sums the first column (CPU) and second column (Mem), then divides by the number of lines (NR).
-    echo "$stats_output" | sed 's/%//g' | awk '{ cpu_total += $1; mem_total += $2 } END { if (NR > 0) printf "%.0f %.0f", cpu_total/NR, mem_total/NR; else print "0 0" }'
+    echo "$stats_output" | sed 's/%//g' | grep . | awk '{ cpu_total += $1; mem_total += $2 } END { if (NR > 0) printf "%.0f %.0f", cpu_total/NR, mem_total/NR; else print "0 0" }'
 }
 
 get_current_replicas() {
@@ -184,6 +175,12 @@ scale_service() {
     local attempt=1
     local max_attempts=3
     local retry_delay=5 # seconds
+
+    local current_replicas
+    current_replicas=$(get_current_replicas)
+    if [[ "$current_replicas" -eq "$new_replicas" ]]; then
+        return 0 # Already at the desired state
+    fi
 
     log_msg "Scaling $SERVICE_NAME $direction to $new_replicas replicas..."
 
