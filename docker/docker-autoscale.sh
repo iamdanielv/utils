@@ -135,6 +135,31 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
+get_avg_stats() {
+    local container_ids
+    container_ids=$(docker ps -q --filter "label=com.docker.compose.service=${SERVICE_NAME}")
+
+    if [ -z "$container_ids" ]; then
+        echo "0 0" # Return CPU 0, Mem 0
+        return
+    fi
+
+    # Run docker stats once to get both CPU and Mem, preventing race conditions.
+    # The output format is "CPUPerc MemPerc" for each container, separated by newlines.
+    local stats_output
+    stats_output=$(docker stats --no-stream --format "{{.CPUPerc}} {{.MemPerc}}" $container_ids 2>/dev/null || echo "")
+
+    if [ -z "$stats_output" ]; then
+        log_msg "Warning: Failed to get stats for service '$SERVICE_NAME'. Assuming 0% usage."
+        echo "0 0"
+        return
+    fi
+
+    # Use awk to calculate the average of both columns at once.
+    # It sums the first column (CPU) and second column (Mem), then divides by the number of lines (NR).
+    echo "$stats_output" | sed 's/%//g' | awk '{ cpu_total += $1; mem_total += $2 } END { if (NR > 0) printf "%.0f %.0f", cpu_total/NR, mem_total/NR; else print "0 0" }'
+}
+
 get_current_replicas() {
     docker ps -q --filter "label=com.docker.compose.service=${SERVICE_NAME}" | wc -l
 }
@@ -142,57 +167,15 @@ get_current_replicas() {
 get_avg_cpu_usage() {
     local container_ids
     container_ids=$(docker ps -q --filter "label=com.docker.compose.service=${SERVICE_NAME}")
-
-    if [ -z "$container_ids" ]; then
-        echo 0
-        return
-    fi
-
-    # Run docker stats in a subshell to prevent script exit on error (e.g., container disappears)
-    local stats_output
-    stats_output=$(docker stats --no-stream --format "{{.CPUPerc}}" $container_ids 2>/dev/null || echo "")
-
-    if [ -z "$stats_output" ]; then
-        log_msg "Warning: Failed to get stats for service '$SERVICE_NAME'. Assuming 0% CPU."
-        echo 0
-        return
-    fi
-
-    local total_cpu
-    total_cpu=$(echo "$stats_output" | sed 's/%//' | paste -sd+ - | LC_NUMERIC=C bc)
-    local replica_count
-    replica_count=$(echo "$stats_output" | wc -l)
-
-    # Use awk for floating point division
-    awk -v total="$total_cpu" -v count="$replica_count" 'BEGIN {if (count > 0) printf "%.0f", total/count; else print 0}'
+    # Deprecated in favor of get_avg_stats, but kept for potential single-metric logic if ever needed.
+    get_avg_stats | awk '{print $1}'
 }
 
 get_avg_mem_usage() {
     local container_ids
     container_ids=$(docker ps -q --filter "label=com.docker.compose.service=${SERVICE_NAME}")
-
-    if [ -z "$container_ids" ]; then
-        echo 0
-        return
-    fi
-
-    # Run docker stats in a subshell to prevent script exit on error (e.g., container disappears)
-    local stats_output
-    stats_output=$(docker stats --no-stream --format "{{.MemPerc}}" $container_ids 2>/dev/null || echo "")
-
-    if [ -z "$stats_output" ]; then
-        log_msg "Warning: Failed to get stats for service '$SERVICE_NAME'. Assuming 0% Memory."
-        echo 0
-        return
-    fi
-
-    local total_mem
-    total_mem=$(echo "$stats_output" | sed 's/%//' | paste -sd+ - | LC_NUMERIC=C bc)
-    local replica_count
-    replica_count=$(echo "$stats_output" | wc -l)
-
-    # Use awk for floating point division
-    awk -v total="$total_mem" -v count="$replica_count" 'BEGIN {if (count > 0) printf "%.0f", total/count; else print 0}'
+    
+    get_avg_stats | awk '{print $2}'
 }
 
 scale_service() {
@@ -244,32 +227,32 @@ fi
 
 while true; do
     current_replicas=$(get_current_replicas)
-    
-    # --- Metric Collection ---
-    avg_metric=0
-    upper_threshold=0
-    lower_threshold=0
 
     # --- Cooldown Check ---
-    # This check is moved before metric collection to avoid unnecessary `docker stats` calls during cooldown.
     now=$(date +%s)
     elapsed_since_last_scale=$((now - LAST_SCALE_EVENT_TS))
 
-    # --- Cooldown Check ---
-    if [[ "$LAST_SCALE_DIRECTION" == "up" && $elapsed_since_last_scale -lt $SCALE_UP_COOLDOWN ]]; then
-        log_msg "++ scale-up cooldown ($((SCALE_UP_COOLDOWN - elapsed_since_last_scale))s left)"
-        sleep "$POLL_INTERVAL"
-        continue
-    elif [[ "$LAST_SCALE_DIRECTION" == "down" && $elapsed_since_last_scale -lt $SCALE_DOWN_COOLDOWN ]]; then
-        log_msg "-- scale-down cooldown ($((SCALE_DOWN_COOLDOWN - elapsed_since_last_scale))s left)"
-        sleep "$POLL_INTERVAL"
-        continue
+    cooldown_period=0
+    if [[ "$LAST_SCALE_DIRECTION" == "up" ]]; then
+        cooldown_period=$SCALE_UP_COOLDOWN
+    elif [[ "$LAST_SCALE_DIRECTION" == "down" ]]; then
+        cooldown_period=$SCALE_DOWN_COOLDOWN
+    fi
+
+    if (( cooldown_period > 0 && elapsed_since_last_scale < cooldown_period )); then
+        remaining_cooldown=$((cooldown_period - elapsed_since_last_scale))
+        log_msg "Cooldown active (${remaining_cooldown}s left). Waiting..."
+        # Sleep for the remainder of the cooldown or the poll interval, whichever is shorter.
+        sleep_duration=$(( remaining_cooldown < POLL_INTERVAL ? remaining_cooldown : POLL_INTERVAL ))
+        sleep "$sleep_duration"
+        continue # Re-evaluate after waiting
     fi
 
     # --- Scaling Logic ---
+    # Fetch stats once for efficiency
+    read -r avg_cpu avg_mem < <(get_avg_stats)
+
     if [[ "$SCALE_METRIC" == "any" ]]; then
-        avg_cpu=$(get_avg_cpu_usage)
-        avg_mem=$(get_avg_mem_usage)
         log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%, AvgMem=${avg_mem}%"
 
         # Scale up if EITHER metric is high
@@ -291,24 +274,22 @@ while true; do
             log_msg "Both CPU ($avg_cpu% < $CPU_LOWER_THRESHOLD%) and Memory ($avg_mem% < $MEM_LOWER_THRESHOLD%) are below thresholds. Scaling down."
             scale_service $((current_replicas - 1)) "down"
         fi
-    else # Single metric logic (cpu or mem)
-        if [[ "$SCALE_METRIC" == "cpu" ]]; then
-            avg_metric=$(get_avg_cpu_usage)
-            upper_threshold=$CPU_UPPER_THRESHOLD
-            lower_threshold=$CPU_LOWER_THRESHOLD
-            log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_metric}%"
-        else # mem
-            avg_metric=$(get_avg_mem_usage)
-            upper_threshold=$MEM_UPPER_THRESHOLD
-            lower_threshold=$MEM_LOWER_THRESHOLD
-            log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgMem=${avg_metric}%"
-        fi
-
-        if (( avg_metric > upper_threshold && current_replicas < MAX_REPLICAS )); then
-            log_msg "Metric threshold breached ($avg_metric% > $upper_threshold%). Scaling up."
+    elif [[ "$SCALE_METRIC" == "cpu" ]]; then
+        log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%"
+        if (( avg_cpu > CPU_UPPER_THRESHOLD && current_replicas < MAX_REPLICAS )); then
+            log_msg "CPU threshold breached ($avg_cpu% > $CPU_UPPER_THRESHOLD%). Scaling up."
             scale_service $((current_replicas + 1)) "up"
-        elif (( avg_metric < lower_threshold && current_replicas > MIN_REPLICAS )); then
-            log_msg "Metric is below threshold ($avg_metric% < $lower_threshold%). Scaling down."
+        elif (( avg_cpu < CPU_LOWER_THRESHOLD && current_replicas > MIN_REPLICAS )); then
+            log_msg "CPU is below threshold ($avg_cpu% < $CPU_LOWER_THRESHOLD%). Scaling down."
+            scale_service $((current_replicas - 1)) "down"
+        fi
+    elif [[ "$SCALE_METRIC" == "mem" ]]; then
+        log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgMem=${avg_mem}%"
+        if (( avg_mem > MEM_UPPER_THRESHOLD && current_replicas < MAX_REPLICAS )); then
+            log_msg "Memory threshold breached ($avg_mem% > $MEM_UPPER_THRESHOLD%). Scaling up."
+            scale_service $((current_replicas + 1)) "up"
+        elif (( avg_mem < MEM_LOWER_THRESHOLD && current_replicas > MIN_REPLICAS )); then
+            log_msg "Memory is below threshold ($avg_mem% < $MEM_LOWER_THRESHOLD%). Scaling down."
             scale_service $((current_replicas - 1)) "down"
         fi
     fi
