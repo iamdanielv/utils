@@ -26,6 +26,7 @@ LAST_LOG_TS=0
 LAST_LOGGED_REPLICAS=-1
 LAST_LOGGED_CPU=-1
 LAST_LOGGED_MEM=-1
+DRY_RUN=false
 
 print_usage() {
     cat <<EOF
@@ -50,6 +51,7 @@ Options:
   --scale-down-checks <num> Number of consecutive checks before scaling down. (Default: $SCALE_DOWN_CHECKS)
   --heartbeat <sec>     Interval in seconds to log a heartbeat status. (Default: $LOG_HEARTBEAT_INTERVAL)
   --poll <sec>          Interval in seconds to check metrics. (Default: $POLL_INTERVAL)
+  --dry-run             Log scaling actions without executing them. (Default: disabled)
   -h, --help            Show this help message.
 EOF
 }
@@ -71,6 +73,7 @@ while [[ "$#" -gt 0 ]]; do
         --scale-down-checks) SCALE_DOWN_CHECKS="$2"; shift ;;
         --heartbeat) LOG_HEARTBEAT_INTERVAL="$2"; shift ;;
         --poll) POLL_INTERVAL="$2"; shift ;;
+        --dry-run) DRY_RUN=true ;;
         -h|--help) print_usage; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; print_usage; exit 1 ;;
     esac
@@ -183,6 +186,11 @@ scale_service() {
         return 0 # Already at the desired state
     fi
 
+    if $DRY_RUN; then
+        log_msg "[DRY RUN] Would scale $SERVICE_NAME $direction to $new_replicas replicas."
+        return 0 # Pretend it succeeded
+    fi
+
     log_msg "Scaling $SERVICE_NAME $direction to $new_replicas replicas..."
 
     while [ "$attempt" -le "$max_attempts" ]; do
@@ -215,6 +223,10 @@ scale_service() {
 
 # --- Main Loop ---
 log_msg "Starting auto-scaler for service: '$SERVICE_NAME'"
+if $DRY_RUN; then
+    log_msg "--- DRY RUN MODE ENABLED --- No actual scaling will be performed."
+fi
+
 
 case "$SCALE_METRIC" in
     "cpu")
