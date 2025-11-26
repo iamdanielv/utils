@@ -249,7 +249,10 @@ while true; do
 
     if (( cooldown_period > 0 && elapsed_since_last_scale < cooldown_period )); then
         remaining_cooldown=$((cooldown_period - elapsed_since_last_scale))
-        log_msg "Cooldown active (${remaining_cooldown}s left). Waiting..."
+        if (( (now - LAST_LOG_TS) >= 10 )); then
+            log_msg "Scale-${LAST_SCALE_DIRECTION} cooldown active (${remaining_cooldown}s left). Waiting..."
+            LAST_LOG_TS=$now
+        fi
         # Sleep for the remainder of the cooldown or the poll interval, whichever is shorter.
         sleep_duration=$(( remaining_cooldown < POLL_INTERVAL ? remaining_cooldown : POLL_INTERVAL ))
         sleep "$sleep_duration"
