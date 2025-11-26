@@ -302,10 +302,17 @@ while true; do
         LAST_LOGGED_MEM=$avg_mem
     fi
 
-    if $should_scale_up && (( current_replicas < MAX_REPLICAS )); then
-        log_msg "Scale up triggered by: $scale_reason. Scaling up."
-        scale_service $((current_replicas + 1)) "up"
-        CONSECUTIVE_SCALE_DOWN_CHECKS=0 # Reset counter on any scale up
+    if $should_scale_up; then
+        if (( current_replicas < MAX_REPLICAS )); then
+            log_msg "Scale up triggered by: $scale_reason. Scaling up."
+            target_replicas=$((current_replicas + 2))
+            # Ensure we do not scale beyond the max replicas
+            if (( target_replicas > MAX_REPLICAS )); then target_replicas=$MAX_REPLICAS; fi
+            scale_service "$target_replicas" "up"
+        else
+            log_msg "Scale up triggered by: $scale_reason. Cannot scale further, already at max replicas ($MAX_REPLICAS)."
+        fi
+        CONSECUTIVE_SCALE_DOWN_CHECKS=0 # Reset counter on any scale up event, even if at max
     elif $should_scale_down && (( current_replicas > MIN_REPLICAS )); then
         CONSECUTIVE_SCALE_DOWN_CHECKS=$((CONSECUTIVE_SCALE_DOWN_CHECKS + 1))
         log_msg "Scale down condition met ($CONSECUTIVE_SCALE_DOWN_CHECKS/$SCALE_DOWN_CHECKS)."
