@@ -163,9 +163,6 @@ get_avg_stats() {
 
     # Use awk to calculate the average of both columns at once.
     # It sums the first column (CPU) and second column (Mem), then divides by the number of lines (NR).
-    echo "$stats_output" | sed 's/%//g' | grep . | awk '{ cpu_total += $1; mem_total += $2 } END { if (NR > 0) printf "%.0f %.0f", cpu_total/NR, mem_total/NR; else print "0 0" }'
-    # awk can handle empty input and calculate the average of both columns.
-    # It sums the first column (CPU) and second column (Mem), then divides by the number of lines (NR).
     echo "$stats_output" | sed 's/%//g' | awk '{ cpu_total += $1; mem_total += $2 } END { if (NR > 0) printf "%.0f %.0f", cpu_total/NR, mem_total/NR; else print "0 0" }'
 }
 
@@ -218,12 +215,18 @@ scale_service() {
 
 # --- Main Loop ---
 log_msg "Starting auto-scaler for service: '$SERVICE_NAME'"
-if [[ "$SCALE_METRIC" == "cpu" || "$SCALE_METRIC" == "mem" ]]; then
-    metric_name=$(echo "$SCALE_METRIC" | tr '[:lower:]' '[:upper:]')
-    log_msg "Configuration: Metric=$metric_name Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Step=$SCALE_UP_STEP Up-Threshold=$CPU_UPPER_THRESHOLD% Down-Threshold=$CPU_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
-else # any
-    log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Step=$SCALE_UP_STEP CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
-fi
+
+case "$SCALE_METRIC" in
+    "cpu")
+        log_msg "Configuration: Metric=CPU Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Step=$SCALE_UP_STEP Up-Threshold=$CPU_UPPER_THRESHOLD% Down-Threshold=$CPU_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
+        ;;
+    "mem")
+        log_msg "Configuration: Metric=MEM Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Step=$SCALE_UP_STEP Up-Threshold=$MEM_UPPER_THRESHOLD% Down-Threshold=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
+        ;;
+    "any")
+        log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Step=$SCALE_UP_STEP CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
+        ;;
+esac
 
 while true; do
     current_replicas=$(get_current_replicas)
@@ -285,11 +288,11 @@ while true; do
     if (( current_replicas != LAST_LOGGED_REPLICAS || avg_cpu != LAST_LOGGED_CPU || avg_mem != LAST_LOGGED_MEM || (now - LAST_LOG_TS) >= LOG_HEARTBEAT_INTERVAL )); then
         log_message=""
         if [[ "$SCALE_METRIC" == "any" ]]; then
-            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%, AvgMem=${avg_mem}%"
+            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}% (Up>${CPU_UPPER_THRESHOLD}%,Down<${CPU_LOWER_THRESHOLD}%), AvgMem=${avg_mem}% (Up>${MEM_UPPER_THRESHOLD}%,Down<${MEM_LOWER_THRESHOLD}%)"
         elif [[ "$SCALE_METRIC" == "cpu" ]]; then
-            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%"
+            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}% (Up>${CPU_UPPER_THRESHOLD}%,Down<${CPU_LOWER_THRESHOLD}%)"
         elif [[ "$SCALE_METRIC" == "mem" ]]; then
-            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgMem=${avg_mem}%"
+            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgMem=${avg_mem}% (Up>${MEM_UPPER_THRESHOLD}%,Down<${MEM_LOWER_THRESHOLD}%)"
         fi
         log_msg "$log_message"
         LAST_LOG_TS=$now
