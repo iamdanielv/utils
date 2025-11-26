@@ -164,24 +164,13 @@ get_avg_stats() {
     # Use awk to calculate the average of both columns at once.
     # It sums the first column (CPU) and second column (Mem), then divides by the number of lines (NR).
     echo "$stats_output" | sed 's/%//g' | grep . | awk '{ cpu_total += $1; mem_total += $2 } END { if (NR > 0) printf "%.0f %.0f", cpu_total/NR, mem_total/NR; else print "0 0" }'
+    # awk can handle empty input and calculate the average of both columns.
+    # It sums the first column (CPU) and second column (Mem), then divides by the number of lines (NR).
+    echo "$stats_output" | sed 's/%//g' | awk '{ cpu_total += $1; mem_total += $2 } END { if (NR > 0) printf "%.0f %.0f", cpu_total/NR, mem_total/NR; else print "0 0" }'
 }
 
 get_current_replicas() {
     docker ps -q --filter "label=com.docker.compose.service=${SERVICE_NAME}" | wc -l
-}
-
-get_avg_cpu_usage() {
-    local container_ids
-    container_ids=$(docker ps -q --filter "label=com.docker.compose.service=${SERVICE_NAME}")
-    # Deprecated in favor of get_avg_stats, but kept for potential single-metric logic if ever needed.
-    get_avg_stats | awk '{print $1}'
-}
-
-get_avg_mem_usage() {
-    local container_ids
-    container_ids=$(docker ps -q --filter "label=com.docker.compose.service=${SERVICE_NAME}")
-    
-    get_avg_stats | awk '{print $2}'
 }
 
 scale_service() {
@@ -282,7 +271,14 @@ while true; do
             if [[ -n "$scale_reason" ]]; then scale_reason+=" and "; fi
             scale_reason+="Memory ($avg_mem% > $MEM_UPPER_THRESHOLD%)"
         fi
-        if (( avg_mem < MEM_LOWER_THRESHOLD )); then should_scale_down=true; else should_scale_down=false; fi
+        # When metric is 'any', we only scale down if BOTH are low.
+        # The logic is: if we are already considering a scale down due to CPU,
+        # we must ALSO be below the memory threshold.
+        if [[ "$SCALE_METRIC" == "any" ]] && $should_scale_down && ! (( avg_mem < MEM_LOWER_THRESHOLD )); then
+             should_scale_down=false
+        elif (( avg_mem < MEM_LOWER_THRESHOLD )); then
+            should_scale_down=true
+        fi
     fi
 
     # Log status only if it changed or if the heartbeat interval has passed
@@ -290,9 +286,6 @@ while true; do
         log_message=""
         if [[ "$SCALE_METRIC" == "any" ]]; then
             log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%, AvgMem=${avg_mem}%"
-            if ! (( avg_cpu < CPU_LOWER_THRESHOLD && avg_mem < MEM_LOWER_THRESHOLD )); then
-                should_scale_down=false
-            fi
         elif [[ "$SCALE_METRIC" == "cpu" ]]; then
             log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%"
         elif [[ "$SCALE_METRIC" == "mem" ]]; then
