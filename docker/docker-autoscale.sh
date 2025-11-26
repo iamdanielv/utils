@@ -14,11 +14,17 @@ SCALE_UP_COOLDOWN=20            # Seconds to wait after scaling up before scalin
 SCALE_DOWN_COOLDOWN=20          # Seconds to wait after scaling down before scaling again
 SCALE_DOWN_CHECKS=2             # Number of consecutive checks before scaling down.
 POLL_INTERVAL=15                # Seconds between each metric check
+LOG_HEARTBEAT_INTERVAL=30       # Log a status message even if nothing changes, after this many seconds.
 
 # --- State Variables ---
 LAST_SCALE_EVENT_TS=0
 LAST_SCALE_DIRECTION="none" # 'up' or 'down'
 CONSECUTIVE_SCALE_DOWN_CHECKS=0
+# For verbose logging control
+LAST_LOG_TS=0
+LAST_LOGGED_REPLICAS=-1
+LAST_LOGGED_CPU=-1
+LAST_LOGGED_MEM=-1
 
 print_usage() {
     cat <<EOF
@@ -40,6 +46,7 @@ Options:
   --cooldown-up <sec>   Cooldown in seconds after scaling up. (Default: $SCALE_UP_COOLDOWN)
   --cooldown-down <sec> Cooldown in seconds after scaling down. (Default: $SCALE_DOWN_COOLDOWN)
   --scale-down-checks <num> Number of consecutive checks before scaling down. (Default: $SCALE_DOWN_CHECKS)
+  --heartbeat <sec>     Interval in seconds to log a heartbeat status. (Default: $LOG_HEARTBEAT_INTERVAL)
   --poll <sec>          Interval in seconds to check metrics. (Default: $POLL_INTERVAL)
   -h, --help            Show this help message.
 EOF
@@ -59,6 +66,7 @@ while [[ "$#" -gt 0 ]]; do
         --cooldown-up) SCALE_UP_COOLDOWN="$2"; shift ;;
         --cooldown-down) SCALE_DOWN_COOLDOWN="$2"; shift ;;
         --scale-down-checks) SCALE_DOWN_CHECKS="$2"; shift ;;
+        --heartbeat) LOG_HEARTBEAT_INTERVAL="$2"; shift ;;
         --poll) POLL_INTERVAL="$2"; shift ;;
         -h|--help) print_usage; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; print_usage; exit 1 ;;
@@ -116,7 +124,7 @@ if ! $COMPOSE_CMD config --services | grep -q "^${SERVICE_NAME}$"; then
 fi
 
 
-for var in MIN_REPLICAS MAX_REPLICAS CPU_UPPER_THRESHOLD CPU_LOWER_THRESHOLD MEM_UPPER_THRESHOLD MEM_LOWER_THRESHOLD SCALE_UP_COOLDOWN SCALE_DOWN_COOLDOWN POLL_INTERVAL SCALE_DOWN_CHECKS; do
+for var in MIN_REPLICAS MAX_REPLICAS CPU_UPPER_THRESHOLD CPU_LOWER_THRESHOLD MEM_UPPER_THRESHOLD MEM_LOWER_THRESHOLD SCALE_UP_COOLDOWN SCALE_DOWN_COOLDOWN POLL_INTERVAL SCALE_DOWN_CHECKS LOG_HEARTBEAT_INTERVAL; do
     if ! [[ "${!var}" =~ ^[0-9]+$ ]]; then
         log_msg "Error: Value for '$var' is not a valid integer: '${!var}'"
         exit 1
@@ -220,9 +228,9 @@ scale_service() {
 log_msg "Starting auto-scaler for service: '$SERVICE_NAME'"
 if [[ "$SCALE_METRIC" == "cpu" || "$SCALE_METRIC" == "mem" ]]; then
     metric_name=$(echo "$SCALE_METRIC" | tr '[:lower:]' '[:upper:]')
-    log_msg "Configuration: Metric=$metric_name Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Threshold=$CPU_UPPER_THRESHOLD% Down-Threshold=$CPU_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s"
+    log_msg "Configuration: Metric=$metric_name Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Threshold=$CPU_UPPER_THRESHOLD% Down-Threshold=$CPU_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
 else # any
-    log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s"
+    log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
 fi
 
 while true; do
@@ -271,16 +279,24 @@ while true; do
         if (( avg_mem < MEM_LOWER_THRESHOLD )); then should_scale_down=true; else should_scale_down=false; fi
     fi
 
-    # For 'any' metric, scale down only if BOTH are low.
-    if [[ "$SCALE_METRIC" == "any" ]]; then
-        log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%, AvgMem=${avg_mem}%"
-        if ! (( avg_cpu < CPU_LOWER_THRESHOLD && avg_mem < MEM_LOWER_THRESHOLD )); then
-            should_scale_down=false
+    # Log status only if it changed or if the heartbeat interval has passed
+    if (( current_replicas != LAST_LOGGED_REPLICAS || avg_cpu != LAST_LOGGED_CPU || avg_mem != LAST_LOGGED_MEM || (now - LAST_LOG_TS) >= LOG_HEARTBEAT_INTERVAL )); then
+        log_message=""
+        if [[ "$SCALE_METRIC" == "any" ]]; then
+            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%, AvgMem=${avg_mem}%"
+            if ! (( avg_cpu < CPU_LOWER_THRESHOLD && avg_mem < MEM_LOWER_THRESHOLD )); then
+                should_scale_down=false
+            fi
+        elif [[ "$SCALE_METRIC" == "cpu" ]]; then
+            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%"
+        elif [[ "$SCALE_METRIC" == "mem" ]]; then
+            log_message="$SERVICE_NAME: Replicas=$current_replicas, AvgMem=${avg_mem}%"
         fi
-    elif [[ "$SCALE_METRIC" == "cpu" ]]; then
-        log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgCPU=${avg_cpu}%"
-    elif [[ "$SCALE_METRIC" == "mem" ]]; then
-        log_msg "$SERVICE_NAME: Replicas=$current_replicas, AvgMem=${avg_mem}%"
+        log_msg "$log_message"
+        LAST_LOG_TS=$now
+        LAST_LOGGED_REPLICAS=$current_replicas
+        LAST_LOGGED_CPU=$avg_cpu
+        LAST_LOGGED_MEM=$avg_mem
     fi
 
     if $should_scale_up && (( current_replicas < MAX_REPLICAS )); then
