@@ -12,6 +12,7 @@ MEM_UPPER_THRESHOLD=80          # Scale up when Memory usage is above this perce
 MEM_LOWER_THRESHOLD=30          # Scale down when Memory usage is below this percentage
 SCALE_UP_COOLDOWN=20            # Seconds to wait after scaling up before scaling again
 SCALE_DOWN_COOLDOWN=20          # Seconds to wait after scaling down before scaling again
+SCALE_UP_STEP=2                 # Number of instances to add during a scale-up event.
 SCALE_DOWN_CHECKS=2             # Number of consecutive checks before scaling down.
 POLL_INTERVAL=15                # Seconds between each metric check
 LOG_HEARTBEAT_INTERVAL=30       # Log a status message even if nothing changes, after this many seconds.
@@ -45,6 +46,7 @@ Options:
   --mem-down <%>        Memory percentage threshold to scale down. (Default: $MEM_LOWER_THRESHOLD)
   --cooldown-up <sec>   Cooldown in seconds after scaling up. (Default: $SCALE_UP_COOLDOWN)
   --cooldown-down <sec> Cooldown in seconds after scaling down. (Default: $SCALE_DOWN_COOLDOWN)
+  --scale-up-step <num> Number of instances to add on scale-up. (Default: $SCALE_UP_STEP)
   --scale-down-checks <num> Number of consecutive checks before scaling down. (Default: $SCALE_DOWN_CHECKS)
   --heartbeat <sec>     Interval in seconds to log a heartbeat status. (Default: $LOG_HEARTBEAT_INTERVAL)
   --poll <sec>          Interval in seconds to check metrics. (Default: $POLL_INTERVAL)
@@ -65,6 +67,7 @@ while [[ "$#" -gt 0 ]]; do
         --mem-down) MEM_LOWER_THRESHOLD="$2"; shift ;;
         --cooldown-up) SCALE_UP_COOLDOWN="$2"; shift ;;
         --cooldown-down) SCALE_DOWN_COOLDOWN="$2"; shift ;;
+        --scale-up-step) SCALE_UP_STEP="$2"; shift ;;
         --scale-down-checks) SCALE_DOWN_CHECKS="$2"; shift ;;
         --heartbeat) LOG_HEARTBEAT_INTERVAL="$2"; shift ;;
         --poll) POLL_INTERVAL="$2"; shift ;;
@@ -124,7 +127,7 @@ if ! $COMPOSE_CMD config --services | grep -q "^${SERVICE_NAME}$"; then
 fi
 
 
-for var in MIN_REPLICAS MAX_REPLICAS CPU_UPPER_THRESHOLD CPU_LOWER_THRESHOLD MEM_UPPER_THRESHOLD MEM_LOWER_THRESHOLD SCALE_UP_COOLDOWN SCALE_DOWN_COOLDOWN POLL_INTERVAL SCALE_DOWN_CHECKS LOG_HEARTBEAT_INTERVAL; do
+for var in MIN_REPLICAS MAX_REPLICAS CPU_UPPER_THRESHOLD CPU_LOWER_THRESHOLD MEM_UPPER_THRESHOLD MEM_LOWER_THRESHOLD SCALE_UP_COOLDOWN SCALE_DOWN_COOLDOWN SCALE_UP_STEP POLL_INTERVAL SCALE_DOWN_CHECKS LOG_HEARTBEAT_INTERVAL; do
     if ! [[ "${!var}" =~ ^[0-9]+$ ]]; then
         log_msg "Error: Value for '$var' is not a valid integer: '${!var}'"
         exit 1
@@ -228,9 +231,9 @@ scale_service() {
 log_msg "Starting auto-scaler for service: '$SERVICE_NAME'"
 if [[ "$SCALE_METRIC" == "cpu" || "$SCALE_METRIC" == "mem" ]]; then
     metric_name=$(echo "$SCALE_METRIC" | tr '[:lower:]' '[:upper:]')
-    log_msg "Configuration: Metric=$metric_name Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Threshold=$CPU_UPPER_THRESHOLD% Down-Threshold=$CPU_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
+    log_msg "Configuration: Metric=$metric_name Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Step=$SCALE_UP_STEP Up-Threshold=$CPU_UPPER_THRESHOLD% Down-Threshold=$CPU_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
 else # any
-    log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
+    log_msg "Configuration: Metric=Any(CPU or Mem) Min=$MIN_REPLICAS Max=$MAX_REPLICAS Up-Step=$SCALE_UP_STEP CPU-Up=$CPU_UPPER_THRESHOLD% Mem-Up=$MEM_UPPER_THRESHOLD% CPU-Down=$CPU_LOWER_THRESHOLD% Mem-Down=$MEM_LOWER_THRESHOLD% Down-Checks=$SCALE_DOWN_CHECKS Poll=${POLL_INTERVAL}s Heartbeat=${LOG_HEARTBEAT_INTERVAL}s"
 fi
 
 while true; do
@@ -303,11 +306,12 @@ while true; do
     fi
 
     if $should_scale_up; then
-        if (( current_replicas < MAX_REPLICAS )); then
+        target_replicas=$((current_replicas + SCALE_UP_STEP))
+        if (( target_replicas > MAX_REPLICAS )); then
+            target_replicas=$MAX_REPLICAS
+        fi
+        if (( target_replicas > current_replicas )); then
             log_msg "Scale up triggered by: $scale_reason. Scaling up."
-            target_replicas=$((current_replicas + 2))
-            # Ensure we do not scale beyond the max replicas
-            if (( target_replicas > MAX_REPLICAS )); then target_replicas=$MAX_REPLICAS; fi
             scale_service "$target_replicas" "up"
         else
             log_msg "Scale up triggered by: $scale_reason. Cannot scale further, already at max replicas ($MAX_REPLICAS)."
