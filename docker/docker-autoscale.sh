@@ -197,7 +197,7 @@ scale_service() {
     log_msg "Scaling $SERVICE_NAME $direction to $new_replicas replicas..."
 
     while [ "$attempt" -le "$max_attempts" ]; do
-        log_msg "Attempt $attempt to scale $SERVICE_NAME $direction to $new_replicas replicas..."
+        log_msg "Attempt ($attempt/$max_attempts) to scale $SERVICE_NAME $direction to $new_replicas replicas..."
         local compose_output
         # Execute docker compose, capturing its stdout and stderr into a variable.
         # We use $COMPOSE_CMD which is already determined to be "docker compose" or "docker-compose". The `then` keyword is required here.
