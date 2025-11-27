@@ -10,7 +10,7 @@
 set -o pipefail
 
 # --- Source shared libraries ---
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 # shellcheck source=./lib/shared.lib.sh
 if ! source "${SCRIPT_DIR}/src/lib/shared.lib.sh"; then
     echo "Error: Could not source shared.lib.sh. Make sure it's in the 'src/lib' directory." >&2
