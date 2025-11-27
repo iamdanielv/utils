@@ -76,6 +76,22 @@ printErrMsg() { printMsg "${T_ERR_ICON}${T_BOLD}${C_L_RED} ${1} ${T_RESET}"; }
 printOkMsg() { printMsg "${T_OK_ICON} ${1}${T_RESET}"; }
 printInfoMsg() { printMsg "${T_INFO_ICON} ${1}${T_RESET}"; }
 printWarnMsg() { printMsg "${T_WARN_ICON} ${1}${T_RESET}"; }
+printTestSectionHeader() { printMsg "\n${T_ULINE}${C_L_WHITE}${1}${T_RESET}"; }
+
+getFormattedDate() {
+  date +"%Y-%m-%d %I:%M:%S"
+}
+
+getPrettyDate() {
+  echo "${C_BLUE}$(getFormattedDate)${T_RESET}"
+}
+
+printDatedMsg() {
+  echo -e "$(getPrettyDate) ${1}"
+}
+printDatedMsgNoNewLine() {
+  echo -n -e "$(getPrettyDate) ${1}"
+}
 
 strip_ansi_codes() {
     local s="$1"; local esc=$'\033'
@@ -123,6 +139,70 @@ format_menu_lines() {
 }
 
 printBanner() { printMsg "$(generate_banner_string "$1")"; }
+
+# Formats Tab-Separated Value (TSV) data into a clean, aligned table.
+# This function correctly handles cells that contain ANSI color codes.
+# It reads from stdin and takes an optional indent prefix as an argument.
+# Usage:
+#   echo -e "HEADER1\tHEADER2\nValue1\tValue2" | format_tsv_as_table "  "
+# To right-align column 2:
+#   ... | format_tsv_as_table "  " "2"
+format_tsv_as_table() {
+    local indent="${1:-}" # Optional indent prefix
+    local right_align_cols="${2:-}" # Optional string of column numbers to right-align, e.g., "2 3"
+    local padding=4      # Spaces between columns
+
+    # Use a two-pass awk script for perfect alignment.
+    # 1. The first pass calculates the maximum *visible* width of each column.
+    # 2. The second pass prints each cell, followed by the required padding.
+    # This approach is necessary to correctly handle ANSI color codes, which have
+    # a non-zero character length but zero visible width.
+    awk -v indent="$indent" -v padding="$padding" -v right_align_str="$right_align_cols" '
+        # Function to calculate the visible length of a string by removing ANSI codes.
+        # temp_s is declared as a parameter to make it a local variable,
+        # which is the portable way to do this in awk.
+        function visible_length(s, temp_s) {
+            temp_s = s # Copy the string to a local variable.
+            gsub(/\x1b\[[0-9;?]*[a-zA-Z]/, "", temp_s)
+            return length(temp_s)
+        }
+
+        BEGIN {
+            FS="\t"
+            # Parse the right_align_str into an associative array for quick lookups.
+            split(right_align_str, col_map, " ")
+            for (i in col_map) { right_align[col_map[i]] = 1 }
+        }
+
+        # First pass: Read all data and calculate max visible width for each column.
+        {
+            for(i=1; i<=NF; i++) {
+                len = visible_length($i)
+                if(len > max_width[i]) { max_width[i] = len }
+            }
+            data[NR] = $0 # Store the original line with colors.
+        }
+
+        # Second pass: Print the formatted table.
+        END {
+            for(row=1; row<=NR; row++) {
+                printf "%s", indent
+                num_fields = split(data[row], fields, FS) # Split the original line to preserve colors.
+                if (num_fields == 1 && fields[1] == "") { continue }
+                for(col=1; col<=num_fields; col++) {
+                    align_pad = max_width[col] - visible_length(fields[col])
+                    if (right_align[col]) {
+                        for (p=0; p<align_pad; p++) { printf " " }; printf "%s", fields[col]
+                    } else {
+                        printf "%s", fields[col]; for (p=0; p<align_pad; p++) { printf " " }
+                    }
+                    if (col < num_fields) { for (p=0; p<padding; p++) { printf " " } }
+                }
+                printf "\n"
+            }
+        }
+    '
+}
 #endregion Logging & Banners
 
 #region Terminal Control
