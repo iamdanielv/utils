@@ -7,8 +7,7 @@ set -e
 # The return value of a pipeline is the status of the last command to exit with a non-zero status.
 set -o pipefail
 
-# Source common utilities for colors and functions
-# shellcheck source=./shared.sh
+# Source common utilities for TUI functions and error handling
 # shellcheck source=./src/lib/shared.lib.sh
 if ! source "$(dirname "${BASH_SOURCE[0]}")/src/lib/shared.lib.sh"; then
     echo "Error: Could not source shared.lib.sh. Make sure it's in the 'src/lib' directory." >&2
@@ -70,6 +69,43 @@ get_temp_color_from_raw() {
     fi
 }
 
+# (Private) Calculates the trend of a temperature reading against its history.
+# Usage: _get_temp_trend <current_raw> <history_string> <avg_count> <delta_raw> trend_arrow_ref trend_color_ref
+_get_temp_trend() {
+    local current_raw="$1"
+    local history_string="$2"
+    local avg_count="$3"
+    local delta_raw="$4"
+    local -n trend_arrow_ref="$5" # Nameref for the arrow
+    local -n trend_color_ref="$6" # Nameref for the color
+
+    # Default to stable trend
+    trend_arrow_ref="→"
+    trend_color_ref="$C_GRAY"
+
+    local -a history_array
+    # Use mapfile for safer parsing of space-separated strings into an array
+    mapfile -t history_array < <(echo "$history_string")
+    local num_readings="${#history_array[@]}"
+
+    # Only calculate trend if we have enough historical data
+    if (( num_readings >= avg_count )); then
+        local sum=0
+        for val in "${history_array[@]}"; do
+            sum=$((sum + val))
+        done
+        local avg_prev_raw=$((sum / num_readings))
+
+        if (( (current_raw - avg_prev_raw) > delta_raw )); then
+            trend_arrow_ref="↑"
+            trend_color_ref="$C_L_RED" # Increasing
+        elif (( (avg_prev_raw - current_raw) > delta_raw )); then
+            trend_arrow_ref="↓"
+            trend_color_ref="$C_L_BLUE" # Decreasing
+        fi
+    fi
+}
+
 # Main monitoring loop.
 monitor_temperatures() {
     local interval="$1"
@@ -81,11 +117,11 @@ monitor_temperatures() {
     local num_spinner_chars=${#spinner_chars}
     local spinner_idx=0
 
-    # Trap SIGINT (Ctrl+C) to exit gracefully, restoring the cursor.
-    trap 'printf "\033[?25h"; echo -e "\n\n${T_INFO_ICON} Temperature monitor stopped."; exit 0' INT
+    # Use the shared interrupt handler for a consistent exit experience.
+    trap 'script_interrupt_handler' INT
 
     # --- Initial Draw ---
-    printf "\033[H\033[J"
+    clear_screen
     printBanner "System Temps (Updated every ${interval}s, press 'q', ESC, or Ctrl+C to exit)"
     printf "  ${C_GRAY}(Trend: ${C_L_RED}↑-hotter${C_GRAY}, ${C_L_BLUE}↓-cooler${C_GRAY}, →-stable vs avg of last %s readings)\n\n" "$avg_count"
  
@@ -93,7 +129,16 @@ monitor_temperatures() {
     # Store the full paths to each zone to handle non-sequential zone numbers (e.g., thermal_zone0, thermal_zone10).
     local sensor_zones
     mapfile -d '' -t sensor_zones < <(printf '%s\0' /sys/class/thermal/thermal_zone*)
-    mapfile -t sensor_types < <(cat "${sensor_zones[@]/%//type}")
+    
+    local sensor_types=()
+    for zone_path in "${sensor_zones[@]}"; do
+        local type_file="${zone_path}/type"
+        if [[ -r "$type_file" ]]; then
+            sensor_types+=("$(<"$type_file")")
+        else
+            sensor_types+=("unknown")
+        fi
+    done
     local -r num_sensors=${#sensor_types[@]}
  
     for name in "${sensor_types[@]}"; do # 'name' is implicitly local in modern bash for-loops
@@ -102,7 +147,7 @@ monitor_temperatures() {
     done
  
     # Hide cursor after initial draw for a cleaner display
-    printf "\033[?25l"
+    printMsgNoNewline "${T_CURSOR_HIDE}"
  
     # Pre-calculate temp_delta in raw format to avoid using 'bc' in the loop
     local temp_delta_raw
@@ -116,7 +161,7 @@ monitor_temperatures() {
  
         # Update a spinner on the line above the sensors to show activity.
         # It saves the cursor, moves up one line, prints the spinner, then restores.
-        local spinner_char="${spinner_chars:$spinner_idx:1}"
+        local spinner_char="${spinner_chars:spinner_idx:1}"
         printf "\033[s\033[1A\033[3G%b%s%b\033[K\033[u" "${C_L_CYAN}" "${spinner_char}" "${T_RESET}"
         spinner_idx=$(((spinner_idx + 1) % num_spinner_chars))
 
@@ -135,37 +180,13 @@ monitor_temperatures() {
                     temp_raw="$content"
                 fi
             fi
-            local temp_current
-            temp_current=$(echo "scale=1; $temp_raw / 1000" | bc)
 
-            # Get history for this sensor, split into an array
-            local history_string="${temp_history[$name]:-""}"
-            local -a history_array
-            read -r -a history_array <<< "$history_string"
-            local num_readings="${#history_array[@]}"
-
-            # Determine trend arrow
-            local trend_arrow="→"
-            local trend_color="$C_GRAY" # Neutral color for 'same'
-
-            # Calculate trend
-            if (( num_readings >= avg_count )); then
-                local sum=0
-                for val in "${history_array[@]}"; do sum=$((sum + val)); done
-                local avg_prev_raw=$((sum / num_readings))
-
-                if (( (temp_raw - avg_prev_raw) > temp_delta_raw )); then
-                    trend_arrow="↑"
-                    trend_color="$C_L_RED" # Increasing
-                elif (( (avg_prev_raw - temp_raw) > temp_delta_raw )); then
-                    trend_arrow="↓"
-                    trend_color="$C_L_BLUE" # Decreasing
-                fi
-            fi
-
-            # Determine temperature color
-            local temp_color
+            local trend_arrow trend_color temp_color
+            _get_temp_trend "$temp_raw" "${temp_history[$name]:-""}" "$avg_count" "$temp_delta_raw" trend_arrow trend_color
             temp_color=$(get_temp_color_from_raw "$temp_raw")
+            
+            # Only call bc once per loop for display purposes
+            local temp_current; temp_current=$(echo "scale=1; $temp_raw / 1000" | bc)
 
             # Move to the column after the label and print only the dynamic data.
             printf "\033[23G%b%s%b %b%5.1f%b°C\033[K\n" \
@@ -174,6 +195,8 @@ monitor_temperatures() {
 
             # Add current RAW temp to history and trim the array to avg_count
             history_array=("$temp_raw" "${history_array[@]}")
+            local -a history_array
+            mapfile -t history_array < <(echo "${temp_history[$name]:-""}")
             temp_history["$name"]="${history_array[*]:0:avg_count}"
         done
 
