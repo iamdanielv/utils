@@ -1,4 +1,4 @@
-.PHONY: all up down build load test clean logs ps
+.PHONY: all up down build load test clean logs ps stats
 
 # Dynamically determine the project name from the current directory's name.
 PROJECT_NAME := $(shell basename $(CURDIR))
