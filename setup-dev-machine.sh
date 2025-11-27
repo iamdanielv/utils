@@ -112,6 +112,57 @@ install_lazygit() {
     fi
 }
 
+# Installs lazydocker by downloading the latest binary from GitHub releases.
+install_lazydocker() {
+    # Determine architecture for download URL
+    local arch
+    if [[ "$(uname -m)" == "x86_64" ]]; then
+        arch="x86_64"
+    else
+        printErrMsg "Unsupported architecture for lazydocker: $(uname -m). Only x86_64 is supported by this script."
+        return 1
+    fi
+    printBanner "Install/Update lazydocker"
+
+    # Get latest version tag
+    local latest_version
+    latest_version=$(curl -s "https://api.github.com/repos/jesseduffield/lazydocker/releases/latest" | grep -Po '"tag_name": "\K[^"]*')
+
+    if [[ -z "$latest_version" ]]; then
+        printErrMsg "Could not determine latest lazydocker version from GitHub API."
+        return
+    fi
+
+    printInfoMsg "Latest available lazydocker version: ${C_L_GREEN}${latest_version}${T_RESET}"
+
+    local installed_version_string="Not installed"
+    if command -v lazydocker &>/dev/null; then
+        installed_version_string=$(lazydocker --version | grep -o 'Version: [^,]*' | sed 's/Version: //')
+    fi
+    printInfoMsg "Currently installed version:         ${C_L_YELLOW}${installed_version_string}${T_RESET}"
+
+    if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
+        printInfoMsg "Lazydocker installation skipped."
+        return
+    fi
+
+    local version_number_only="${latest_version#v}"
+    local tarball_name="lazydocker_${version_number_only}_Linux_${arch}.tar.gz"
+    local download_url="https://github.com/jesseduffield/lazydocker/releases/download/${latest_version}/${tarball_name}"
+    local install_dir="${HOME}/.local/bin"
+    mkdir -p "$install_dir"
+
+    local temp_dir; temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
+
+    if run_with_spinner "Downloading lazydocker ${latest_version}..." curl -L -f "$download_url" -o "${temp_dir}/${tarball_name}"; then
+        run_with_spinner "Extracting binary..." tar -xzf "${temp_dir}/${tarball_name}" -C "$temp_dir"
+        run_with_spinner "Installing to ${install_dir}/lazydocker..." mv "${temp_dir}/lazydocker" "${install_dir}/lazydocker"
+    else
+        printErrMsg "Failed to download lazydocker. Please try installing it manually."
+    fi
+}
+
 # Installs the core tools referenced in the .bash_aliases file.
 install_core_tools() {
     printBanner "Installing Core CLI Tools"
@@ -132,6 +183,8 @@ install_core_tools() {
     install_package "eza"
     # For 'lg' alias
     install_lazygit
+    # For docker management
+    install_lazydocker
 }
 
 # Copies the .bash_aliases file to the user's home directory.
