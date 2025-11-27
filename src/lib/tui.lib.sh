@@ -518,6 +518,267 @@ script_interrupt_handler() {
 trap 'script_interrupt_handler' INT
 #endregion Error Handling & Traps
 
+##
+# Displays an interactive multi-select menu.
+# Allows the user to select multiple options using arrow keys and the spacebar.
+#
+# ## Usage:
+#   local -a options=("All" "Option 1" "Option 2" "Option 3")
+#   # if "All" is provided it enables toggling of all elements
+#   local menu_output
+#   menu_output=$(interactive_multi_select_menu "Select items:" "${options[@]}")
+#   local exit_code=$?
+#
+#   if [[ $exit_code -eq 0 ]]; then
+#     mapfile -t selected_indices <<< "$menu_output"
+#     echo "You selected the following options:"
+#     for index in "${selected_indices[@]}"; do
+#       echo " - ${options[index]} (index: $index)"
+#     done
+#   else
+#     echo "No options were selected or the selection was cancelled."
+#   fi
+#
+# ## Arguments:
+#  $1 - The prompt to display to the user.
+#  $@ - The list of options for the menu.
+#       If "All" is the first entry, it enables toggling of all elements
+#
+# ## Returns:
+#  On success (Enter pressed with selections):
+#    - Prints the indices of the selected options to stdout, one per line.
+#    - Returns with exit code 0.
+#  On cancellation (ESC or q pressed) or no selection:
+#    - Prints nothing to stdout.
+#    - Returns with exit code 1.
+##
+interactive_multi_select_menu() {
+    # Ensure the script is running in an interactive terminal
+    # When called via command substitution `$(...)`, stdout is not a tty.
+    # We must check stdin (`-t 0`) instead and redirect all interactive
+    # output to `/dev/tty` to ensure it appears on the user's screen.
+    if ! [[ -t 0 ]]; then
+        printErrMsg "Not an interactive session." >&2
+        return 1
+    fi
+
+    local prompt="$1"
+    shift
+    local -a options=("$@")
+    local num_options=${#options[@]}
+
+    if [[ $num_options -eq 0 ]]; then
+        printErrMsg "No options provided to menu." >&2
+        return 1
+    fi
+
+    # State variables
+    local current_option=0 # The currently highlighted option index
+    local -a selected_options=()
+    for ((i=0; i<num_options; i++)); do
+        selected_options[i]=0
+    done
+
+    # Helper function to draw only the dynamic options part of the menu.
+    # This is called repeatedly to update the screen.
+    _draw_menu_options() {
+        local output=""
+        for i in "${!options[@]}"; do
+            local pointer=" "
+            local checkbox="[ ]"
+            local highlight_start=""
+            local highlight_end=""
+
+            if (( selected_options[i] == 1 )); then
+                checkbox="${C_GREEN}${T_BOLD}[✓]${T_RESET}"
+            fi
+
+            if (( i == current_option )); then
+                pointer="${T_BOLD}${C_L_MAGENTA}❯${T_RESET}"
+                highlight_start="${T_REVERSE}"
+                highlight_end="${T_RESET}"
+            fi
+
+            output+="  ${pointer} ${highlight_start}${checkbox} ${options[i]}${highlight_end}${T_RESET}${T_CLEAR_LINE}\n"
+        done
+        # Use echo -ne to prevent a trailing newline and interpret escapes
+        echo -ne "$output"
+    }
+
+    # Hide cursor and set a trap to restore it on exit
+    printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
+    trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
+
+    # Initial draw: Print static header once, then the dynamic options.
+    echo -e "${C_GRAY}(Use ${C_L_CYAN}↓/↑${C_GRAY} to navigate, ${C_L_CYAN}space${C_GRAY} to select, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}${DIV}${T_RESET}\r${T_QST_ICON} ${prompt}" >/dev/tty
+    _draw_menu_options >/dev/tty
+
+    local key
+    local menu_height=$((num_options + 3)) # +3 for help, prompt, and divider
+
+    while true; do
+        # Move cursor up to the start of the options list for redraw
+        move_cursor_up "$num_options"
+        key=$(read_single_char </dev/tty)
+
+        case "$key" in
+            "$KEY_UP"|"k") current_option=$(( (current_option - 1 + num_options) % num_options ));;
+            "$KEY_DOWN"|"j") current_option=$(( (current_option + 1) % num_options ));;
+            ' '|"h"|"l") 
+                selected_options[current_option]=$(( 1 - selected_options[current_option] ))
+
+                # If the first option is "All", enable special select/deselect all behavior.
+                if [[ "${options[0]}" == "All" ]]; then
+                    if (( current_option == 0 )); then
+                        # "All" was toggled, so set all other options to its state
+                        local all_state=${selected_options[0]}
+                        for i in "${!options[@]}"; do
+                            selected_options[i]=$all_state
+                        done
+                    else
+                        # Another item was toggled, check if "All" should be checked/unchecked
+                        local all_selected=1
+                        # Loop from 1 to skip the "All" option itself
+                        for ((i=1; i<num_options; i++)); do
+                            if (( selected_options[i] == 0 )); then
+                                all_selected=0
+                                break
+                            fi
+                        done
+                        selected_options[0]=$all_selected
+                    fi
+                fi
+                ;;
+            "$KEY_ENTER"|"$KEY_ESC"|"q")
+                # Clear the menu from the screen before exiting the loop.
+                clear_lines_down "$menu_height"
+
+                if [[ "$key" == "$KEY_ENTER" ]]; then
+                    break
+                else
+                    return 1
+                fi
+                ;;
+        esac
+        # Redraw only the options part of the menu
+        _draw_menu_options >/dev/tty
+    done
+
+    local has_selection=0
+    for i in "${!options[@]}"; do
+        if [[ ${selected_options[i]} -eq 1 ]]; then
+            has_selection=1
+            echo "$i"
+        fi
+    done
+
+    if [[ $has_selection -eq 1 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+##
+# Displays an interactive single-select menu.
+# Allows the user to select one option using arrow keys.
+#
+# ## Usage:
+#   local -a options=("Option 1" "Option 2" "Option 3")
+#   local selected_index
+#   selected_index=$(interactive_single_select_menu "Select an item:" "${options[@]}")
+#   local exit_code=$?
+#
+#   if [[ $exit_code -eq 0 ]]; then
+#     echo "You selected index: $selected_index (${options[selected_index]})"
+#   else
+#     echo "No option was selected."
+#   fi
+#
+# ## Arguments:
+#  $1 - The prompt to display to the user.
+#  $@ - The list of options for the menu.
+#
+# ## Returns:
+#  On success (Enter pressed):
+#    - Prints the index of the selected option to stdout.
+#    - Returns with exit code 0.
+#  On cancellation (ESC or q pressed):
+#    - Prints nothing to stdout.
+#    - Returns with exit code 1.
+##
+interactive_single_select_menu() {
+    if ! [[ -t 0 ]]; then
+        printErrMsg "Not an interactive session." >&2
+        return 1
+    fi
+
+    local prompt="$1"
+    shift
+    local -a options=("$@")
+    local num_options=${#options[@]}
+
+    if [[ $num_options -eq 0 ]]; then
+        printErrMsg "No options provided to menu." >&2
+        return 1
+    fi
+
+    local current_option=0
+
+    _draw_menu_options() {
+        local output=""
+        for i in "${!options[@]}"; do
+            local pointer=" "
+            local highlight_start=""
+            local highlight_end=""
+            
+            if (( i == current_option )); then
+                pointer="${T_BOLD}${C_L_MAGENTA}❯${T_RESET}"
+                highlight_start="${T_REVERSE}${C_L_CYAN}"
+                highlight_end="${T_RESET}"
+            fi
+            output+=" ${pointer} ${highlight_start} ${options[i]} ${highlight_end}${T_RESET}${T_CLEAR_LINE}\n"
+        done
+        echo -ne "$output"
+    }
+
+    printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
+    trap 'printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty' EXIT
+
+    # Initial draw: Print static header once, then the dynamic options.
+    echo -e "${C_GRAY}(Use ${C_L_CYAN}↓/↑${C_GRAY} to navigate, ${C_L_GREEN}enter${C_GRAY} to confirm, ${C_L_YELLOW}q/esc${C_GRAY} to cancel)${T_RESET}" >/dev/tty
+    echo -e "${C_GRAY}${DIV}${T_RESET}\r${T_QST_ICON} ${prompt}" >/dev/tty
+    _draw_menu_options >/dev/tty
+
+    local key
+    local menu_height=$((num_options + 3))
+
+    while true; do
+        # Move cursor up to the start of the options list for redraw
+        move_cursor_up "$num_options"
+        key=$(read_single_char </dev/tty)
+
+        case "$key" in
+            "$KEY_UP"|"k") current_option=$(( (current_option - 1 + num_options) % num_options ));;
+            "$KEY_DOWN"|"j") current_option=$(( (current_option + 1) % num_options ));;
+            "$KEY_ENTER")
+                clear_lines_down "$menu_height"
+                clear_lines_up 3
+                echo "$current_option"
+                return 0
+                ;;
+            "$KEY_ESC"|"q")
+                clear_lines_down "$menu_height"
+                clear_lines_up 3
+                return 1
+                ;;
+        esac
+        # Redraw only the options part of the menu
+        _draw_menu_options >/dev/tty
+    done
+}
+
 #region Interactive Menus
 
 # (Private) Applies a reverse-video highlight to a string, correctly handling
