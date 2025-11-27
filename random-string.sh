@@ -7,7 +7,7 @@ set -e
 # The return value of a pipeline is the status of the last command to exit with a non-zero status.
 set -o pipefail
 
-# Source common utilities for colors and functions
+# Source common utilities for TUI functions and error handling.
 # shellcheck source=./shared.sh
 # shellcheck source=./src/lib/shared.lib.sh
 if ! source "$(dirname "${BASH_SOURCE[0]}")/src/lib/shared.lib.sh"; then
