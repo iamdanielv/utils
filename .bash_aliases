@@ -114,6 +114,8 @@ la() {
 # Simple listing with file type indicators (e.g., / for directories).
 alias l='eza --group-directories-first -F'
 
+alias tmux='tmux new-session -AD -s main'
+
 # -------------------
 # Interactive Tools & Keybindings
 # -------------------
