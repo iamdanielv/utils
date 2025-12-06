@@ -175,10 +175,5 @@ alias tmux='tmux new-session -AD -s main'
 # Interactive Tools & Keybindings
 # -------------------
 
-# Interactively find a directory using fzf and cd into it.
-# Excludes hidden directories and provides a 'tree' preview.
-# - Preview can be toggled with Ctrl-V.
-# - Invoke this function by pressing Ctrl-F.
-
 # Bind Ctrl+X to the standard 'clear-screen' readline command.
 bind '"\C-x":clear-screen'
