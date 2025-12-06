@@ -89,6 +89,40 @@ alias ports='netstat -tulpn'
 alias psa='ps auxf'
 
 # -------------------
+# Process Management
+# -------------------
+
+# Interactively find and kill a process using fzf.
+# We define a helper function for the preview to keep the main command clean.
+_fkill_preview() {
+  # Use -ww to prevent ps from truncating the command line output.
+  # This ensures the full command is visible in the fzf preview window.
+  ps -ww -o pid=,cmd= -p "$1" | awk '{
+    pid=$1; 
+    $1=""; 
+    cmd=substr($0,2); 
+    printf "PID: %s\nCMD: %s", pid, cmd
+  }'
+}
+# Export the function so fzf's subshell can access it.
+export -f _fkill_preview
+
+fkill() {
+  # Get a process list with only User, PID, and Command, without headers.
+  local processes
+  processes=$(ps -eo user,pid,cmd --no-headers)
+
+  local pids
+  pids=$(echo "$processes" | fzf -m --height 40% --reverse \
+    --header "Press TAB to mark multiple processes, ENTER to kill." \
+    --preview '_fkill_preview {2}' --preview-window 'wrap')
+  if [[ -n "$pids" ]]; then
+    # Extract just the PIDs and kill them. Default signal is SIGKILL (9).
+    echo "$pids" | awk '{print $2}' | xargs kill -"${1:-9}"
+  fi
+}
+
+# -------------------
 # File & Directory Listing (using eza)
 # -------------------
 # NOTE: These aliases require 'eza', a modern 'ls' replacement, to be
