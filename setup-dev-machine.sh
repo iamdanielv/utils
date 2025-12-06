@@ -182,6 +182,10 @@ install_core_tools() {
     install_package "net-tools" "netstat"
     # For 'ls', 'll', 'lt', etc. aliases
     install_package "eza"
+    
+    # Replacement for nano
+    install_package "micro"
+
     # For 'lg' alias
     install_lazygit
     # For docker management
