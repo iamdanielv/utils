@@ -96,7 +96,6 @@ alias psa='ps auxf'
 # We define a helper function for the preview to keep the main command clean.
 _fkill_preview() {
   # Get detailed process info. -ww ensures the command isn't truncated.
-  # We only select the fields needed for the new compact format.
   ps -ww -o pid=,user=,pcpu=,pmem=,cmd= -p "$1" | awk '{
     # Assign fields to variables for clarity
     pid=$1; user=$2; pcpu=$3; pmem=$4;
@@ -106,15 +105,21 @@ _fkill_preview() {
     cmd = substr($0, cmd_start_index);
 
     # Define ANSI color codes for a prettier output
-    c_label="\033[1;34m"; # Bold Blue
+    c_blue="\033[1;34m"; # Bold Blue
+    c_red="\033[31m";
+    c_green="\033[32m";
+    c_cyan="\033[36m";
+    c_bold="\033[1m";
     c_reset="\033[0m";
+    c_line="\033[38;5;237m"; # A dim gray for the separator line
 
-    # Print the first line with formatted process stats
-    printf "%sPID:%s %-5s  %sUser:%s %-8s  %sCPU:%s %-4s  %sMem:%s %-4s\n", \
-      c_label, c_reset, pid, c_label, c_reset, user, c_label, c_reset, pcpu, c_label, c_reset, pmem;
-    
-    # Print the second line with the full command
-    printf "%sCMD:%s %s\n", c_label, c_reset, cmd;
+    # Print the formatted, colorful output
+    printf "%sPID:%s %s%-6s%s %sUser:%s %s%s%s\n", \
+      c_blue, c_reset, c_bold, pid, c_reset, c_blue, c_reset, c_bold, user, c_reset;
+    printf "%sCPU:%s %s%-6s%s %sMem:%s %s%s%s\n", \
+      c_green, c_reset, c_bold, pcpu, c_reset, c_green, c_reset, c_bold, pmem, c_reset;
+    printf "%s──────────────────────────────%s\n", c_line, c_reset;
+    printf "%s%s%s\n", c_bold, c_cyan, cmd;
   }'
 }
 # Export the function so fzf's subshell can access it.
