@@ -95,13 +95,26 @@ alias psa='ps auxf'
 # Interactively find and kill a process using fzf.
 # We define a helper function for the preview to keep the main command clean.
 _fkill_preview() {
-  # Use -ww to prevent ps from truncating the command line output.
-  # This ensures the full command is visible in the fzf preview window.
-  ps -ww -o pid=,cmd= -p "$1" | awk '{
-    pid=$1; 
-    $1=""; 
-    cmd=substr($0,2); 
-    printf "PID: %s\nCMD: %s", pid, cmd
+  # Get detailed process info. -ww ensures the command isn't truncated.
+  # We only select the fields needed for the new compact format.
+  ps -ww -o pid=,user=,pcpu=,pmem=,cmd= -p "$1" | awk '{
+    # Assign fields to variables for clarity
+    pid=$1; user=$2; pcpu=$3; pmem=$4;
+    
+    # Reconstruct the full command string, which starts at the 5th field
+    cmd_start_index = index($0, $5);
+    cmd = substr($0, cmd_start_index);
+
+    # Define ANSI color codes for a prettier output
+    c_label="\033[1;34m"; # Bold Blue
+    c_reset="\033[0m";
+
+    # Print the first line with formatted process stats
+    printf "%sPID:%s %-5s  %sUser:%s %-8s  %sCPU:%s %-4s  %sMem:%s %-4s\n", \
+      c_label, c_reset, pid, c_label, c_reset, user, c_label, c_reset, pcpu, c_label, c_reset, pmem;
+    
+    # Print the second line with the full command
+    printf "%sCMD:%s %s\n", c_label, c_reset, cmd;
   }'
 }
 # Export the function so fzf's subshell can access it.
