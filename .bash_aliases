@@ -8,6 +8,9 @@ alias rm='rm -i'
 # Use Neovim instead of Vim for a better editing experience.
 alias vim='nvim'
 
+# Use micro instead of nano
+alias nano="micro"
+
 # Use 'batcat' (or 'bat') for a 'cat' with syntax highlighting.
 alias cat='batcat'
 
