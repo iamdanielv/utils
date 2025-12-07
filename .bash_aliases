@@ -48,6 +48,19 @@ alias gp='git push'
 # Launch lazygit, a terminal UI for git.
 alias lg='lazygit'
 
+# --- Reusable Git Helper Variables & Functions ---
+
+# A compact, one-line format for git log commands.
+_GIT_LOG_COMPACT_FORMAT='%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset)%C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)'
+
+# A helper function to shorten the relative date output from git log.
+# Takes log output via stdin and pipes it through sed.
+_shorten_git_date() {
+  sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g'
+}
+# Export the function so it's available to subshells, like those used by fzf's preview.
+export -f _shorten_git_date
+
 # A compact and graphical view of commit history.
 # Using a function for better readability and to handle arguments.
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
