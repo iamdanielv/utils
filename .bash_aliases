@@ -99,7 +99,7 @@ _fkill_preview() {
   ps -ww -o pid=,user=,pcpu=,pmem=,cmd= -p "$1" | awk '{
     # Assign fields to variables for clarity
     pid=$1; user=$2; pcpu=$3; pmem=$4;
-    
+
     # Reconstruct the full command string, which starts at the 5th field
     cmd_start_index = index($0, $5);
     cmd = substr($0, cmd_start_index);
@@ -196,4 +196,25 @@ fgl() {
       --bind 'enter:execute(git show --color=always {1} | less -R)' \
       --bind 'ctrl-y:execute(echo {1})+abort' \
       --preview 'git show --color=always {1}'
+}
+
+# Interactively checkout a git branch (local or remote) using fzf.
+fgb() {
+  local branches branch
+  # Get all branches, colorized, and filter out the HEAD pointer.
+  # Let fzf handle the color codes with the --ansi flag.
+  branches=$(git branch -a --color=always | grep -v '/HEAD\s')
+  # The preview command strips ANSI codes and leading/trailing whitespace to get a clean branch name for the log.
+  branch=$(echo "$branches" | fzf --ansi --height 40% --reverse --preview-window 'right:60%:wrap,border-left' \
+    --preview 'git log --oneline --decorate --color=always $(echo {} | sed "s/.* //" | sed "s#remotes/origin/##")')
+
+  if [[ -n "$branch" ]]; then
+    # To checkout, we need to:
+    # 1. Remove ANSI color codes.
+    # 2. Trim leading/trailing whitespace.
+    # 3. Remove the 'remotes/origin/' prefix for remote branches.
+    # 4. Remove the leading '*' for the current branch.
+    local clean_branch=$(echo "$branch" | sed -r "s/\x1B\[[0-9;]*[mK]//g" | sed -e 's/^[ \t]*\*//' -e 's/^[ \t]*//' -e 's/[ \t]*$//' -e 's#remotes/origin/##')
+    git checkout "$clean_branch"
+  fi
 }
