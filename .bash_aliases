@@ -57,7 +57,7 @@ gl() {
   # %h: short hash | %d: decorations | %cr: relative date | %an: author
   # %s: subject | %b: body | %w: wrap body with indentation
   local format_string=""
-  format_string+="%C(red)%h%Creset %C(bold magenta)%d%Creset%n" # Hash and decorations
+  format_string+="%C(red)%h%Creset %C(bold magenta)%d%Creset " # Hash and decorations
   format_string+="%C(green)%cr %C(blue)%an%Creset%n"            # Date and author
   format_string+=" %C(bold cyan)%s%Creset%n"                    # Subject
   format_string+="%w(72,2,2)%b%Creset"                          # Body (wrapped)
