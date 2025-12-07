@@ -229,7 +229,7 @@ fgb() {
   current_branch=$(git branch --show-current)
   export current_branch
   # Get all branches, color them, and format them nicely
-  branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ --format='%(color:green)%(refname:short)%(color:reset) - %(color:yellow)%(subject)%(color:reset) (%(color:blue)%(committerdate:relative)%(color:reset))')
+  branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ --format='%(color:green)%(refname:short)%(color:reset) - (%(color:blue)%(committerdate:relative)%(color:reset)) %(color:yellow)%(subject)%(color:reset)')
   
   # Use fzf to select a branch
   branch=$(echo "$branches" | fzf --ansi --no-sort --reverse --tiebreak=index --prompt='Checkout> ' \
