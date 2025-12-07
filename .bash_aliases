@@ -174,5 +174,9 @@ alias tmux='tmux new-session -AD -s main'
 # Interactive Tools & Keybindings
 # -------------------
 
-# Bind Ctrl+X to the standard 'clear-screen' readline command.
-bind '"\C-x":clear-screen'
+# Bind Ctrl+X Ctrl+X to the standard 'clear-screen' readline command.
+bind '"\C-x\C-x":clear-screen'
+
+# Bind Ctrl+X Ctrl+K to the fkill function for interactive process killing.
+bind '"\C-x\C-k":"fkill\n"'
+
