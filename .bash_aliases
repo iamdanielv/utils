@@ -53,16 +53,10 @@ alias lg='lazygit'
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
 unalias gl 2>/dev/null
 gl() {
-  # Build the format string line-by-line for modularity
-  # %h: short hash | %d: decorations | %cr: relative date | %an: author
-  # %s: subject | %b: body | %w: wrap body with indentation
-  local format_string=""
-  format_string+="%C(red)%h%Creset %C(bold magenta)%d%Creset " # Hash and decorations
-  format_string+="%C(green)%cr %C(blue)%an%Creset%n"            # Date and author
-  format_string+=" %C(bold cyan)%s%Creset%n"                    # Subject
-  format_string+="%w(72,2,2)%b%Creset"                          # Body (wrapped)
-  
-  git log --graph --pretty=format:"${format_string}%n" "$@"
+  # A compact, one-line format for the git log graph.
+  # %h: short hash, %d: decorations, %s: subject, %cr: relative date, %an: author
+  git log --graph --color=always --pretty=format:'%C(yellow)%h%C(reset) %C(bold cyan)%d%C(reset) %s %C(green)(%cr)%C(reset) %C(blue)<%an>%C(reset)' "$@" |
+    sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g'
 }
 
 # See the commit history for a specific file, tracking renames.
