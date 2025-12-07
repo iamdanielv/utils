@@ -208,6 +208,9 @@ bind '"\C-x\C-g\C-l":"fgl\n"'
 # Bind Ctrl+X Ctrl+G Ctrl+B to the fgb function for interactive git branch checkout.
 bind '"\C-x\C-g\C-b":"fgb\n"'
 
+# Bind Ctrl+X Ctrl+G Ctrl+H to the fzglfh function for interactive file history browsing.
+bind '"\C-x\C-g\C-h":"fzglfh \C-e\n"'
+
 # -------------------
 # Git with FZF
 # -------------------
@@ -221,9 +224,10 @@ fgl() {
   export current_branch
 
   git log --color=always \
-      --format="%C(yellow)%h%C(reset) %C(bold cyan)%d%C(reset) %s %C(green)(%cr)%C(reset) %C(blue)<%an>%C(reset)" \
+      --format="%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset) %C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)" \
       "$@" |
-  fzf --ansi --no-sort --reverse --tiebreak=index \
+  sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g' |
+  fzf --ansi --no-sort --reverse --tiebreak=index --no-hscroll \
       --header 'ENTER: view diff | CTRL-Y: print hash | SHIFT-UP/DOWN: scroll diff' \
       --preview-window 'down,70%,border-top,wrap' \
       --bind 'enter:execute(git show --color=always {1} | less -R)' \
@@ -274,4 +278,52 @@ fgb() {
     # Extract branch name (the first word) and checkout
     git checkout "$(echo "$branch" | cut -d' ' -f1)"
   fi
+}
+
+# fzglfh - fuzzy git log file history
+# Usage: fzglfh <file_path>
+fzglfh() {
+  # 1. Check if we are in a git repository
+  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
+    echo "Error: Not a git repository."
+    return 1
+  fi
+
+  while true; do
+    # 2. Use fzf to select a file, with its history in the preview.
+    local selected_file
+    selected_file=$(git ls-files | fzf --ansi --reverse --tiebreak=index \
+      --header 'ENTER: inspect commits | ESC: quit | SHIFT-UP/DOWN: scroll history' \
+      --preview-window 'down,70%,border-top,wrap' \
+      --preview 'git log --follow --color=always --format="%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset) %C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)" -- {} |
+                 sed -E "s/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g"' \
+      --header-first \
+      --style=full --prompt='File> ' \
+      --input-label ' Filter Files ' --header-label ' File History Explorer ' \
+      --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " History for [%s] " {}' \
+      --color 'border:#6699cc,label:#99ccff,preview-border:#9999cc,preview-label:#ccccff,header-border:#6699cc,header-label:#99ccff')
+
+    # If no file is selected (e.g., user pressed ESC), exit the loop.
+    if [[ -z "$selected_file" ]]; then
+      break
+    fi
+
+    # 3. If a file was selected, open a new fzf instance to inspect its commits.
+    # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
+    ( git log --follow --color=always \
+          --format="%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset) %C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)" \
+          -- "$selected_file" |
+      sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g' |
+      fzf --ansi --no-sort --reverse --tiebreak=index --no-hscroll\
+          --header 'ENTER: view diff | ESC: back to files | CTRL-Y: print hash' \
+          --preview-window 'down,70%,border-top,wrap' \
+          --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
+          --bind 'ctrl-y:execute(echo {1})+abort' \
+          --preview "git show --color=always {1} -- \"$selected_file\"" \
+          --header-first \
+          --style=full --prompt='Commit> ' \
+          --input-label ' Filter Commits ' --header-label " History for $selected_file " \
+          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \" Diff for [%s] \" {1}" \
+          --color 'border:#6699cc,label:#99ccff,preview-border:#9999cc,preview-label:#ccccff,header-border:#6699cc,header-label:#99ccff' )
+  done
 }
