@@ -113,14 +113,19 @@ _fzfkill_preview() {
     c_cyan="\033[36m";
     c_bold="\033[1m";
     c_reset="\033[0m";
+    c_light_red="\033[38;5;11m";
     c_line="\033[38;5;237m"; # A dim gray for the separator line
 
+    # Highlight the user if it is 'root'
+    user_color = c_bold;
+    if (user == "root") {
+      user_color = c_light_red;
+    }
+
     # Print the formatted, colorful output
-    printf "%sPID:%s %s%-6s%s %sUser:%s %s%s%s\n", \
-      c_blue, c_reset, c_bold, pid, c_reset, c_blue, c_reset, c_bold, user, c_reset;
-    printf "%sCPU:%s %s%-6s%s %sMem:%s %s%s%s\n", \
-      c_green, c_reset, c_bold, pcpu, c_reset, c_green, c_reset, c_bold, pmem, c_reset;
-    printf "%s──────────────────────────────%s\n", c_line, c_reset;
+    printf "%sPID:%s %s%-6s%s %sUser:%s %s%s%s \t", c_blue, c_reset, c_bold, pid, c_reset, c_blue, c_reset, user_color, user, c_reset;
+    printf "%sCPU:%s %s%-6s%s %sMem:%s %s%s%s\n", c_green, c_reset, c_bold, pcpu, c_reset, c_green, c_reset, c_bold, pmem, c_reset;
+    printf "%s──────────────────────────────────%s\n", c_line, c_reset;
     printf "%s%s%s\n", c_bold, c_cyan, cmd;
   }'
 }
@@ -130,16 +135,36 @@ export -f _fzfkill_preview
 fzfkill() {
   # Get a process list with only User, PID, and Command, without headers.
   # Exclude the current fzfkill process and its children from the list.
-  local processes=$(ps -eo user,pid,cmd --no-headers | grep -v -e "fzfkill" -e "ps -eo")
+  # Highlight processes run by the 'root' user.
+  local processes
+  processes=$(ps -eo user,pid,cmd --no-headers | grep -v -e "fzfkill" -e "ps -eo" | \
+    awk '{
+      if ($1 == "root") {
+        # Color only username for root processes
+        printf "\033[38;5;11m%s\033[0m%s\n", $1, substr($0, length($1) + 1);
+      } else {
+        print $0;
+      }
+    }')
 
-  local pids
-  pids=$(echo "$processes" | fzf -m --height 80% --reverse \
-    --header "TAB: mark multiple, ENTER: kill" \
-    --preview '_fzfkill_preview {2}' --preview-window 'wrap,border-left')
-  if [[ -n "$pids" ]]; then
-    # Extract just the PIDs (the second column) and kill them. Default signal is SIGTERM.
-    echo "$pids" | awk '{print $2}' | xargs -r kill -s "${1:-TERM}"
-  fi
+  # The fzf command now directly executes the kill command.
+  # This allows us to bind different signals to different keys.
+  printf "%s" "$processes" | fzf -m --reverse --no-hscroll \
+    --ansi --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL) | TAB: mark | SHIFT-UP/DOWN: scroll details' --header-first \
+    --preview '_fzfkill_preview {2}' --preview-window 'down,40%,border-top,wrap' \
+    --style=full --prompt='Filter> ' \
+    --input-label ' Filter Processes ' --header-label ' Process Killer ' \
+    --bind 'enter:execute(echo {} | awk "{print \$2}" | xargs -r kill -s TERM)+abort' \
+    --bind 'ctrl-k:execute(echo {} | awk "{print \$2}" | xargs -r kill -s KILL)+abort' \
+    --bind 'result:transform-list-label:
+        if [[ -z $FZF_QUERY ]]; then
+          echo " All Processes "
+        else
+          echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "
+        fi' \
+    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " Details for PID [%s] " {2}' \
+    --color 'border:#cc6666,label:#ff9999,preview-border:#cc9999,preview-label:#ffcccc' \
+    --color 'header-border:#cc6666,header-label:#ff9999'
 }
 
 # -------------------
