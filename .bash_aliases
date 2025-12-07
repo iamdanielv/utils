@@ -198,7 +198,8 @@ bind '"\C-x\C-g\C-b":"fgb\n"'
 # Press 'ctrl-y' to print the commit hash and exit.
 fgl() {
   git log --color=always \
-      --format="%C(red)%h%C(reset) -%C(yellow)%d%C(reset) %s %C(green)(%cr) %C(bold blue)<%an>%C(reset)" "$@" |
+      --format="%C(yellow)%h%C(reset) %C(bold cyan)%d%C(reset) %s %C(green)(%cr)%C(reset) %C(blue)<%an>%C(reset)" \
+      "$@" |
   fzf --ansi --no-sort --reverse --tiebreak=index \
       --header 'ENTER: full commit | CTRL-Y: print hash & exit' \
       --preview-window 'right:60%:wrap,border-left' \
