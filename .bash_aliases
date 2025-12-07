@@ -106,7 +106,6 @@ _fkill_preview() {
 
     # Define ANSI color codes for a prettier output
     c_blue="\033[1;34m"; # Bold Blue
-    c_red="\033[31m";
     c_green="\033[32m";
     c_cyan="\033[36m";
     c_bold="\033[1m";
