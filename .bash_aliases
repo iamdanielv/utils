@@ -53,12 +53,15 @@ alias lg='lazygit'
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
 unalias gl 2>/dev/null
 gl() {
-  # The format string is built as a single argument to --pretty=format.
+  # Build the format string line-by-line for modularity
+  # %h: short hash | %d: decorations | %cr: relative date | %an: author
+  # %s: subject | %b: body | %w: wrap body with indentation
   local format_string=""
-  format_string+="%C(red)%h%Creset %C(bold magenta)%d%Creset%n"
-  format_string+="%C(green)%cr %C(blue)%an%Creset%n"
-  format_string+=" %C(bold cyan)%s%Creset%n"
-  format_string+="%w(72,2,2)%b%Creset"
+  format_string+="%C(red)%h%Creset %C(bold magenta)%d%Creset%n" # Hash and decorations
+  format_string+="%C(green)%cr %C(blue)%an%Creset%n"            # Date and author
+  format_string+=" %C(bold cyan)%s%Creset%n"                    # Subject
+  format_string+="%w(72,2,2)%b%Creset"                          # Body (wrapped)
+  
   git log --graph --pretty=format:"${format_string}%n" "$@"
 }
 
