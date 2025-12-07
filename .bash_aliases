@@ -183,6 +183,12 @@ bind '"\C-x\C-x":clear-screen'
 # Bind Ctrl+X Ctrl+K to the fzfkill function for interactive process killing.
 bind '"\C-x\C-k":"fzfkill\n"'
 
+# Bind Ctrl+X Ctrl+G Ctrl+L to the fgl function for interactive git log browsing.
+bind '"\C-x\C-g\C-l":"fgl\n"'
+
+# Bind Ctrl+X Ctrl+G Ctrl+B to the fgb function for interactive git branch checkout.
+bind '"\C-x\C-g\C-b":"fgb\n"'
+
 # -------------------
 # Git with FZF
 # -------------------
