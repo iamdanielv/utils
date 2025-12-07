@@ -8,7 +8,7 @@ alias rm='rm -i'
 # Use Neovim instead of Vim for a better editing experience.
 alias vim='nvim'
 
-# Use micro instead of nano
+# Use micro as a modern replacement for nano
 alias nano="micro"
 
 # Use 'batcat' (or 'bat') for a 'cat' with syntax highlighting.
@@ -74,7 +74,7 @@ gl() {
 unalias glf 2>/dev/null
 glf() {
   # The '--' separates log options from file paths.
-  git log --follow --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" -- "$@" | _shorten_git_date
+  git log --follow --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" -- "$@"
 }
 
 # -------------------
