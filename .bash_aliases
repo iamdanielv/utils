@@ -232,10 +232,8 @@ fgl() {
   export current_branch
 
   git log --color=always \
-      --format="%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset) %C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)" \
-      "$@" |
-  sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g' |
-  fzf --ansi --no-sort --reverse --tiebreak=index --no-hscroll \
+      --format="${_GIT_LOG_COMPACT_FORMAT}" "$@" |
+      _shorten_git_date | fzf --ansi --no-sort --reverse --tiebreak=index --no-hscroll \
       --header 'ENTER: view diff | CTRL-Y: print hash | SHIFT-UP/DOWN: scroll diff' \
       --preview-window 'down,70%,border-top,wrap' \
       --bind 'enter:execute(git show --color=always {1} | less -R)' \
