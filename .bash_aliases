@@ -127,12 +127,12 @@ export -f _fkill_preview
 fkill() {
   # Get a process list with only User, PID, and Command, without headers.
   local processes
-  processes=$(ps -eo user,pid,cmd --no-headers)
+  processes=$(ps -eo user,pid,cmd --no-headers | grep -v "fkill")
 
   local pids
-  pids=$(echo "$processes" | fzf -m --height 40% --reverse \
-    --header "Press TAB to mark multiple processes, ENTER to kill." \
-    --preview '_fkill_preview {2}' --preview-window 'wrap')
+  pids=$(echo "$processes" | fzf -m --height 80% --reverse \
+    --header "TAB: mark multiple, ENTER: kill" \
+    --preview '_fkill_preview {2}' --preview-window 'wrap,border-left')
   if [[ -n "$pids" ]]; then
     # Extract just the PIDs and kill them. Default signal is SIGTERM.
     echo "$pids" | awk '{print $2}' | xargs kill -s "${1:-TERM}"
