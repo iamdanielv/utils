@@ -66,10 +66,7 @@ export -f _shorten_git_date
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
 unalias gl 2>/dev/null
 gl() {
-  # A compact, one-line format for the git log graph.
-  # %h: short hash, %d: decorations, %s: subject, %cr: relative date, %an: author
-  git log --graph --color=always --pretty=format:'%C(yellow)%h%C(reset) %C(bold cyan)%d%C(reset) %s %C(green)(%cr)%C(reset) %C(blue)<%an>%C(reset)' "$@" |
-    sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g'
+  git log --graph --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" "$@"
 }
 
 # See the commit history for a specific file, tracking renames.
