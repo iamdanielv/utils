@@ -74,9 +74,7 @@ gl() {
 unalias glf 2>/dev/null
 glf() {
   # The '--' separates log options from file paths.
-  git log --follow --color=always \
-    --pretty=format:'%C(red)%h %C(green)%cr %C(blue)%an %C(bold cyan)%s%Creset' -- "$@" |
-    sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g'
+  git log --follow --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" -- "$@" | _shorten_git_date
 }
 
 # -------------------
