@@ -208,23 +208,36 @@ fgl() {
       --preview 'git show --color=always {1}'
 }
 
-# Interactively checkout a git branch (local or remote) using fzf.
+# fgb - fuzzy git branch checkout
 fgb() {
-  local branches branch
-  # Get all branches, colorized, and filter out the HEAD pointer.
-  # Let fzf handle the color codes with the --ansi flag.
-  branches=$(git branch -a --color=always | grep -v '/HEAD\s')
-  # The preview command strips ANSI codes and leading/trailing whitespace to get a clean branch name for the log.
-  branch=$(echo "$branches" | fzf --ansi --height 40% --reverse --preview-window 'right:60%:wrap,border-left' \
-    --preview 'git log --oneline --decorate --color=always $(echo {} | sed "s/.* //" | sed "s#remotes/origin/##")')
+  local branches branch current_branch
+  current_branch=$(git branch --show-current)
+  export current_branch
+  # Get all branches, color them, and format them nicely
+  branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ --format='%(color:green)%(refname:short)%(color:reset) - %(color:yellow)%(subject)%(color:reset) (%(color:blue)%(committerdate:relative)%(color:reset))')
+  
+  # Use fzf to select a branch
+  branch=$(echo "$branches" | fzf --ansi --no-sort --reverse --tiebreak=index --prompt='Checkout> ' \
+    --preview 'git log --oneline --graph --decorate --color=always $(echo {} | cut -d" " -f1)' \
+    --header 'ENTER: checkout | SHIFT-UP/DOWN: scroll log' \
+    --preview-window 'down,70%,border-top' --header-first \
+    --style=full \
+    --input-label ' Filter Branches ' --header-label ' Branches ' \
+    --bind 'result:transform-list-label:
+        if [[ -z $FZF_QUERY ]]; then
+          echo " Current: $current_branch "
+        else
+          echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "
+        fi
+        ' \
+    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " Log for [%s] " $(echo {} | cut -d" " -f1)' \
+    --color 'border:#6699cc,label:#99ccff,preview-border:#9999cc,preview-label:#ccccff' \
+    --color 'list-border:#669966,list-label:#99cc99,input-border:#996666,input-label:#ffcccc' \
+    --color 'header-border:#6699cc,header-label:#99ccff'
+  )
 
   if [[ -n "$branch" ]]; then
-    # To checkout, we need to:
-    # 1. Remove ANSI color codes.
-    # 2. Trim leading/trailing whitespace.
-    # 3. Remove the 'remotes/origin/' prefix for remote branches.
-    # 4. Remove the leading '*' for the current branch.
-    local clean_branch=$(echo "$branch" | sed -e 's/\x1B\[[0-9;]*[mK]//g' -e 's/^[ *]*//' -e 's/ *$//' -e 's#remotes/origin/##')
-    git checkout "$clean_branch"
+    # Extract branch name (the first word) and checkout
+    git checkout "$(echo "$branch" | cut -d' ' -f1)"
   fi
 }
