@@ -134,8 +134,8 @@ fkill() {
     --header "Press TAB to mark multiple processes, ENTER to kill." \
     --preview '_fkill_preview {2}' --preview-window 'wrap')
   if [[ -n "$pids" ]]; then
-    # Extract just the PIDs and kill them. Default signal is SIGKILL (9).
-    echo "$pids" | awk '{print $2}' | xargs kill -"${1:-9}"
+    # Extract just the PIDs and kill them. Default signal is SIGTERM.
+    echo "$pids" | awk '{print $2}' | xargs kill -s "${1:-TERM}"
   fi
 }
 
