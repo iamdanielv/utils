@@ -197,15 +197,30 @@ bind '"\C-x\C-g\C-b":"fgb\n"'
 # Press 'enter' to view the full diff of a commit.
 # Press 'ctrl-y' to print the commit hash and exit.
 fgl() {
+  local current_branch
+  current_branch=$(git branch --show-current)
+  export current_branch
+
   git log --color=always \
       --format="%C(yellow)%h%C(reset) %C(bold cyan)%d%C(reset) %s %C(green)(%cr)%C(reset) %C(blue)<%an>%C(reset)" \
       "$@" |
   fzf --ansi --no-sort --reverse --tiebreak=index \
-      --header 'ENTER: full commit | CTRL-Y: print hash & exit' \
-      --preview-window 'right:60%:wrap,border-left' \
+      --header 'ENTER: view diff | CTRL-Y: print hash | SHIFT-UP/DOWN: scroll diff' \
+      --preview-window 'down,70%,border-top,wrap' \
       --bind 'enter:execute(git show --color=always {1} | less -R)' \
       --bind 'ctrl-y:execute(echo {1})+abort' \
-      --preview 'git show --color=always {1}'
+      --preview 'git show --color=always {1}' \
+      --header-first \
+      --style=full --prompt='Log> ' \
+      --input-label ' Filter Commits ' --header-label ' Git Log ' \
+      --bind 'result:transform-list-label:
+          if [[ -z $FZF_QUERY ]]; then
+            echo " Branch: $current_branch "
+          else
+            echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "
+          fi' \
+      --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " Diff for [%s] " {1}' \
+      --color 'border:#6699cc,label:#99ccff,preview-border:#9999cc,preview-label:#ccccff,header-border:#6699cc,header-label:#99ccff'
 }
 
 # fgb - fuzzy git branch checkout
