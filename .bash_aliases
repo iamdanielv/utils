@@ -301,8 +301,7 @@ fzglfh() {
     selected_file=$(git ls-files | fzf --ansi --reverse --tiebreak=index \
       --header 'ENTER: inspect commits | ESC: quit | SHIFT-UP/DOWN: scroll history' \
       --preview-window 'down,70%,border-top,wrap' \
-      --preview 'git log --follow --color=always --format="%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset) %C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)" -- {} |
-                 sed -E "s/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g"' \
+      --preview "git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | _shorten_git_date" \
       --header-first \
       --style=full --prompt='File> ' \
       --input-label ' Filter Files ' --header-label ' File History Explorer ' \
@@ -317,10 +316,8 @@ fzglfh() {
     # 3. If a file was selected, open a new fzf instance to inspect its commits.
     # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
     ( git log --follow --color=always \
-          --format="%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset) %C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)" \
-          -- "$selected_file" |
-      sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g' |
-      fzf --ansi --no-sort --reverse --tiebreak=index --no-hscroll\
+          --format="${_GIT_LOG_COMPACT_FORMAT}" -- "$selected_file" |
+          _shorten_git_date | fzf --ansi --no-sort --reverse --tiebreak=index --no-hscroll\
           --header 'ENTER: view diff | ESC: back to files | CTRL-Y: print hash' \
           --preview-window 'down,70%,border-top,wrap' \
           --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
