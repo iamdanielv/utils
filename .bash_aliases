@@ -126,16 +126,16 @@ export -f _fkill_preview
 
 fkill() {
   # Get a process list with only User, PID, and Command, without headers.
-  local processes
-  processes=$(ps -eo user,pid,cmd --no-headers | grep -v "fkill")
+  # Exclude the current fkill process and its children from the list.
+  local processes=$(ps -eo user,pid,cmd --no-headers | grep -v -e "fkill" -e "ps -eo")
 
   local pids
   pids=$(echo "$processes" | fzf -m --height 80% --reverse \
     --header "TAB: mark multiple, ENTER: kill" \
     --preview '_fkill_preview {2}' --preview-window 'wrap,border-left')
   if [[ -n "$pids" ]]; then
-    # Extract just the PIDs and kill them. Default signal is SIGTERM.
-    echo "$pids" | awk '{print $2}' | xargs kill -s "${1:-TERM}"
+    # Extract just the PIDs (the second column) and kill them. Default signal is SIGTERM.
+    echo "$pids" | awk '{print $2}' | xargs -r kill -s "${1:-TERM}"
   fi
 }
 
@@ -214,7 +214,7 @@ fgb() {
     # 2. Trim leading/trailing whitespace.
     # 3. Remove the 'remotes/origin/' prefix for remote branches.
     # 4. Remove the leading '*' for the current branch.
-    local clean_branch=$(echo "$branch" | sed -r "s/\x1B\[[0-9;]*[mK]//g" | sed -e 's/^[ \t]*\*//' -e 's/^[ \t]*//' -e 's/[ \t]*$//' -e 's#remotes/origin/##')
+    local clean_branch=$(echo "$branch" | sed -e 's/\x1B\[[0-9;]*[mK]//g' -e 's/^[ *]*//' -e 's/ *$//' -e 's#remotes/origin/##')
     git checkout "$clean_branch"
   fi
 }
