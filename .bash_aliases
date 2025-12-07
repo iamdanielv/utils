@@ -94,7 +94,7 @@ alias psa='ps auxf'
 
 # Interactively find and kill a process using fzf.
 # We define a helper function for the preview to keep the main command clean.
-_fkill_preview() {
+_fzfkill_preview() {
   # Get detailed process info. -ww ensures the command isn't truncated.
   ps -ww -o pid=,user=,pcpu=,pmem=,cmd= -p "$1" | awk '{
     # Assign fields to variables for clarity
@@ -122,17 +122,17 @@ _fkill_preview() {
   }'
 }
 # Export the function so fzf's subshell can access it.
-export -f _fkill_preview
+export -f _fzfkill_preview
 
-fkill() {
+fzfkill() {
   # Get a process list with only User, PID, and Command, without headers.
-  # Exclude the current fkill process and its children from the list.
-  local processes=$(ps -eo user,pid,cmd --no-headers | grep -v -e "fkill" -e "ps -eo")
+  # Exclude the current fzfkill process and its children from the list.
+  local processes=$(ps -eo user,pid,cmd --no-headers | grep -v -e "fzfkill" -e "ps -eo")
 
   local pids
   pids=$(echo "$processes" | fzf -m --height 80% --reverse \
     --header "TAB: mark multiple, ENTER: kill" \
-    --preview '_fkill_preview {2}' --preview-window 'wrap,border-left')
+    --preview '_fzfkill_preview {2}' --preview-window 'wrap,border-left')
   if [[ -n "$pids" ]]; then
     # Extract just the PIDs (the second column) and kill them. Default signal is SIGTERM.
     echo "$pids" | awk '{print $2}' | xargs -r kill -s "${1:-TERM}"
@@ -177,8 +177,8 @@ alias tmux='tmux new-session -AD -s main'
 # Bind Ctrl+X Ctrl+X to the standard 'clear-screen' readline command.
 bind '"\C-x\C-x":clear-screen'
 
-# Bind Ctrl+X Ctrl+K to the fkill function for interactive process killing.
-bind '"\C-x\C-k":"fkill\n"'
+# Bind Ctrl+X Ctrl+K to the fzfkill function for interactive process killing.
+bind '"\C-x\C-k":"fzfkill\n"'
 
 # -------------------
 # Git with FZF
