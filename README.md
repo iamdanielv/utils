@@ -61,14 +61,27 @@ Recursively performs Git commands on the current directory and all subdirectorie
 
 ### 🐳 Docker Compose Autoscaler (`docker-autoscale.sh`)
 
-**Description:**  
-A utility to automatically scale a Docker Compose service up or down based on resource utilization.
+
+**Description:**
+Utility to automatically scale a Docker Compose service up or down based on resource utilization. It can run as a sidecar container and monitor the target service or on the host.
 
 - Scales based on CPU, Memory, or a combination of both.
-- Configurable upper and lower thresholds for scaling triggers.
-- Cooldown periods to prevent rapid scaling fluctuations.
-- Supports both `docker compose` (v2) and `docker-compose` (v1).
-- Configurable via command-line flags for service name, replica limits, thresholds, and polling interval.
+
+- **Flexible Scaling Logic:**
+  - `cpu`: Scale based on average CPU usage.
+  - `mem`: Scale based on average Memory usage.
+  - `any`: Scale up if *either* CPU or Memory is high, but only scale down if *both* are low.
+- **Fine-Grained Control:**
+  - Set min/max replica counts.
+  - Configure CPU and Memory thresholds for scaling up and down.
+  - Define cooldown periods to prevent thrashing.
+  - Specify the number of instances to add during scale-up (`--scale-up-step`).
+  - Require multiple consecutive checks before scaling down to ensure stability (`--scale-down-checks`).
+- **Robust and Informative:**
+  - Automatically detects and uses `docker compose` (v2) or `docker-compose` (v1).
+  - Includes a `--dry-run` mode to test your configuration without making changes.
+  - Provides an initial grace period to allow services to stabilize on startup.
+  - Logs detailed status, scaling decisions, and heartbeats.
 
 ### 🎨 Color Palette Viewer (`colors.sh`)
 
