@@ -83,6 +83,17 @@ Utility to automatically scale a Docker Compose service up or down based on reso
   - Provides an initial grace period to allow services to stabilize on startup.
   - Logs detailed status, scaling decisions, and heartbeats.
 
+### 🗓️ Docker Compose Scheduler (`docker/schedule/scheduler.py`)
+
+**Description:**
+A Python-based scheduler that runs one-off tasks from your `docker-compose.yml` file based on a schedule. It discovers services to run by reading Docker labels.
+
+- **Cron Scheduling:** Run tasks using standard cron expressions (e.g., `* * * * *`).
+- **Interval Scheduling:** Run tasks at a fixed interval (e.g., every 60 seconds).
+- **Simple Setup:** Define your tasks as regular services in `docker-compose.yml`, add a `scheduler.cron` or `scheduler.interval` label, and use a `profiles: ["donotstart"]` to prevent them from running automatically.
+- **Live Log Streaming:** The scheduler captures and streams the logs from each task run in real-time, prefixed with the service name for clarity.
+
+
 ### 🎨 Color Palette Viewer (`colors.sh`)
 
 **Description:**  
