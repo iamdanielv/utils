@@ -3,6 +3,7 @@ import logging
 import sched
 import select
 import subprocess
+import signal
 import time
 from datetime import datetime
 
@@ -17,7 +18,6 @@ logging.basicConfig(
 
 def run_task(service_name: str, project_name: str):
     """Runs a one-off container for the given service and logs its output."""
-    # logging.info(f"Running task for service: {service_name}")
     command = [
         "docker",
         "compose",
@@ -32,8 +32,7 @@ def run_task(service_name: str, project_name: str):
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             end_char = "\n" if is_exit_code else ""
             print(f"[{service_name}] [{timestamp}] {line}", end=end_char, flush=True)
-        # logging.info(f"--- Start logs for {service_name} ---")
-        service_log_line("Starting...\n")
+        service_log_line("Starting task...\n")
         # Use Popen to stream output in real-time
         process = subprocess.Popen(
             command,
@@ -65,10 +64,6 @@ def run_task(service_name: str, project_name: str):
         for line in process.stderr:
             service_log_line(line)
 
-        #logging.info(f"--- End logs for {service_name} ---")
-        #logging.info(
-        #    f"EXIT '{service_name}' finished - exit code {process.returncode}"
-        #)
         service_log_line(f"EXIT CODE - {process.returncode}", is_exit_code=True)
 
     except FileNotFoundError:
@@ -109,26 +104,45 @@ def schedule_tasks(compose_file: str, project_name: str):
             logging.info(f"Scheduling service '{service_name}' with cron expression: '{cron_str}'")
 
             def periodic_cron_runner(s_name=service_name, c_str=cron_str):
-                run_task(s_name, project_name)
-                now = time.time()
-                itr = croniter(c_str, now)
-                next_run = itr.get_next(float)
-                delay = next_run - now
-                scheduler.enter(delay, 1, periodic_cron_runner)
+                try:
+                    run_task(s_name, project_name)
+                except Exception as e:
+                    logging.error(f"Unhandled exception in task runner for '{s_name}': {e}")
+                finally:
+                    # Always reschedule for the next time
+                    now = time.time()
+                    itr = croniter(c_str, now)
+                    next_run = itr.get_next(float)
+                    delay = max(0, next_run - now)
+                    scheduler.enter(delay, 1, periodic_cron_runner)
 
             # Calculate the first run
             now = time.time()
             itr = croniter(cron_str, now)
-            scheduler.enter(itr.get_next(float) - now, 1, periodic_cron_runner)
+            scheduler.enter(max(0, itr.get_next(float) - now), 1, periodic_cron_runner)
 
         elif interval_str:
-            interval = int(interval_str)
+            try:
+                interval = int(interval_str)
+                if interval <= 0:
+                    logging.error(f"Interval for service '{service_name}' must be positive. Got '{interval_str}'. Skipping.")
+                    continue
+            except ValueError:
+                logging.error(f"Invalid interval '{interval_str}' for service '{service_name}'. Must be an integer. Skipping.")
+                continue
+
             logging.info(f"Scheduling service '{service_name}' to run every {interval} seconds.")
-            # Schedule the task to run repeatedly
-            def periodic_runner(s_name=service_name):
-                run_task(s_name, project_name)
-                scheduler.enter(interval, 1, periodic_runner)
-            scheduler.enter(0, 1, periodic_runner)  # Start immediately
+
+            def periodic_interval_runner(s_name=service_name, scheduled_time=time.time()):
+                try:
+                    run_task(s_name, project_name)
+                except Exception as e:
+                    logging.error(f"Unhandled exception in task runner for '{s_name}': {e}")
+                finally:
+                    next_run_time = scheduled_time + interval
+                    delay = max(0, next_run_time - time.time())
+                    scheduler.enter(delay, 1, periodic_interval_runner, kwargs={"scheduled_time": next_run_time})
+            scheduler.enter(0, 1, periodic_interval_runner)  # Start immediately
 
     if not scheduler.empty():
         scheduler.run()
@@ -136,10 +150,21 @@ def schedule_tasks(compose_file: str, project_name: str):
         logging.info("No services with 'scheduler.interval' label found. Exiting.")
 
 
+def shutdown_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    logging.info(f"Signal {signum} received. Shutting down scheduler...")
+    # The script will exit after the current running task (if any) completes.
+    # The `sched` loop will not continue.
+    exit(0)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A simple docker-compose task scheduler.")
     parser.add_argument("--compose-file", default="/app/docker-compose.yml", help="Path to docker-compose.yml")
     parser.add_argument("--project-name", required=True, help="Docker compose project name")
     args = parser.parse_args()
+
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
 
     schedule_tasks(args.compose_file, args.project_name)
