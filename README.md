@@ -83,6 +83,67 @@ Utility to automatically scale a Docker Compose service up or down based on reso
   - Provides an initial grace period to allow services to stabilize on startup.
   - Logs detailed status, scaling decisions, and heartbeats.
 
+#### Example Usage
+
+Here is a typical `docker-compose.yml` setup for using the autoscaler as a sidecar container.
+
+```yaml
+# docker-compose.yml
+services:
+  # This is the sample application we want to autoscale.
+  # It has CPU limits to make it easier to stress and trigger scaling.
+  webapp:
+    image: nginx:alpine
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  # This service runs the autoscaler script.
+  autoscaler:
+    image: iamdanielv/utils:autoscale # Or build from source
+    volumes:
+      # Required to interact with the Docker daemon on the host
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the compose file so the script can find the service to validate it
+      - ./docker-compose.yml:/app/docker-compose.yml
+    command:
+      - "--service"
+      - "webapp"
+      - "--min"
+      - "1"
+      - "--max"
+      - "10"
+      - "--metric"
+      - "cpu"
+      - "--cpu-up"
+      - "20" # Scale up when avg CPU > 20%
+      - "--cpu-down"
+      - "5"  # Scale down when avg CPU < 5%
+      - "--poll"
+      - "5"  # Check metrics every 5 seconds
+      - "--initial-grace-period"
+      - "15" # Wait 15s on startup before first check
+      # - "--dry-run" # Uncomment to test without making changes
+    environment:
+      # This ensures the compose command inside the container targets the correct project
+      - COMPOSE_PROJECT_NAME=${PROJECT_NAME}
+```
+
+**To run this example:**
+
+1.  Save the content above as `docker-compose.yml`.
+2.  Run `PROJECT_NAME=$(basename "$PWD") docker compose up`.
+3.  The `autoscaler` will start with one `webapp` instance.
+4.  To trigger a scale-up, you can generate load. For example, using `hey` or `ab`:
+    ```sh
+    # Install hey: sudo apt install hey
+    hey -z 1m http://localhost:8080
+    ```
+5.  Watch the logs from the `autoscaler` container to see it detect the high CPU usage and scale the `webapp` service up to the `--max` limit. When the load test finishes, it will eventually scale back down.
+
+
 ### 🗓️ Docker Compose Scheduler (`docker/schedule/scheduler.py`)
 
 **Description:**
