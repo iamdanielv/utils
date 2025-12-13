@@ -8,6 +8,7 @@ FORCE=false
 CLEAN_IMAGES=false
 CLEAN_NETWORKS=false
 CLEAN_VOLUMES=false
+CLEAN_CONTAINERS=false
 ALL_IMAGES=false # Controls 'docker image prune -a'
 
 # --- Helper Functions ---
@@ -19,10 +20,11 @@ print_usage() {
     cat <<EOF
 Usage: $(basename "$0") [options]
 
-A utility to clean up unused Docker resources like images, networks, and volumes.
+A utility to clean up unused Docker resources like containers, images, networks, and volumes.
 By default, if no resource type is specified, all are targeted for cleanup.
 
 Options:
+  --containers      Clean up stopped Docker containers.
   --images          Clean up unused Docker images.
   --networks        Clean up unused Docker networks.
   --volumes         Clean up unused Docker volumes.
@@ -37,6 +39,7 @@ EOF
 # --- Argument Parsing ---
 while [[ "$#" -gt 0 ]]; do
     case $1 in
+        --containers) CLEAN_CONTAINERS=true ;;
         --images) CLEAN_IMAGES=true ;;
         --networks) CLEAN_NETWORKS=true ;;
         --volumes) CLEAN_VOLUMES=true ;;
@@ -50,8 +53,9 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # If no specific resource type is provided, default to cleaning all.
-if ! $CLEAN_IMAGES && ! $CLEAN_NETWORKS && ! $CLEAN_VOLUMES; then
-    log_msg "No specific resource type selected. Defaulting to all (images, networks, volumes)."
+if ! $CLEAN_CONTAINERS && ! $CLEAN_IMAGES && ! $CLEAN_NETWORKS && ! $CLEAN_VOLUMES; then
+    log_msg "No specific resource type selected. Defaulting to all (containers, images, networks, volumes)."
+    CLEAN_CONTAINERS=true
     CLEAN_IMAGES=true
     CLEAN_NETWORKS=true
     CLEAN_VOLUMES=true
@@ -74,7 +78,26 @@ fi
 
 # --- Main Logic ---
 
-# 1. Clean up Docker Images
+# 1. Clean up stopped Docker Containers
+if $CLEAN_CONTAINERS; then
+    log_msg "--- Checking for stopped containers to prune ---"
+    if $DRY_RUN; then
+        log_msg "[DRY RUN] Listing stopped containers that would be removed:"
+        # 'exited' covers containers that ran and finished. 'created' covers containers that were created but never started.
+        docker ps -a --filter "status=exited" --filter "status=created"
+    else
+        prune_cmd="docker container prune"
+        if $FORCE; then
+            prune_cmd+=" -f"
+        fi
+        log_msg "Pruning stopped containers..."
+        eval "$prune_cmd"
+    fi
+    echo # Add a newline for readability
+fi
+
+
+# 2. Clean up Docker Images
 if $CLEAN_IMAGES; then
     log_msg "--- Checking for Docker images to prune ---"
     if $DRY_RUN; then
@@ -114,13 +137,9 @@ if $CLEAN_IMAGES; then
     fi
     
     echo # Add a newline for readability
-else
-    # This part is now handled by the default-to-all logic above.
-    # If --images was not specified, this block is just skipped.
-    :
 fi
 
-# 2. Clean up Docker Networks
+# 3. Clean up Docker Networks
 if $CLEAN_NETWORKS; then
     log_msg "--- Checking for Docker networks to prune ---"
     if $DRY_RUN; then
@@ -145,7 +164,7 @@ if $CLEAN_NETWORKS; then
 fi
 
 
-# 3. Clean up Docker Volumes
+# 4. Clean up Docker Volumes
 if $CLEAN_VOLUMES; then
     log_msg "--- Checking for Docker volumes to prune ---"
     if $DRY_RUN; then
