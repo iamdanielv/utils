@@ -7,6 +7,7 @@ DRY_RUN=false
 FORCE=false
 CLEAN_IMAGES=false
 CLEAN_NETWORKS=false
+CLEAN_VOLUMES=false
 ALL_IMAGES=false # Controls 'docker image prune -a'
 
 # --- Helper Functions ---
@@ -18,12 +19,13 @@ print_usage() {
     cat <<EOF
 Usage: $(basename "$0") [options]
 
-A utility to clean up unused Docker resources like images and networks.
+A utility to clean up unused Docker resources like images, networks, and volumes.
 By default, if no resource type is specified, all are targeted for cleanup.
 
 Options:
   --images          Clean up unused Docker images.
   --networks        Clean up unused Docker networks.
+  --volumes         Clean up unused Docker volumes.
   --all-images      When cleaning images, remove all unused images, not just dangling ones.
                     (Equivalent to 'docker image prune -a').
   --dry-run         Show what would be removed without actually deleting anything.
@@ -37,6 +39,7 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         --images) CLEAN_IMAGES=true ;;
         --networks) CLEAN_NETWORKS=true ;;
+        --volumes) CLEAN_VOLUMES=true ;;
         --all-images) ALL_IMAGES=true ;;
         --dry-run) DRY_RUN=true ;;
         -f|--force) FORCE=true ;;
@@ -47,10 +50,11 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # If no specific resource type is provided, default to cleaning all.
-if ! $CLEAN_IMAGES && ! $CLEAN_NETWORKS; then
-    log_msg "No specific resource type selected. Defaulting to all (images, networks)."
+if ! $CLEAN_IMAGES && ! $CLEAN_NETWORKS && ! $CLEAN_VOLUMES; then
+    log_msg "No specific resource type selected. Defaulting to all (images, networks, volumes)."
     CLEAN_IMAGES=true
     CLEAN_NETWORKS=true
+    CLEAN_VOLUMES=true
 fi
 
 # --- Validation ---
@@ -135,6 +139,24 @@ if $CLEAN_NETWORKS; then
             prune_cmd+=" -f"
         fi
         log_msg "Pruning unused networks..."
+        eval "$prune_cmd"
+    fi
+    echo
+fi
+
+
+# 3. Clean up Docker Volumes
+if $CLEAN_VOLUMES; then
+    log_msg "--- Checking for Docker volumes to prune ---"
+    if $DRY_RUN; then
+        log_msg "[DRY RUN] Listing dangling volumes (not used by any container):"
+        docker volume ls -f "dangling=true"
+    else
+        prune_cmd="docker volume prune"
+        if $FORCE; then
+            prune_cmd+=" -f"
+        fi
+        log_msg "Pruning unused volumes..."
         eval "$prune_cmd"
     fi
     echo
