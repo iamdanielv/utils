@@ -154,6 +154,51 @@ A Python-based scheduler that runs one-off tasks from your `docker-compose.yml` 
 - **Simple Setup:** Define your tasks as regular services in `docker-compose.yml`, add a `scheduler.cron` or `scheduler.interval` label, and use a `profiles: ["donotstart"]` to prevent them from running automatically.
 - **Live Log Streaming:** The scheduler captures and streams the logs from each task run in real-time, prefixed with the service name for clarity.
 
+#### Example Usage
+
+Here is a `docker-compose.yml` that defines the scheduler and two sample tasks: one running every 10 seconds (interval) and another running every minute (cron).
+
+```yaml
+# docker-compose.yml
+services:
+  # This service runs the scheduler script.
+  scheduler:
+    image: iamdanielv/utils:scheduler # Or build from source
+    volumes:
+      # Required to interact with the Docker daemon on the host
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount this compose file so the scheduler can read the labels
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+    command:
+      - "--project-name"
+      - "${PROJECT_NAME}" # Pass the project name to the script
+    environment:
+      # This ensures the compose command inside the container targets the correct project
+      - PROJECT_NAME=${PROJECT_NAME}
+
+  # An example task that runs every 10 seconds.
+  task-interval:
+    image: alpine:latest
+    command: sh -c 'echo "-> Hello from the 10-second interval task! Timestamp: $(date)"'
+    labels:
+      - "scheduler.interval=10"
+    profiles: ["donotstart"] # Prevents this from starting with 'docker compose up'
+
+  # An example task that runs every minute via a cron schedule.
+  task-cron:
+    image: alpine:latest
+    command: sh -c 'echo "-> Hello from the cron task! Timestamp: $(date)"'
+    labels:
+      - "scheduler.cron=* * * * *"
+    profiles: ["donotstart"] # Prevents this from starting with 'docker compose up'
+```
+
+**To run this example:**
+
+1.  Save the content above as `docker-compose.yml`.
+2.  Run `PROJECT_NAME=$(basename "$PWD") docker compose up scheduler`.
+3.  Watch the logs from the `scheduler` container. You will see it discover the two tasks and start running them based on their defined schedules, streaming their output in real-time.
+
 
 ### 🎨 Color Palette Viewer (`colors.sh`)
 
