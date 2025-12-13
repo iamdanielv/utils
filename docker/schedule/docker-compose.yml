@@ -1,0 +1,44 @@
+services:
+  # This service runs the scheduler script
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount this docker-compose.yml file so the scheduler can find it
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+    command:
+      - "--project-name"
+      - "${PROJECT_NAME}"
+    environment:
+      - PROJECT_NAME=${PROJECT_NAME}
+    restart: "no"
+
+  # This is an example of a container that runs on a schedule.
+  # It is defined here but only run via the 'scheduler' service.
+  interval-sample:
+    image: alpine:latest
+    command: sh -c 'echo "Interval - Hi from interval task running at $(date)" && exit 0'
+    labels:
+      # The scheduler will run this service every 30 seconds
+      - "scheduler.interval=30"
+    # 'profiles' prevents this service from starting automatically with 'docker-compose up'
+    profiles: ["donotstart"]
+
+  # This is another example task that runs on a cron schedule.
+  cron-sample:
+    image: alpine:latest
+    command: sh -c 'echo "Cron - Hi from Cron task running at $(date)" && exit 0'
+    labels:
+      # The cron scheduler will run this service every minute. The format is:
+      # ┌───────────── minute (0 - 59)
+      # │ ┌───────────── hour (0 - 23)
+      # │ │ ┌───────────── day of the month (1 - 31)
+      # │ │ │ ┌───────────── month (1 - 12)
+      # │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
+      # │ │ │ │ │
+      # * * * * *
+      - "scheduler.cron=* * * * *"
+    # 'profiles' prevents this service from starting automatically with 'docker-compose up'
+    profiles: ["donotstart"]
