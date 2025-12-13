@@ -6,6 +6,7 @@ set -o pipefail
 DRY_RUN=false
 FORCE=false
 CLEAN_IMAGES=false
+CLEAN_NETWORKS=false
 ALL_IMAGES=false # Controls 'docker image prune -a'
 
 # --- Helper Functions ---
@@ -17,10 +18,12 @@ print_usage() {
     cat <<EOF
 Usage: $(basename "$0") [options]
 
-A utility to clean up unused Docker resources.
+A utility to clean up unused Docker resources like images and networks.
+By default, if no resource type is specified, all are targeted for cleanup.
 
 Options:
   --images          Clean up unused Docker images.
+  --networks        Clean up unused Docker networks.
   --all-images      When cleaning images, remove all unused images, not just dangling ones.
                     (Equivalent to 'docker image prune -a').
   --dry-run         Show what would be removed without actually deleting anything.
@@ -33,6 +36,7 @@ EOF
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --images) CLEAN_IMAGES=true ;;
+        --networks) CLEAN_NETWORKS=true ;;
         --all-images) ALL_IMAGES=true ;;
         --dry-run) DRY_RUN=true ;;
         -f|--force) FORCE=true ;;
@@ -41,6 +45,13 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
+# If no specific resource type is provided, default to cleaning all.
+if ! $CLEAN_IMAGES && ! $CLEAN_NETWORKS; then
+    log_msg "No specific resource type selected. Defaulting to all (images, networks)."
+    CLEAN_IMAGES=true
+    CLEAN_NETWORKS=true
+fi
 
 # --- Validation ---
 if ! command -v docker &> /dev/null; then
@@ -100,8 +111,34 @@ if $CLEAN_IMAGES; then
     
     echo # Add a newline for readability
 else
-    log_msg "No cleanup action specified. Use --images to clean up images."
-    print_usage
+    # This part is now handled by the default-to-all logic above.
+    # If --images was not specified, this block is just skipped.
+    :
 fi
+
+# 2. Clean up Docker Networks
+if $CLEAN_NETWORKS; then
+    log_msg "--- Checking for Docker networks to prune ---"
+    if $DRY_RUN; then
+        log_msg "[DRY RUN] Listing custom networks that are not used by any container:"
+        # The 'driver!=' filter is not supported on all Docker versions.
+        # Instead, we list all networks and use grep to exclude the default ones.
+        docker network ls --format '{{.Name}}' | grep -v -E '^(bridge|host|none)$' | while read -r net; do
+            # Check if any container (running or stopped) is using this network.
+            if [ -z "$(docker ps -aq --filter network="$net")" ]; then
+                echo "  - $net"
+            fi
+        done
+    else
+        prune_cmd="docker network prune"
+        if $FORCE; then
+            prune_cmd+=" -f"
+        fi
+        log_msg "Pruning unused networks..."
+        eval "$prune_cmd"
+    fi
+    echo
+fi
+
 
 log_msg "Docker cleanup process finished."
