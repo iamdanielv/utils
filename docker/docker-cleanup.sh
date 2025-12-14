@@ -195,4 +195,4 @@ if $CLEAN_VOLUMES; then
     fi
 fi
 
-printOkMsg "Docker cleanup process finished."
+printBannerColor "${C_GREEN}" "Docker cleanup process finished"
