@@ -69,7 +69,7 @@ if $DRY_RUN && $FORCE; then
 fi
 
 if $DRY_RUN; then
-    printBannerColor "${C_YELLOW}" "DRY RUN MODE ENABLED" "No resources will be deleted."
+    printBannerColor "${C_YELLOW}" "DRY RUN MODE ENABLED" "No resources will be deleted"
 fi
 
 # --- Main Logic ---
