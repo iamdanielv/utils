@@ -98,6 +98,7 @@ if $CLEAN_CONTAINERS; then
             "${prune_cmd[@]}"
         fi
     fi
+    echo
 fi
 
 
@@ -141,6 +142,7 @@ if $CLEAN_IMAGES; then
             "${prune_cmd[@]}"
         fi
     fi
+    echo
 fi
 
 # 3. Clean up Docker Networks
@@ -169,6 +171,7 @@ if $CLEAN_NETWORKS; then
             "${prune_cmd[@]}"
         fi
     fi
+    echo
 fi
 
 
@@ -193,6 +196,7 @@ if $CLEAN_VOLUMES; then
             "${prune_cmd[@]}"
         fi
     fi
+    echo
 fi
 
 printBannerColor "${C_GREEN}" "Docker cleanup process finished"
