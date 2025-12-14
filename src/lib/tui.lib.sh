@@ -140,6 +140,27 @@ format_menu_lines() {
 
 printBanner() { printMsg "$(generate_banner_string "$1")"; }
 
+# printBannerColor: Prints a full-width banner with a title and optional subtitle in a specified color.
+# Usage: printBannerColor <COLOR> "Title" ["Subtitle"]
+printBannerColor() {
+    local color="$1"
+    local title=" $2 " # Add padding
+    local subtitle="$3"
+  
+    local text="$1"; local total_width=70; local prefix="┏"; local line
+    printf -v line '%*s' "$((total_width - 1))"; line="${line// /━}"; printf '%s' "${color}${prefix}${line}${T_RESET}"; printf '\r'
+    local text_to_print; text_to_print=$(_truncate_string "$title" $((total_width - 3)))
+    printf '%s\n' "${color}${prefix} ${text_to_print} ${T_RESET}"
+
+    # Print the subtitle if it exists, centered
+    if [[ -n "$subtitle" ]]; then
+        local subtitle_padding
+        # subtitle_padding=$(( (70 - ${#subtitle}) / 2 ))
+        #printf "%${subtitle_padding}s" ""
+        echo "   ${color}${subtitle}${T_RESET}"
+    fi
+}
+
 # Formats Tab-Separated Value (TSV) data into a clean, aligned table.
 # This function correctly handles cells that contain ANSI color codes.
 # It reads from stdin and takes an optional indent prefix as an argument.
