@@ -80,22 +80,23 @@ step_count=0
 if $CLEAN_CONTAINERS; then
     ((++step_count))
     printBannerColor "${C_L_BLUE}" "${step_count}. Checking for stopped containers to prune"
-    if $DRY_RUN; then
-        # 'exited' covers containers that ran and finished. 'created' covers containers that were created but never started.
-        stopped_containers=$(docker ps -a --filter "status=exited" --filter "status=created" --format '{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}')
-        if [ -n "$stopped_containers" ]; then
+    # 'exited' covers containers that ran and finished. 'created' covers containers that were created but never started.
+    stopped_containers=$(docker ps -a --filter "status=exited" --filter "status=created" --format '{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}')
+
+    if [ -z "$stopped_containers" ]; then
+        printOkMsg "No stopped containers to prune."
+    else
+        if $DRY_RUN; then
             printInfoMsg "The following stopped containers would be removed:"
             echo "$stopped_containers" | column -t -s $'\t'
         else
-            printOkMsg "No stopped containers to prune."
+            printInfoMsg "The following stopped containers will be removed:"
+            echo "$stopped_containers" | column -t -s $'\t'
+            prune_cmd=("docker" "container" "prune")
+            $FORCE && prune_cmd+=("-f")
+            # printMsg "\nPruning stopped containers..."
+            "${prune_cmd[@]}"
         fi
-    else
-        prune_cmd=("docker" "container" "prune")
-        if $FORCE; then
-            prune_cmd+=("-f")
-        fi
-        printMsg "Pruning stopped containers..."
-        "${prune_cmd[@]}"
     fi
 fi
 
@@ -106,44 +107,39 @@ if $CLEAN_IMAGES; then
     image_type=$($ALL_IMAGES && echo "all unused" || echo "dangling")
     printBannerColor "${C_L_BLUE}" "${step_count}. Checking for ${image_type} images to prune"
 
-    if $DRY_RUN; then
-        filter="dangling=true"
-        if $ALL_IMAGES; then
-            # `docker image prune -a` removes images without at least one container associated with them.
-            # This is a close approximation.
-            unused_images=$(docker images -a --format '{{.ID}}\t{{.Repository}}\t{{.Tag}}' | while read -r id repo tag; do
-                # Check if the image ID is used by any container (running or stopped)
-                if [ -z "$(docker ps -a -q --filter "ancestor=$id")" ]; then
-                    echo -e "$id\t$repo\t$tag"
-                fi
-            done)
-            if [ -n "$unused_images" ]; then
-                printInfoMsg "The following unused images would be removed:"
-                echo "$unused_images" | column -t -s $'\t'
-            else
-                printOkMsg "No unused images to prune."
+    images_to_prune=""
+    if $ALL_IMAGES; then
+        # `docker image prune -a` removes images without at least one container associated with them.
+        # This is a close approximation.
+        images_to_prune=$(docker images -a --format '{{.ID}}\t{{.Repository}}\t{{.Tag}}' | while read -r id repo tag; do
+            # Check if the image ID is used by any container (running or stopped)
+            if [ -z "$(docker ps -a -q --filter "ancestor=$id")" ]; then
+                echo -e "$id\t$repo\t$tag"
             fi
-        else
-            dangling_images=$(docker images -f "dangling=true" --format '{{.ID}}\t{{.Repository}}\t{{.Tag}}')
-            if [ -n "$dangling_images" ]; then
-                printInfoMsg "The following dangling images would be removed:"
-                echo "$dangling_images" | column -t -s $'\t'
-            else
-                printOkMsg "No dangling images to prune."
-            fi
-        fi
+        done)
     else
-        prune_cmd=("docker" "image" "prune")
-        if $ALL_IMAGES; then
-            prune_cmd+=("-a")
-            printMsg "Pruning all unused images (including non-dangling)..."
+        images_to_prune=$(docker images -f "dangling=true" --format '{{.ID}}\t{{.Repository}}\t{{.Tag}}')
+    fi
+
+    if [ -z "$images_to_prune" ]; then
+        printOkMsg "No ${image_type} images to prune."
+    else
+        if $DRY_RUN; then
+            printInfoMsg "The following ${image_type} images would be removed:"
+            echo "$images_to_prune" | column -t -s $'\t'
         else
-            printMsg "Pruning dangling images..."
+            printInfoMsg "The following ${image_type} images will be removed:"
+            echo "$images_to_prune" | column -t -s $'\t'
+            prune_cmd=("docker" "image" "prune")
+            if $ALL_IMAGES; then
+                prune_cmd+=("-a")
+                printMsg "\nPruning all unused images (including non-dangling)..."
+            else
+                printMsg "\nPruning dangling images..."
+            fi
+            $FORCE && prune_cmd+=("-f")
+            "${prune_cmd[@]}"
         fi
-        if $FORCE; then
-            prune_cmd+=("-f")
-        fi
-        "${prune_cmd[@]}"
     fi
 fi
 
@@ -151,26 +147,27 @@ fi
 if $CLEAN_NETWORKS; then
     ((++step_count))
     printBannerColor "${C_L_BLUE}" "${step_count}. Checking for unused Docker networks to prune"
-    if $DRY_RUN; then
-        unused_networks=$(docker network ls --format '{{.Name}}' | grep -v -E '^(bridge|host|none)$' | while read -r net; do
-            # Check if any container (running or stopped) is using this network.
-            if [ -z "$(docker ps -aq --filter network="$net")" ]; then
-                echo "$net"
-            fi
-        done)
-        if [ -n "$unused_networks" ]; then
+    unused_networks=$(docker network ls --format '{{.Name}}' | grep -v -E '^(bridge|host|none)$' || true | while read -r net; do
+        # Check if any container (running or stopped) is using this network.
+        if [ -z "$(docker ps -aq --filter network="$net")" ]; then
+            echo "$net"
+        fi
+    done)
+
+    if [ -z "$unused_networks" ]; then
+        printOkMsg "No unused networks to prune."
+    else
+        if $DRY_RUN; then
             printInfoMsg "The following unused networks would be removed:"
             echo "$unused_networks" | sed 's/^/  - /'
         else
-            printOkMsg "No unused networks to prune."
+            printInfoMsg "The following unused networks will be removed:"
+            echo "$unused_networks" | sed 's/^/  - /'
+            prune_cmd=("docker" "network" "prune")
+            $FORCE && prune_cmd+=("-f")
+            # printMsg "\nPruning unused networks..."
+            "${prune_cmd[@]}"
         fi
-    else
-        prune_cmd=("docker" "network" "prune")
-        if $FORCE; then
-            prune_cmd+=("-f")
-        fi
-        printMsg "Pruning unused networks..."
-        "${prune_cmd[@]}"
     fi
 fi
 
@@ -179,21 +176,22 @@ fi
 if $CLEAN_VOLUMES; then
     ((++step_count))
     printBannerColor "${C_L_BLUE}" "${step_count}. Checking for unused (dangling) Docker volumes to prune"
-    if $DRY_RUN; then
-        dangling_volumes=$(docker volume ls -f "dangling=true" --format '{{.Name}}')
-        if [ -n "$dangling_volumes" ]; then
+    dangling_volumes=$(docker volume ls -f "dangling=true" --format '{{.Name}}')
+
+    if [ -z "$dangling_volumes" ]; then
+        printOkMsg "No dangling volumes to prune."
+    else
+        if $DRY_RUN; then
             printInfoMsg "The following dangling volumes would be removed:"
             echo "$dangling_volumes" | sed 's/^/  - /'
         else
-            printOkMsg "No dangling volumes to prune."
+            printInfoMsg "The following dangling volumes will be removed:"
+            echo "$dangling_volumes" | sed 's/^/  - /'
+            prune_cmd=("docker" "volume" "prune")
+            $FORCE && prune_cmd+=("-f")
+            # printMsg "\nPruning unused volumes..."
+            "${prune_cmd[@]}"
         fi
-    else
-        prune_cmd=("docker" "volume" "prune")
-        if $FORCE; then
-            prune_cmd+=("-f")
-        fi
-        printMsg "Pruning unused volumes..."
-        "${prune_cmd[@]}"
     fi
 fi
 
