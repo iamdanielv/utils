@@ -146,18 +146,32 @@ printBannerColor() {
     local color="$1"
     local title=" $2 " # Add padding
     local subtitle="$3"
-  
-    local text="$1"; local total_width=70; local prefix="┏"; local line
-    printf -v line '%*s' "$((total_width - 1))"; line="${line// /━}"; printf '%s' "${color}${prefix}${line}${T_RESET}"; printf '\r'
-    local text_to_print; text_to_print=$(_truncate_string "$title" $((total_width - 3)))
+    local prefix="┏"; local suffix="┓"
+
+    # If there is no subtitle, use a simple line prefix instead of a corner.
+    if [[ -z "$subtitle" ]]; then
+        prefix="━"; suffix="━"
+    fi
+
+    local total_width=70; local line
+    # Create a line of dashes that is total_width - 2 characters long
+    printf -v line '%*s' "$((total_width - 2))"; line="${line// /━}"
+    # Print the full bar with corners
+    printf '%s' "${color}${prefix}${line}${suffix}${T_RESET}"; printf '\r'
+    # Truncate title to fit between prefix, spaces, and suffix
+    local text_to_print; text_to_print=$(_truncate_string "$title" $((total_width - 4)))
     printf '%s\n' "${color}${prefix} ${text_to_print} ${T_RESET}"
 
     # Print the subtitle if it exists, centered
     if [[ -n "$subtitle" ]]; then
-        local subtitle_padding
-        # subtitle_padding=$(( (70 - ${#subtitle}) / 2 ))
-        #printf "%${subtitle_padding}s" ""
-        echo "   ${color}${subtitle}${T_RESET}"
+        # Truncate subtitle to fit within the banner. 5 chars are for "┗  ... ┛"
+        local truncated_subtitle; truncated_subtitle=$(_truncate_string "$subtitle" $((total_width - 5)))
+        # Calculate padding based on the *visible* length of the truncated subtitle
+        local visible_subtitle_len; visible_subtitle_len=$(strip_ansi_codes "$truncated_subtitle" | wc -c)
+        local subtitle_line_len=$(( total_width - 5 - visible_subtitle_len ))
+        if (( subtitle_line_len < 0 )); then subtitle_line_len=0; fi
+        printf -v line '%*s' "$subtitle_line_len"; line="${line// /━}"
+        echo "${color}┗  ${truncated_subtitle} ${line}┛${T_RESET}"
     fi
 }
 
