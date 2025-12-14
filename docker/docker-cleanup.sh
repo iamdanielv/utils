@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 set -o pipefail
 
 # Source the shared library for colors and utilities
@@ -70,14 +69,17 @@ if $DRY_RUN && $FORCE; then
 fi
 
 if $DRY_RUN; then
-    printBanner "DRY RUN MODE ENABLED" "No resources will be deleted."
+    printBannerColor "${C_YELLOW}" "DRY RUN MODE ENABLED" "No resources will be deleted."
 fi
 
 # --- Main Logic ---
 
+step_count=0
+
 # 1. Clean up stopped Docker Containers
 if $CLEAN_CONTAINERS; then
-    printBanner "Checking for stopped containers to prune"
+    ((++step_count))
+    printBannerColor "${C_L_BLUE}" "${step_count}. Checking for stopped containers to prune"
     if $DRY_RUN; then
         # 'exited' covers containers that ran and finished. 'created' covers containers that were created but never started.
         stopped_containers=$(docker ps -a --filter "status=exited" --filter "status=created" --format '{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}')
@@ -100,8 +102,9 @@ fi
 
 # 2. Clean up Docker Images
 if $CLEAN_IMAGES; then
+    ((++step_count))
     image_type=$($ALL_IMAGES && echo "all unused" || echo "dangling")
-    printBanner "Checking for ${image_type} images to prune"
+    printBannerColor "${C_L_BLUE}" "${step_count}. Checking for ${image_type} images to prune"
 
     if $DRY_RUN; then
         filter="dangling=true"
@@ -146,7 +149,8 @@ fi
 
 # 3. Clean up Docker Networks
 if $CLEAN_NETWORKS; then
-    printBanner "Checking for unused Docker networks to prune"
+    ((++step_count))
+    printBannerColor "${C_L_BLUE}" "${step_count}. Checking for unused Docker networks to prune"
     if $DRY_RUN; then
         unused_networks=$(docker network ls --format '{{.Name}}' | grep -v -E '^(bridge|host|none)$' | while read -r net; do
             # Check if any container (running or stopped) is using this network.
@@ -173,7 +177,8 @@ fi
 
 # 4. Clean up Docker Volumes
 if $CLEAN_VOLUMES; then
-    printBanner "Checking for unused (dangling) Docker volumes to prune"
+    ((++step_count))
+    printBannerColor "${C_L_BLUE}" "${step_count}. Checking for unused (dangling) Docker volumes to prune"
     if $DRY_RUN; then
         dangling_volumes=$(docker volume ls -f "dangling=true" --format '{{.Name}}')
         if [ -n "$dangling_volumes" ]; then
