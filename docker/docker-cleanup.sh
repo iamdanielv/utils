@@ -48,9 +48,9 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# If no specific resource type is provided, default to cleaning all.
+# If no resource type is provided, default to cleaning all
 if ! $CLEAN_CONTAINERS && ! $CLEAN_IMAGES && ! $CLEAN_NETWORKS && ! $CLEAN_VOLUMES; then
-    printInfoMsg "No specific resource type selected. Defaulting to all (containers, images, networks, volumes)."
+    printInfoMsg "No resource type selected - ${C_YELLOW}Default to ALL${T_RESET} (containers, images, networks, volumes)"
     CLEAN_CONTAINERS=true
     CLEAN_IMAGES=true
     CLEAN_NETWORKS=true
