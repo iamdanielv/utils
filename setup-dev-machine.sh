@@ -28,7 +28,8 @@ print_usage() {
     printMsg "  2. Installs essential CLI tools referenced in '.bash_aliases' (eza, ag, net-tools)."
     printMsg "  3. Copies the '.bash_aliases' file from this repository to '~/.bash_aliases'."
     printMsg "  4. Executes the 'install-lazyvim.sh' script for a full Neovim setup."
-    printMsg "  5. Provides final instructions for the user."
+    printMsg "  5. Installs the latest versions of Go, lazygit, and lazydocker."
+    printMsg "  6. Provides final instructions for the user."
     printMsg "\nRun without arguments to start the setup."
 }
 
@@ -164,6 +165,109 @@ install_lazydocker() {
     fi
 }
 
+# Installs or updates Go (Golang) to the latest stable version.
+install_golang() {
+    printBanner "Install/Update Go (Golang)"
+
+    # Determine architecture for download URL
+    local arch
+    if [[ "$(uname -m)" == "x86_64" ]]; then
+        arch="amd64"
+    else
+        printErrMsg "Unsupported architecture for Go: $(uname -m). Only x86_64 is supported."
+        return 1
+    fi
+
+    # Get latest version from the official Go JSON endpoint
+    local latest_version
+    printInfoMsg "Fetching latest Go version..."
+    latest_version=$(curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version')
+
+    if [[ -z "$latest_version" ]]; then
+        printErrMsg "Could not determine the latest Go version from go.dev."
+        return
+    fi
+    printInfoMsg "Latest available Go version: ${C_L_GREEN}${latest_version}${T_RESET}"
+
+    local installed_version="Not installed"
+    if command -v go &>/dev/null; then
+        # 'go version' output is like: go version go1.22.1 linux/amd64
+        installed_version=$(go version | awk '{print $3}')
+    fi
+    printInfoMsg "Currently installed version:   ${C_L_YELLOW}${installed_version}${T_RESET}"
+
+    if [[ "$installed_version" == "$latest_version" ]]; then
+        printOkMsg "You already have the latest version of Go. Skipping."
+        return
+    fi
+
+    if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
+        printInfoMsg "Go installation skipped."
+        return
+    fi
+
+    local tarball_name="${latest_version}.linux-${arch}.tar.gz"
+    local download_url="https://go.dev/dl/${tarball_name}"
+    local install_path="/usr/local"
+
+    local temp_dir; temp_dir=$(mktemp -d)
+    trap 'rm -rf "$temp_dir"' RETURN
+
+    if run_with_spinner "Downloading Go ${latest_version}..." curl -L -f "$download_url" -o "${temp_dir}/${tarball_name}"; then
+        printInfoMsg "Removing any previous Go installation from ${install_path}..."
+        if [[ -d "${install_path}/go" ]]; then
+            sudo rm -rf "${install_path}/go"
+        fi
+
+        printInfoMsg "Extracting to ${install_path}..."
+        if sudo tar -C "$install_path" -xzf "${temp_dir}/${tarball_name}"; then
+            printOkMsg "Successfully installed Go ${latest_version}."
+            _setup_go_path
+        fi
+    else
+        printErrMsg "Failed to download Go. Please try installing it manually."
+    fi
+}
+
+# (Private) Checks and offers to add the Go binary path to ~/.bashrc.
+# This is called by install_golang after a successful installation.
+_setup_go_path() {
+    local go_bin_path="/usr/local/go/bin"
+    local bashrc_path="${HOME}/.bashrc"
+    local path_export_line="export PATH=\$PATH:${go_bin_path}"
+    local path_comment="# Add Go binary to PATH (added by setup-dev-machine.sh)"
+
+    if [[ ! -f "$bashrc_path" ]]; then
+        printWarnMsg "Could not find '${bashrc_path}'. Cannot configure PATH automatically."
+        printInfoMsg "Please add '${go_bin_path}' to your shell's PATH manually."
+        return
+    fi
+
+    # Check if the Go binary path is already in .bashrc to avoid duplicates.
+    if grep -q "${go_bin_path}" "$bashrc_path"; then
+        printInfoMsg "Go binary path seems to be already configured in '${bashrc_path}'. Skipping."
+        return
+    fi
+
+    printMsg "" # Add a newline for spacing
+    if ! prompt_yes_no "Add Go binary path to your '${bashrc_path}'?" "y"; then
+        printInfoMsg "Skipping PATH modification. Please add it manually:"
+        printMsg "  ${C_L_CYAN}${path_export_line}${T_RESET}"
+        return
+    fi
+
+    if prompt_yes_no "Create a backup of '${bashrc_path}' before modifying?" "y"; then
+        local backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
+        cp "$bashrc_path" "$backup_file"
+        printOkMsg "Backup created at: ${backup_file}"
+    fi
+
+    # Append the comment and the export line to .bashrc
+    echo -e "\n${path_comment}\n${path_export_line}" >> "$bashrc_path"
+    printOkMsg "Successfully updated '${bashrc_path}'."
+    printInfoMsg "Please run '${C_L_CYAN}source ~/.bashrc${T_RESET}' or open a new terminal to apply the changes."
+}
+
 # Installs the core tools referenced in the .bash_aliases file.
 install_core_tools() {
     printBanner "Installing Core CLI Tools"
@@ -185,11 +289,15 @@ install_core_tools() {
     
     # Replacement for nano
     install_package "micro"
+    # For parsing JSON in scripts
+    install_package "jq"
 
     # For 'lg' alias
     install_lazygit
     # For docker management
     install_lazydocker
+    # For Go development
+    install_golang
 }
 
 # Copies the .bash_aliases file to the user's home directory.
