@@ -50,7 +50,7 @@ done
 
 # If no resource type is provided, default to cleaning all
 if ! $CLEAN_CONTAINERS && ! $CLEAN_IMAGES && ! $CLEAN_NETWORKS && ! $CLEAN_VOLUMES; then
-    printBannerColor "${C_CYAN}" "No resource selected - ${T_BOLD}Default to ALL (containers, images, networks, volumes)"
+    printBannerColor "${C_CYAN}" "No resource selected" "${T_BOLD}Default to ALL (containers, images, networks, volumes)"
     CLEAN_CONTAINERS=true
     CLEAN_IMAGES=true
     CLEAN_NETWORKS=true
