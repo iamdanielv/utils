@@ -144,7 +144,7 @@ printBanner() { printMsg "$(generate_banner_string "$1")"; }
 # Usage: printBannerColor <COLOR> "Title" ["Subtitle"]
 printBannerColor() {
     local color="$1"
-    local title=" $2 " # Add padding
+    local title="$2"
     local subtitle="$3"
     local prefix="┏"; local suffix="┓"
 
@@ -164,14 +164,14 @@ printBannerColor() {
 
     # Print the subtitle if it exists, centered
     if [[ -n "$subtitle" ]]; then
-        # Truncate subtitle to fit within the banner. 5 chars are for "┗  ... ┛"
+        # Truncate subtitle to fit within the banner. 4 chars are for "┗ ... ┛"
         local truncated_subtitle; truncated_subtitle=$(_truncate_string "$subtitle" $((total_width - 5)))
         # Calculate padding based on the *visible* length of the truncated subtitle
         local visible_subtitle_len; visible_subtitle_len=$(strip_ansi_codes "$truncated_subtitle" | wc -c)
-        local subtitle_line_len=$(( total_width - 5 - visible_subtitle_len ))
+        local subtitle_line_len=$(( total_width - 4 - visible_subtitle_len ))
         if (( subtitle_line_len < 0 )); then subtitle_line_len=0; fi
         printf -v line '%*s' "$subtitle_line_len"; line="${line// /━}"
-        echo "${color}┗  ${truncated_subtitle} ${line}┛${T_RESET}"
+        printf '%s\n' "${color}┗ ${truncated_subtitle} ${line}┛${T_RESET}"
     fi
 }
 
