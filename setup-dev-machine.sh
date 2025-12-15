@@ -68,7 +68,7 @@ install_lazygit() {
 
     # Get latest version tag
     local latest_version
-    latest_version=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "\K[^"]*')
+    latest_version=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r '.tag_name')
 
     if [[ -z "$latest_version" ]]; then
         printErrMsg "Could not determine latest lazygit version from GitHub API."
@@ -128,7 +128,7 @@ install_lazydocker() {
 
     # Get latest version tag
     local latest_version
-    latest_version=$(curl -s "https://api.github.com/repos/jesseduffield/lazydocker/releases/latest" | grep -Po '"tag_name": "\K[^"]*')
+    latest_version=$(curl -s "https://api.github.com/repos/jesseduffield/lazydocker/releases/latest" | jq -r '.tag_name')
 
     if [[ -z "$latest_version" ]]; then
         printErrMsg "Could not determine latest lazydocker version from GitHub API."
