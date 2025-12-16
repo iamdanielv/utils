@@ -99,6 +99,32 @@ func main() {
 	runAutoscaler(ctx, cfg, state)
 }
 
+func runAutoscaler(ctx context.Context, cfg *Config, state *State) {
+	log.Printf("Starting auto-scaler for service: '%s'", cfg.ServiceName)
+	if cfg.DryRun {
+		log.Println("--- DRY RUN MODE ENABLED --- No actual scaling will be performed.")
+	}
+
+	log.Printf("[%s] Configuration: Metric=%s Min=%d Max=%d Up-Step=%d Poll=%s", cfg.ProjectName, cfg.ScaleMetric, cfg.MinReplicas, cfg.MaxReplicas, cfg.ScaleUpStep, cfg.PollInterval)
+
+	if cfg.InitialGracePeriod > 0 {
+		log.Printf("[%s] Initial grace period active. Waiting for %s before starting monitoring...", cfg.ProjectName, cfg.InitialGracePeriod)
+		time.Sleep(cfg.InitialGracePeriod)
+	}
+
+	ticker := time.NewTicker(cfg.PollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			evaluateAndScale(ctx, cfg, state)
+		}
+	}
+}
+
 func newConfigFromFlags() (*Config, error) {
 	cfg := &Config{}
 	flag.StringVar(&cfg.ProjectName, "project-name", "", "Docker Compose project name to operate on (required).")
@@ -175,30 +201,10 @@ func setupSignalHandler(cancel context.CancelFunc) {
 	}()
 }
 
-func runAutoscaler(ctx context.Context, cfg *Config, state *State) {
-	log.Printf("Starting auto-scaler for service: '%s'", cfg.ServiceName)
-	if cfg.DryRun {
-		log.Println("--- DRY RUN MODE ENABLED --- No actual scaling will be performed.")
-	}
-
-	log.Printf("[%s] Configuration: Metric=%s Min=%d Max=%d Up-Step=%d Poll=%s", cfg.ProjectName, cfg.ScaleMetric, cfg.MinReplicas, cfg.MaxReplicas, cfg.ScaleUpStep, cfg.PollInterval)
-
-	if cfg.InitialGracePeriod > 0 {
-		log.Printf("[%s] Initial grace period active. Waiting for %s before starting monitoring...", cfg.ProjectName, cfg.InitialGracePeriod)
-		time.Sleep(cfg.InitialGracePeriod)
-	}
-
-	ticker := time.NewTicker(cfg.PollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			evaluateAndScale(ctx, cfg, state)
-		}
-	}
+// ScalingDecision represents the outcome of the scaling evaluation.
+type ScalingDecision struct {
+	Direction string // "up", "down", or "none"
+	Reason    string
 }
 
 func evaluateAndScale(ctx context.Context, cfg *Config, state *State) {
@@ -207,43 +213,63 @@ func evaluateAndScale(ctx context.Context, cfg *Config, state *State) {
 		log.Printf("[%s] Error getting containers for service '%s': %v", cfg.ProjectName, cfg.ServiceName, err)
 		return
 	}
-	currentReplicas := len(containers)
 
-	// Cooldown Check
-	cooldown := getCooldown(state.LastScaleDirection, cfg)
+	if inCooldownStage(cfg, state) {
+		return
+	}
+
+	avgCPU, avgMem, err := getAverageStats(ctx, cfg, state.DockerClient, containers)
+	if err != nil {
+		log.Printf("[%s] Warning: Failed to get stats for service '%s'. Assuming 0%% usage. Error: %v", cfg.ProjectName, cfg.ServiceName, err)
+		avgCPU, avgMem = 0.0, 0.0
+	}
+
+	currentReplicas := len(containers)
+	logHeartbeat(cfg, state, currentReplicas, avgCPU, avgMem)
+
+	decision := getScalingDecision(cfg, avgCPU, avgMem)
+	executeScalingDecision(cfg, state, decision, currentReplicas)
+}
+
+func inCooldownStage(cfg *Config, state *State) bool {
+	cooldown := getCooldownTime(state.LastScaleDirection, cfg)
 	if cooldown > 0 && time.Since(state.LastScaleEventTS) < cooldown {
 		remaining := cooldown - time.Since(state.LastScaleEventTS).Round(time.Second)
 		if time.Since(state.LastLogTS) >= 10*time.Second {
 			log.Printf("[%s] Scale-%s cooldown active (%s left). Waiting...", cfg.ProjectName, state.LastScaleDirection, remaining)
 			state.LastLogTS = time.Now()
 		}
-		return
+		return true // Cooldown is active
 	}
+	return false // Cooldown is not active
+}
 
-	avgCPU, avgMem, err := getAverageStats(ctx, cfg, state.DockerClient, containers)
-	if err != nil {
-		log.Printf("Warning: Failed to get stats for service [%s] '%s'. Assuming 0%% usage. Error: %v", cfg.ProjectName, cfg.ServiceName, err)
-		avgCPU, avgMem = 0.0, 0.0
+func getScalingDecision(cfg *Config, avgCPU, avgMem float64) ScalingDecision {
+	if shouldScaleUp, reason := checkScaleUp(cfg, avgCPU, avgMem); shouldScaleUp {
+		return ScalingDecision{Direction: "up", Reason: reason}
 	}
+	if shouldScaleDown := checkScaleDown(cfg, avgCPU, avgMem); shouldScaleDown {
+		return ScalingDecision{Direction: "down"}
+	}
+	return ScalingDecision{Direction: "none"}
+}
 
-	logHeartbeat(cfg, state, currentReplicas, avgCPU, avgMem)
-
-	shouldScaleUp, scaleUpReason := checkScaleUp(cfg, avgCPU, avgMem)
-	shouldScaleDown := checkScaleDown(cfg, avgCPU, avgMem)
-
-	if shouldScaleUp {
-		targetReplicas := currentReplicas + cfg.ScaleUpStep
-		if targetReplicas > cfg.MaxReplicas {
-			targetReplicas = cfg.MaxReplicas
-		}
-		if targetReplicas > currentReplicas {
-			log.Printf("[%s] Scale up triggered by: %s. Scaling up.", cfg.ProjectName, scaleUpReason)
-			scaleService(cfg, state, targetReplicas, "up")
+func executeScalingDecision(cfg *Config, state *State, decision ScalingDecision, currentReplicas int) {
+	switch decision.Direction {
+	case "up":
+		target := min(currentReplicas+cfg.ScaleUpStep, cfg.MaxReplicas)
+		if target > currentReplicas {
+			log.Printf("[%s] Scale up triggered by: %s. Scaling up.", cfg.ProjectName, decision.Reason)
+			scaleService(cfg, state, target, "up")
 		} else {
-			log.Printf("[%s] Scale up triggered by: %s. Cannot scale further, already at max replicas (%d).", cfg.ProjectName, scaleUpReason, cfg.MaxReplicas)
+			log.Printf("[%s] Scale up triggered by: %s. Cannot scale further, already at max replicas (%d).", cfg.ProjectName, decision.Reason, cfg.MaxReplicas)
 		}
-		state.ConsecutiveScaleDownChecks = 0
-	} else if shouldScaleDown && currentReplicas > cfg.MinReplicas {
+		state.ConsecutiveScaleDownChecks = 0 // Reset on any scale-up condition
+	case "down":
+		if currentReplicas <= cfg.MinReplicas {
+			state.ConsecutiveScaleDownChecks = 0 // Below min, reset and do nothing
+			return
+		}
 		state.ConsecutiveScaleDownChecks++
 		log.Printf("[%s] Scale down condition met (%d/%d).", cfg.ProjectName, state.ConsecutiveScaleDownChecks, cfg.ScaleDownChecks)
 		if state.ConsecutiveScaleDownChecks >= cfg.ScaleDownChecks {
@@ -251,12 +277,37 @@ func evaluateAndScale(ctx context.Context, cfg *Config, state *State) {
 			scaleService(cfg, state, currentReplicas-1, "down")
 			state.ConsecutiveScaleDownChecks = 0
 		}
-	} else {
+	case "none":
 		state.ConsecutiveScaleDownChecks = 0
 	}
 }
 
-func getCooldown(direction string, cfg *Config) time.Duration {
+func scaleService(cfg *Config, state *State, newReplicas int, direction string) {
+	if cfg.DryRun {
+		log.Printf("[DRY RUN] Would scale [%s] %s %s to %d replicas.", cfg.ProjectName, cfg.ServiceName, direction, newReplicas)
+		return
+	}
+
+	log.Printf("Scaling [%s] %s %s to %d replicas...", cfg.ProjectName, cfg.ServiceName, direction, newReplicas)
+
+	parts := strings.Split(state.ComposeCommand, " ")
+	// We explicitly pass the service name to 'up' to prevent it from trying to
+	// re-evaluate and rebuild other services. The -p flag ensures we target the correct project.
+	args := append(parts[1:], "-p", cfg.ProjectName, "up", "-d", "--scale", fmt.Sprintf("%s=%d", cfg.ServiceName, newReplicas), "--no-recreate", cfg.ServiceName)
+	cmd := commandExecutor(parts[0], args...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Error: Failed to scale [%s] %s. Output:\n%s", cfg.ProjectName, cfg.ServiceName, string(output))
+		return
+	}
+
+	log.Printf("Successfully scaled [%s] %s %s to %d replicas.", cfg.ProjectName, cfg.ServiceName, direction, newReplicas)
+	state.LastScaleEventTS = time.Now()
+	state.LastScaleDirection = direction
+}
+
+func getCooldownTime(direction string, cfg *Config) time.Duration {
 	switch direction {
 	case "up":
 		return cfg.ScaleUpCooldown
@@ -264,25 +315,6 @@ func getCooldown(direction string, cfg *Config) time.Duration {
 		return cfg.ScaleDownCooldown
 	default:
 		return 0
-	}
-}
-
-func logHeartbeat(cfg *Config, state *State, replicas int, cpu, mem float64) {
-	if replicas != state.LastLoggedReplicas || cpu != state.LastLoggedCPU || mem != state.LastLoggedMem || time.Since(state.LastLogTS) >= cfg.LogHeartbeatInterval {
-		var msg string
-		switch cfg.ScaleMetric {
-		case "any":
-			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgCPU=%.2f%% (Up>%.0f%%,Down<%.0f%%), AvgMem=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, cpu, cfg.CPUUpperThreshold, cfg.CPULowerThreshold, mem, cfg.MemUpperThreshold, cfg.MemLowerThreshold)
-		case "cpu":
-			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgCPU=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, cpu, cfg.CPUUpperThreshold, cfg.CPULowerThreshold)
-		case "mem":
-			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgMem=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, mem, cfg.MemUpperThreshold, cfg.MemLowerThreshold)
-		}
-		log.Println(msg)
-		state.LastLogTS = time.Now()
-		state.LastLoggedReplicas = replicas
-		state.LastLoggedCPU = cpu
-		state.LastLoggedMem = mem
 	}
 }
 
@@ -316,14 +348,23 @@ func checkScaleDown(cfg *Config, cpu, mem float64) bool {
 	return false
 }
 
-func getServiceContainers(ctx context.Context, cli DockerAPIClient, serviceName string) ([]types.Container, error) {
-	containers, err := cli.ContainerList(ctx, container.ListOptions{
-		Filters: labelFilter("com.docker.compose.service", serviceName),
-	})
-	if err != nil {
-		return nil, err
+func logHeartbeat(cfg *Config, state *State, replicas int, cpu, mem float64) {
+	if replicas != state.LastLoggedReplicas || cpu != state.LastLoggedCPU || mem != state.LastLoggedMem || time.Since(state.LastLogTS) >= cfg.LogHeartbeatInterval {
+		var msg string
+		switch cfg.ScaleMetric {
+		case "any":
+			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgCPU=%.2f%% (Up>%.0f%%,Down<%.0f%%), AvgMem=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, cpu, cfg.CPUUpperThreshold, cfg.CPULowerThreshold, mem, cfg.MemUpperThreshold, cfg.MemLowerThreshold)
+		case "cpu":
+			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgCPU=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, cpu, cfg.CPUUpperThreshold, cfg.CPULowerThreshold)
+		case "mem":
+			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgMem=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, mem, cfg.MemUpperThreshold, cfg.MemLowerThreshold)
+		}
+		log.Println(msg)
+		state.LastLogTS = time.Now()
+		state.LastLoggedReplicas = replicas
+		state.LastLoggedCPU = cpu
+		state.LastLoggedMem = mem
 	}
-	return containers, nil
 }
 
 func getAverageStats(ctx context.Context, cfg *Config, cli DockerAPIClient, containers []types.Container) (float64, float64, error) {
@@ -376,34 +417,15 @@ func getAverageStats(ctx context.Context, cfg *Config, cli DockerAPIClient, cont
 	return totalCPU / float64(statsCount), totalMem / float64(statsCount), nil
 }
 
-func scaleService(cfg *Config, state *State, newReplicas int, direction string) {
-	if cfg.DryRun {
-		log.Printf("[DRY RUN] Would scale [%s] %s %s to %d replicas.", cfg.ProjectName, cfg.ServiceName, direction, newReplicas)
-		return
-	}
-
-	log.Printf("Scaling [%s] %s %s to %d replicas...", cfg.ProjectName, cfg.ServiceName, direction, newReplicas)
-
-	parts := strings.Split(state.ComposeCommand, " ")
-	// We explicitly pass the service name to 'up' to prevent it from trying to
-	// re-evaluate and rebuild other services. The -p flag ensures we target the correct project.
-	args := append(parts[1:], "-p", cfg.ProjectName, "up", "-d", "--scale", fmt.Sprintf("%s=%d", cfg.ServiceName, newReplicas), "--no-recreate", cfg.ServiceName)
-	cmd := commandExecutor(parts[0], args...)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("Error: Failed to scale [%s] %s. Output:\n%s", cfg.ProjectName, cfg.ServiceName, string(output))
-		return
-	}
-
-	log.Printf("Successfully scaled [%s] %s %s to %d replicas.", cfg.ProjectName, cfg.ServiceName, direction, newReplicas)
-	state.LastScaleEventTS = time.Now()
-	state.LastScaleDirection = direction
-}
-
 // labelFilter is a helper to create the correct filter format for the Docker API
 func labelFilter(labelName, labelValue string) filters.Args {
 	f := filters.NewArgs()
 	f.Add("label", fmt.Sprintf("%s=%s", labelName, labelValue))
 	return f
+}
+
+func getServiceContainers(ctx context.Context, cli DockerAPIClient, serviceName string) ([]types.Container, error) {
+	return cli.ContainerList(ctx, container.ListOptions{
+		Filters: labelFilter("com.docker.compose.service", serviceName),
+	})
 }
