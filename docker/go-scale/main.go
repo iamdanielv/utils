@@ -64,7 +64,10 @@ type State struct {
 var commandExecutor = exec.Command
 
 func main() {
-	cfg := parseFlags()
+	cfg, err := newConfigFromFlags()
+	if err != nil {
+		log.Fatalf("Configuration error: %v", err)
+	}
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		log.Fatalf("Error creating Docker client: %v", err)
@@ -96,7 +99,7 @@ func main() {
 	runAutoscaler(ctx, cfg, state)
 }
 
-func parseFlags() *Config {
+func newConfigFromFlags() (*Config, error) {
 	cfg := &Config{}
 	flag.StringVar(&cfg.ProjectName, "project-name", "", "Docker Compose project name to operate on (required).")
 	flag.StringVar(&cfg.ServiceName, "service", "", "The name of the service in docker-compose.yml to scale (required).")
@@ -118,22 +121,16 @@ func parseFlags() *Config {
 	flag.Parse()
 
 	if cfg.ProjectName == "" {
-		log.Println("Error: --project-name is a required argument.")
-		flag.Usage()
-		os.Exit(1)
+		return nil, fmt.Errorf("--project-name is a required argument")
 	}
 	if cfg.ServiceName == "" {
-		log.Println("Error: --service is a required argument.")
-		flag.Usage()
-		os.Exit(1)
+		return nil, fmt.Errorf("--service is a required argument")
 	}
 	if cfg.ScaleMetric != "cpu" && cfg.ScaleMetric != "mem" && cfg.ScaleMetric != "any" {
-		log.Println("Error: Invalid value for --metric. Must be 'cpu', 'mem', or 'any'.")
-		flag.Usage()
-		os.Exit(1)
+		return nil, fmt.Errorf("invalid value for --metric: must be 'cpu', 'mem', or 'any'")
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 func findComposeCommand() (string, error) {
