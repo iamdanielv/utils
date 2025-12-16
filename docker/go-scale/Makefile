@@ -24,7 +24,7 @@ help: ##@ Show this help message
 .PHONY: build container test tidy
 build: ##@ Build the Go binary for the local system
 	@echo "$(YELLOW)Building$(RESET) 'go-autoscale' binary..."
-	@$(MAKE) tidy
+	@$(MAKE) --no-print-directory tidy
 	@echo -n " $(YELLOW)Compiling$(RESET) 'go-autoscale'... "
 	@if output=$$(go build -o go-autoscale . 2>&1); then \
 		echo "$(OK_ICON)"; \
