@@ -260,12 +260,14 @@ func evaluateAndScale(ctx context.Context, cfg *Config, state *State) {
 }
 
 func getCooldown(direction string, cfg *Config) time.Duration {
-	if direction == "up" {
+	switch direction {
+	case "up":
 		return cfg.ScaleUpCooldown
-	} else if direction == "down" {
+	case "down":
 		return cfg.ScaleDownCooldown
+	default:
+		return 0
 	}
-	return 0
 }
 
 func logHeartbeat(cfg *Config, state *State, replicas int, cpu, mem float64) {
