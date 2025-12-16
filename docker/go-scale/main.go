@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -407,11 +406,5 @@ func scaleService(cfg *Config, state *State, newReplicas int, direction string) 
 func labelFilter(labelName, labelValue string) filters.Args {
 	f := filters.NewArgs()
 	f.Add("label", fmt.Sprintf("%s=%s", labelName, labelValue))
-	return f
-}
-
-// Helper to convert string to float
-func parseFloat(s string) float64 {
-	f, _ := strconv.ParseFloat(strings.TrimSpace(s), 64)
 	return f
 }
