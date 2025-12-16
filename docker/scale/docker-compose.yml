@@ -19,13 +19,13 @@ services:
         limits:
           cpus: '0.5' # Limit CPU to make it easier to stress
           memory: 128M
-
   # This service runs the autoscaler script
   autoscaler:
     build:
       context: .
-      dockerfile: Dockerfile # Explicitly point to the Dockerfile inside the 'docker' directory
+      dockerfile: Dockerfile
     volumes:
+      # Mount the docker socket to allow the autoscaler to interact with the Docker daemon
       - /var/run/docker.sock:/var/run/docker.sock
       # Mount this docker-compose.yml file so the autoscaler can find it
       - ./docker-compose.yml:/app/docker-compose.yml
@@ -35,7 +35,7 @@ services:
       - "--cpu-up"
       - "20" # Scale up when CPU is > 20%
       - "--cpu-down"
-      - "5" # Scale down when CPU is < 15%
+      - "5" # Scale down when CPU is < 5%
       - "--metric"
       - "cpu"
       - "--poll"
