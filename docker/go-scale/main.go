@@ -105,7 +105,18 @@ func runAutoscaler(ctx context.Context, cfg *Config, state *State) {
 		log.Println("--- DRY RUN MODE ENABLED --- No actual scaling will be performed.")
 	}
 
-	log.Printf("[%s] Configuration: Metric=%s Min=%d Max=%d Up-Step=%d Poll=%s", cfg.ProjectName, cfg.ScaleMetric, cfg.MinReplicas, cfg.MaxReplicas, cfg.ScaleUpStep, cfg.PollInterval)
+	var thresholdMsg string
+	switch cfg.ScaleMetric {
+	case "cpu":
+		thresholdMsg = fmt.Sprintf("CPU thresholds: up > %.0f%%, down < %.0f%%", cfg.CPUUpperThreshold, cfg.CPULowerThreshold)
+	case "mem":
+		thresholdMsg = fmt.Sprintf("Memory thresholds: up > %.0f%%, down < %.0f%%", cfg.MemUpperThreshold, cfg.MemLowerThreshold)
+	case "any":
+		thresholdMsg = fmt.Sprintf("CPU up > %.0f%%, Mem up > %.0f%%, Both down (CPU < %.0f%%, Mem < %.0f%%)", cfg.CPUUpperThreshold, cfg.MemUpperThreshold, cfg.CPULowerThreshold, cfg.MemLowerThreshold)
+	}
+
+	log.Printf("[%s] Configuration: Metric=%s, Min=%d, Max=%d, Poll=%s", cfg.ProjectName, cfg.ScaleMetric, cfg.MinReplicas, cfg.MaxReplicas, cfg.PollInterval)
+	log.Printf("[%s] %s", cfg.ProjectName, thresholdMsg)
 
 	if cfg.InitialGracePeriod > 0 {
 		log.Printf("[%s] Initial grace period active. Waiting for %s before starting monitoring...", cfg.ProjectName, cfg.InitialGracePeriod)
@@ -271,7 +282,7 @@ func executeScalingDecision(cfg *Config, state *State, decision ScalingDecision,
 			return
 		}
 		state.ConsecutiveScaleDownChecks++
-		log.Printf("[%s] Scale down condition met (%d/%d).", cfg.ProjectName, state.ConsecutiveScaleDownChecks, cfg.ScaleDownChecks)
+		//log.Printf("[%s] Scale down condition met (%d/%d).", cfg.ProjectName, state.ConsecutiveScaleDownChecks, cfg.ScaleDownChecks)
 		if state.ConsecutiveScaleDownChecks >= cfg.ScaleDownChecks {
 			log.Printf("[%s] Scaling down: threshold met for %d consecutive checks.", cfg.ProjectName, state.ConsecutiveScaleDownChecks)
 			scaleService(cfg, state, currentReplicas-1, "down")
@@ -350,16 +361,21 @@ func checkScaleDown(cfg *Config, cpu, mem float64) bool {
 
 func logHeartbeat(cfg *Config, state *State, replicas int, cpu, mem float64) {
 	if replicas != state.LastLoggedReplicas || cpu != state.LastLoggedCPU || mem != state.LastLoggedMem || time.Since(state.LastLogTS) >= cfg.LogHeartbeatInterval {
-		var msg string
-		switch cfg.ScaleMetric {
-		case "any":
-			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgCPU=%.2f%% (Up>%.0f%%,Down<%.0f%%), AvgMem=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, cpu, cfg.CPUUpperThreshold, cfg.CPULowerThreshold, mem, cfg.MemUpperThreshold, cfg.MemLowerThreshold)
-		case "cpu":
-			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgCPU=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, cpu, cfg.CPUUpperThreshold, cfg.CPULowerThreshold)
-		case "mem":
-			msg = fmt.Sprintf("[%s] %s: Replicas=%d, AvgMem=%.2f%% (Up>%.0f%%,Down<%.0f%%)", cfg.ProjectName, cfg.ServiceName, replicas, mem, cfg.MemUpperThreshold, cfg.MemLowerThreshold)
-		}
-		log.Println(msg)
+		cpuStr := fmt.Sprintf("%.2f%%/%.0f%%", cpu, cfg.CPUUpperThreshold)
+		// if (cfg.ScaleMetric == "cpu" || cfg.ScaleMetric == "any") && cpu > cfg.CPUUpperThreshold {
+		// 	cpuStr += " ↑"
+		// } else if (cfg.ScaleMetric == "cpu" || cfg.ScaleMetric == "any") && cpu < cfg.CPULowerThreshold {
+		// 	cpuStr += " ↓"
+		// }
+
+		memStr := fmt.Sprintf("%.2f%%/%.0f%%", mem, cfg.MemUpperThreshold)
+		// if (cfg.ScaleMetric == "mem" || cfg.ScaleMetric == "any") && mem > cfg.MemUpperThreshold {
+		// 	memStr += " ↑"
+		// } else if (cfg.ScaleMetric == "mem" || cfg.ScaleMetric == "any") && mem < cfg.MemLowerThreshold {
+		// 	memStr += " ↓"
+		// }
+
+		log.Printf("[%s] %s: Replicas:%d/%d, AvgCPU:%s, AvgMem:%s", cfg.ProjectName, cfg.ServiceName, replicas, cfg.MaxReplicas, cpuStr, memStr)
 		state.LastLogTS = time.Now()
 		state.LastLoggedReplicas = replicas
 		state.LastLoggedCPU = cpu
