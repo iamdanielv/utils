@@ -725,7 +725,7 @@ function system_env_manager() {
                 printf '\033[J' >/dev/tty # Clear from cursor to end of screen
 
                 local new_query="$search_query"
-                if prompt_for_input "Filter variables" new_query "$search_query" "true" "$footer_height"; then
+                if prompt_for_input "Filter variables" new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
                     _apply_filter
                     current_option=0
