@@ -306,7 +306,17 @@ read_single_char() {
     local char; local seq; IFS= read -rsn1 char < /dev/tty
     if [[ -z "$char" ]]; then echo "$KEY_ENTER"; return; fi
     if [[ "$char" == "$KEY_ESC" ]]; then
-        while IFS= read -rsn1 -t 0.001 seq < /dev/tty; do char+="$seq"; done
+        # Peek next char with tiny timeout to see if it's a sequence
+        if IFS= read -rsn1 -t 0.001 seq < /dev/tty; then
+            char+="$seq"
+            if [[ "$seq" == "[" || "$seq" == "O" ]]; then
+                # Read until we hit a terminator (letter or ~)
+                while IFS= read -rsn1 -t 0.001 seq < /dev/tty; do
+                    char+="$seq"
+                    if [[ "$seq" =~ [a-zA-Z~] ]]; then break; fi
+                done
+            fi
+        fi
     fi
     echo "$char"
 }
