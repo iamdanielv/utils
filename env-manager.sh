@@ -334,9 +334,10 @@ function draw_header() {
 
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
-    local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen${C_WHITE}"
-    local help_exit=" ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE} "
-    printf " %s | %s\n" "$help_nav" "$help_exit"
+    local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen in editor${C_WHITE}"
+    local help_exit=" ${C_L_CYAN}(I)mport Sys${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
+    printf " %s\n" "$help_nav"
+    printf " %s\n" "$help_exit"
 
     if [[ -n "$ERROR_MESSAGE" ]]; then
         printf " ${T_ERR_ICON} %s${T_CLEAR_LINE}" "${T_ERR}${ERROR_MESSAGE}${T_RESET}"
@@ -535,6 +536,190 @@ _launch_editor_for_file() {
     return 0
 }
 
+# --- System Environment Integration ---
+
+declare -A SYS_ENV_VARS
+declare -a SYS_ENV_ORDER
+
+# Loads system environment variables into global arrays.
+function load_system_env() {
+    SYS_ENV_VARS=()
+    SYS_ENV_ORDER=()
+    local var_names
+    # Use compgen to get exported variables, sort them
+    mapfile -t var_names < <(compgen -e | sort)
+
+    for name in "${var_names[@]}"; do
+        # Skip internal bash variables or functions if they appear
+        if [[ ! "$name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then continue; fi
+        
+        SYS_ENV_VARS["$name"]="${!name}"
+        SYS_ENV_ORDER+=("$name")
+    done
+}
+
+# Draws the list of system environment variables.
+function draw_sys_env_list() {
+    local -n current_option_ref=$1
+    local -n list_offset_ref=$2
+    local viewport_height=$3
+
+    local list_content=""
+    local start_index=$list_offset_ref
+    local end_index=$(( list_offset_ref + viewport_height - 1 ))
+    if (( end_index >= ${#SYS_ENV_ORDER[@]} )); then end_index=$(( ${#SYS_ENV_ORDER[@]} - 1 )); fi
+
+    if [[ ${#SYS_ENV_ORDER[@]} -gt 0 ]]; then
+        for (( i=start_index; i<=end_index; i++ )); do
+            local key="${SYS_ENV_ORDER[i]}"
+            local is_current="false"; if (( i == current_option_ref )); then is_current="true"; fi
+            local line_output=""
+
+            local value="${SYS_ENV_VARS[$key]}"
+            # Optimization: Inline truncation to avoid subshell overhead
+            # Also ensure we only take the first line to avoid breaking layout
+            local value_display="${value%%$'\n'*}"
+            # Strip ANSI codes to prevent display corruption
+            if [[ "$value_display" == *$'\033'* ]]; then
+                local esc=$'\033'
+                local ansi_pattern="$esc\\[[0-9;]*[a-zA-Z]"
+                while [[ "$value_display" =~ $ansi_pattern ]]; do
+                    value_display="${value_display/${BASH_REMATCH[0]}/}"
+                done
+                value_display="${value_display//$esc/}"
+            fi
+            if (( ${#value_display} > 43 )); then
+                value_display="${value_display:0:42}…"
+            fi
+            
+            # Check if exists in .env
+            local status_indicator=" "
+            if [[ -n "${ENV_VARS[$key]+x}" ]]; then
+                status_indicator="${C_L_GREEN}*${T_RESET}" # Exists
+            fi
+
+            local key_display="${key}"
+            if (( ${#key_display} > 20 )); then
+                key_display="${key_display:0:19}…"
+            fi
+
+            line_output=$(printf "%b${C_L_CYAN}%-20s${T_FG_RESET} ${C_L_WHITE}%-43s${T_FG_RESET}" "$status_indicator" "${key_display}" "$value_display")
+
+            local item_content=""
+            _draw_menu_item "$is_current" "false" "false" "$line_output" item_content
+            if [[ ${#list_content} -gt 0 ]]; then list_content+=$'\n'; fi
+            list_content+="${item_content}"
+        done
+    else
+        list_content+=$(printf "  %s" "${C_GRAY}(No system variables found.)${T_CLEAR_LINE}${T_RESET}")
+    fi
+
+    # Fill blank lines
+    local list_draw_height=0
+    if [[ ${#SYS_ENV_ORDER[@]} -gt 0 ]]; then
+        list_draw_height=$(( end_index - start_index + 1 ))
+    fi
+    if (( ${#SYS_ENV_ORDER[@]} <= 0 )); then list_draw_height=1; fi
+    local lines_to_fill=$(( viewport_height - list_draw_height ))
+    if (( lines_to_fill > 0 )); then
+        for ((j=0; j<lines_to_fill; j++)); do list_content+=$(printf '\n%s' "${T_CLEAR_LINE}"); done
+    fi
+
+    printf "%b" "$list_content"
+}
+
+# Manages the system environment variable view.
+function system_env_manager() {
+    load_system_env
+    local current_option=0
+    local list_offset=0
+
+    # Helper for viewport
+    _sys_viewport_calc() {
+        local term_height; term_height=$(tput lines)
+        echo $(( term_height - 5 ))
+    }
+
+    printMsgNoNewline "${T_CURSOR_HIDE}"
+    
+    local viewport_height
+    local _tui_resized=0
+    trap '_tui_resized=1' WINCH
+
+    while true; do
+        viewport_height=$(_sys_viewport_calc)
+        local num_options=${#SYS_ENV_ORDER[@]}
+
+        # Scroll logic
+        if (( current_option >= list_offset + viewport_height )); then list_offset=$(( current_option - viewport_height + 1 )); fi
+        if (( current_option < list_offset )); then list_offset=$current_option; fi
+        local max_offset=$(( num_options - viewport_height )); if (( max_offset < 0 )); then max_offset=0; fi
+        if (( list_offset > max_offset )); then list_offset=$max_offset; fi
+        if (( num_options < viewport_height )); then list_offset=0; fi
+
+        # Draw
+        local screen_buffer=""
+        screen_buffer+=$(generate_banner_string "System Environment Variables")
+        screen_buffer+=$'\n'
+        screen_buffer+=$(printf "${C_BLUE}┗━━ ${T_FG_RESET}${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-43s${T_RESET}" "VARIABLE" "VALUE")
+        screen_buffer+=$'\n'
+        screen_buffer+=$(draw_sys_env_list current_option list_offset "$viewport_height")
+        screen_buffer+=$'\n'
+        screen_buffer+="${C_GRAY}${DIV}${T_RESET}\n"
+        
+        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(Enter) Import${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
+        screen_buffer+=$(printf " %s\n ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env${T_CLEAR_LINE}" "$help_nav")
+        
+        printf '\033[H%b' "$screen_buffer"
+
+        local key; key=$(read_single_char)
+        
+        if [[ $_tui_resized -eq 1 ]]; then _tui_resized=0; continue; fi
+
+        case "$key" in
+            "$KEY_UP"|"k") if (( num_options > 0 )); then current_option=$(( (current_option - 1 + num_options) % num_options )); fi ;;
+            "$KEY_DOWN"|"j") if (( num_options > 0 )); then current_option=$(( (current_option + 1) % num_options )); fi ;;
+            "$KEY_PGUP") if (( num_options > 0 )); then current_option=$(( current_option - viewport_height )); if (( current_option < 0 )); then current_option=0; fi; fi ;;
+            "$KEY_PGDN") if (( num_options > 0 )); then current_option=$(( current_option + viewport_height )); if (( current_option >= num_options )); then current_option=$(( num_options - 1 )); fi; fi ;;
+            "$KEY_HOME") if (( num_options > 0 )); then current_option=0; fi ;;
+            "$KEY_END") if (( num_options > 0 )); then current_option=$(( num_options - 1 )); fi ;;
+            'q'|'Q'|"$KEY_ESC"|"$KEY_LEFT")
+                break
+                ;;
+            ''|'i'|'I')
+                # Enter or I
+                if [[ ${#SYS_ENV_ORDER[@]} -eq 0 ]]; then continue; fi
+                local selected_key="${SYS_ENV_ORDER[current_option]}"
+                local selected_value="${SYS_ENV_VARS[$selected_key]}"
+                
+                local do_import=true
+                if [[ -n "${ENV_VARS[$selected_key]+x}" ]]; then
+                    clear_current_line
+                    clear_lines_up 1
+                    if ! prompt_yes_no "Variable '$selected_key' exists. Overwrite?" "n"; then
+                        do_import=false
+                    fi
+                fi
+                
+                if [[ "$do_import" == "true" ]]; then
+                    ENV_VARS["$selected_key"]="$selected_value"
+                    ENV_COMMENTS["$selected_key"]="Imported from system"
+                    
+                    # Add to order if not exists
+                    local exists_in_order=false
+                    for k in "${ENV_ORDER[@]}"; do [[ "$k" == "$selected_key" ]] && exists_in_order=true && break; done
+                    if [[ "$exists_in_order" == "false" ]]; then
+                        ENV_ORDER+=("$selected_key")
+                        DISPLAY_ORDER+=("$selected_key")
+                    fi
+                    
+                    show_timed_message "${T_OK_ICON} Imported '$selected_key'." 1
+                fi
+                ;;
+        esac
+    done
+}
+
 # --- TUI Main Loop ---
 
 function interactive_manager() {
@@ -552,8 +737,8 @@ function interactive_manager() {
     _viewport_calc_func() {
         # Calculate available height for the list
         local term_height; term_height=$(tput lines)
-        # banner(1) + header(1) + list(...) + div(1) + footer(2)
-        echo $(( term_height - 5 ))
+        # banner(1) + header(1) + list(...) + div(1) + footer(3)
+        echo $(( term_height - 6 ))
     }
 
     # --- Key Handler ---
@@ -625,6 +810,10 @@ function interactive_manager() {
                     # After editor closes, force a re-parse and redraw
                     handler_result_ref="refresh_data"
                 fi
+                ;;
+            'i'|'I')
+                system_env_manager
+                handler_result_ref="redraw"
                 ;;
             *)
                 handler_result_ref="noop"
