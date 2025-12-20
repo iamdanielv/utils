@@ -336,8 +336,8 @@ function draw_header() {
 function draw_footer() {
     local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen in editor${C_WHITE}"
     local help_exit=" ${C_L_YELLOW}(I)mport Sys${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
-    printf " %s\n" "$help_nav"
-    printf " %s\n" "$help_exit"
+    printf " %s${T_CLEAR_LINE}\n" "$help_nav"
+    printf " %s${T_CLEAR_LINE}\n" "$help_exit"
 
     if [[ -n "$ERROR_MESSAGE" ]]; then
         printf " ${T_ERR_ICON} %s${T_CLEAR_LINE}" "${T_ERR}${ERROR_MESSAGE}${T_RESET}"
@@ -665,10 +665,10 @@ function system_env_manager() {
         screen_buffer+=$'\n'
         screen_buffer+=$(draw_sys_env_list current_option list_offset "$viewport_height")
         screen_buffer+=$'\n'
-        screen_buffer+="${C_GRAY}${DIV}${T_RESET}\n"
+        screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
         
         local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_YELLOW}(I)mport${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
-        screen_buffer+=$(printf " %s\n ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env${T_CLEAR_LINE}" "$help_nav")
+        screen_buffer+=$(printf " %s${T_CLEAR_LINE}\n ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env${T_CLEAR_LINE}" "$help_nav")
         
         printf '\033[H%b' "$screen_buffer"
 
@@ -858,9 +858,9 @@ function interactive_manager() {
             screen_buffer+=$'\n'
             # The div after the header is removed since the header is underlined.
             screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height")
-            screen_buffer+="${C_GRAY}${DIV}${T_RESET}\n"
+            screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
             screen_buffer+=$(_footer_func)
-            printf '\033[H%b' "$screen_buffer"
+            printf '\033[H%b\033[J' "$screen_buffer"
 
             # --- Handle Input ---
             local key; key=$(read_single_char)
