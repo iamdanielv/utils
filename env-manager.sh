@@ -264,6 +264,25 @@ _print_menu_item() {
     fi
 }
 
+# (Private) Sanitizes a value for display by escaping control characters and truncating.
+# Modifies the variable in-place to avoid subshell overhead.
+_sanitize_and_truncate_value() {
+    local -n _val_ref="$1"
+    local max_len="$2"
+
+    _val_ref="${_val_ref:0:$((max_len + 1))}"
+
+    # Escape special characters to prevent display corruption but keep them visible
+    if [[ "$_val_ref" == *$'\n'* ]]; then _val_ref="${_val_ref//$'\n'/^J}"; fi
+    if [[ "$_val_ref" == *$'\r'* ]]; then _val_ref="${_val_ref//$'\r'/^M}"; fi
+    if [[ "$_val_ref" == *$'\t'* ]]; then _val_ref="${_val_ref//$'\t'/^I}"; fi
+    if [[ "$_val_ref" == *$'\033'* ]]; then _val_ref="${_val_ref//$'\033'/^[}"; fi
+
+    if (( ${#_val_ref} > max_len )); then
+        _val_ref="${_val_ref:0:$((max_len - 1))}…"
+    fi
+}
+
 # Draws the main list of environment variables.
 function draw_var_list() {
     local -n current_option_ref=$1
@@ -287,18 +306,9 @@ function draw_var_list() {
             else
                 local value="${ENV_VARS[$key]}"
                 local comment="${ENV_COMMENTS[$key]:-}"
-                # Give more space to the value now that comment is on its own line
-                local value_display="${value%%$'\n'*}"
-                # Escape ANSI codes to prevent display corruption but keep them visible
-                if [[ "$value_display" == *$'\033'* ]]; then
-                    value_display="${value_display//$'\033'/^[}"
-                fi
-                if [[ "$value_display" == *$'\t'* ]]; then
-                    value_display="${value_display//$'\t'/^I}"
-                fi
-                if (( ${#value_display} > 45 )); then
-                    value_display="${value_display:0:44}…"
-                fi
+                
+                local value_display="$value"
+                _sanitize_and_truncate_value value_display 45
                 
                 # Line 1: Key and Value
                 line_output=$(printf "${C_L_BLUE}%-21s${T_FG_RESET} ${C_L_CYAN}%-43s${T_FG_RESET}" "${key}" "$value_display")
@@ -586,19 +596,8 @@ function draw_sys_env_list() {
             local line_output=""
 
             local value="${SYS_ENV_VARS[$key]}"
-            # Optimization: Inline truncation to avoid subshell overhead
-            # Also ensure we only take the first line to avoid breaking layout
-            local value_display="${value%%$'\n'*}"
-            # Escape ANSI codes to prevent display corruption but keep them visible
-            if [[ "$value_display" == *$'\033'* ]]; then
-                value_display="${value_display//$'\033'/^[}"
-            fi
-            if [[ "$value_display" == *$'\t'* ]]; then
-                value_display="${value_display//$'\t'/^I}"
-            fi
-            if (( ${#value_display} > 43 )); then
-                value_display="${value_display:0:42}…"
-            fi
+            local value_display="$value"
+            _sanitize_and_truncate_value value_display 43
             
             # Check if exists in .env
             local status_indicator=" "
