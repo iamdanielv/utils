@@ -199,18 +199,16 @@ _draw_variable_editor() {
     local pending_comment="$6"
 
     # Use the combined display helper to show pending changes with an arrow.
-    local name_display; name_display=$(_get_combined_display "name" "$current_key" "$pending_key")
-    local value_display; value_display=$(_get_combined_display "value" "$current_value" "$pending_value")
-    local comment_display; comment_display=$(_get_combined_display "comment" "$current_comment" "$pending_comment")
+    local name_display; name_display=$(_get_combined_display "name" "$original_key" "$pending_key")
+    local value_display; value_display=$(_get_combined_display "value" "$original_value" "$pending_value")
+    local comment_display; comment_display=$(_get_combined_display "comment" "$original_comment" "$pending_comment")
 
     printf "${C_BLUE}┗━━${T_RESET} ${C_WHITE}${T_BOLD}${T_ULINE}Choose an option to configure:${T_RESET}\n"
     _print_menu_item "1" "Name" "$name_display"
     _print_menu_item "2" "Value" "$value_display"
     _print_menu_item "3" "Comment" "$comment_display"
-    printMsg ""
-    _print_menu_item "s" "${C_L_GREEN}(S)tage${T_RESET} changes and return"
-    _print_menu_item "c" "${C_L_YELLOW}(C)ancel/${T_RESET}discard changes"
-    printMsg "" # Add blank line before prompt.
+    printf "\n ${C_L_GREEN}(S)tage${T_RESET} | ${C_L_YELLOW}(D)iscard${T_RESET} | ${C_L_YELLOW}(Q)uit${T_RESET}"
+    printf "\n What is your choice?\n"
 }
 
 # (Private) Gets a formatted display string for a given setting value.
@@ -379,7 +377,7 @@ function edit_variable() {
     local original_key original_value original_comment
     local pending_key pending_value pending_comment
 
-    if [[ "$mode" == "edit" ]]; then
+    if [[ "$mode" == "edit" && ${#DISPLAY_ORDER[@]} -gt 0 ]]; then
         original_key="${DISPLAY_ORDER[current_option_idx_ref]}"
         # Disallow editing of comments/blank lines
         if [[ "$original_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
@@ -392,9 +390,11 @@ function edit_variable() {
         pending_key="$original_key"
         pending_value="$original_value"
         pending_comment="$original_comment"
+    else
+        mode="add" # Force add mode if list is empty
     fi
 
-    # --- Add Mode: Prompt for key first ---
+    # --- Add Mode Initialization ---
     if [[ "$mode" == "add" ]]; then
         key="NEW_VARIABLE"
         # For 'add' mode, originals are empty
@@ -405,94 +405,66 @@ function edit_variable() {
         pending_comment=""
     fi
 
-    # --- Interactive Editor Loop ---
-    local needs_redraw=true
-    while true; do
-        if [[ "$needs_redraw" == "true" ]]; then
-            clear_screen
-            printBanner "Edit Variable: ${C_L_YELLOW}${key}${C_BLUE}"
-            _draw_variable_editor "$original_key" "$pending_key" "$original_value" "$pending_value" "$original_comment" "$pending_comment"
-            printMsgNoNewline " ${T_QST_ICON} Your choice: "
-            needs_redraw=false
-        fi
-        local choice; choice=$(read_single_char)
+    # --- Define functions for the generic editor loop ---
 
-        case "$choice" in
+    _editor_draw_func() {
+        _draw_variable_editor "$original_key" "$pending_key" "$original_value" "$pending_value" "$original_comment" "$pending_comment"
+    }
+
+    _editor_field_handler() {
+        local key_pressed="$1"
+        case "$key_pressed" in
             1)
-                clear_current_line
-                # Edit Value
-                if ! prompt_for_input "New Name" pending_key "$pending_key" "false" 5; then continue; fi
+                if ! prompt_for_input "New Name" pending_key "$pending_key" "false" 4; then return 0; fi
                 if ! [[ "$pending_key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
                     show_timed_message "${T_ERR_ICON} Invalid variable name. Must be alphanumeric and start with a letter or underscore." 3
-                    pending_key="$original_key" # Revert
+                    pending_key="${key:-$original_key}" # Revert
                 elif [[ "$pending_key" != "$original_key" && -n "${ENV_VARS[$pending_key]}" ]]; then
                     show_timed_message "${T_ERR_ICON} Variable '$pending_key' already exists." 2
-                    pending_key="$original_key" # Revert
+                    pending_key="${key:-$original_key}" # Revert
                 fi
-                needs_redraw=true
-                ;;
+                return 0 ;;
             2)
-                clear_current_line
-                # Edit Value
-                prompt_for_input "New Value" pending_value "$pending_value" "true" 5
-                needs_redraw=true
-                ;;
+                prompt_for_input "New Value" pending_value "$pending_value" "true" 4
+                return 0 ;;
             3)
-                clear_current_line
-                # Edit Comment
-                prompt_for_input "New Comment" pending_comment "$pending_comment" "true" 5
-                needs_redraw=true
-                ;;
-            's'|'S')
-                # Save
-                # If the key has changed, we need to perform a rename operation.
-                if [[ "$pending_key" != "$original_key" ]]; then
-                    # Remove old entries
-                    unset "ENV_VARS[$original_key]"
-                    unset "ENV_COMMENTS[$original_key]"
-
-                    # Find the key in ENV_ORDER and replace it
-                    for i in "${!ENV_ORDER[@]}"; do
-                        if [[ "${ENV_ORDER[i]}" == "$original_key" ]]; then
-                            ENV_ORDER[i]="$pending_key"
-                            break
-                        fi
-                    done
-                    # Also update the display order array
-                    for i in "${!DISPLAY_ORDER[@]}"; do
-                        if [[ "${DISPLAY_ORDER[i]}" == "$original_key" ]]; then
-                            DISPLAY_ORDER[i]="$pending_key"
-                        fi
-                    done
-                fi
-
-                ENV_VARS["$pending_key"]="$pending_value"
-                if [[ -n "$pending_comment" ]]; then
-                    ENV_COMMENTS["$pending_key"]="$pending_comment"
-                else
-                    unset "ENV_COMMENTS[$pending_key]"
-                fi
-                if [[ "$mode" == "add" ]]; then
-                    ENV_ORDER+=("$pending_key")
-                    DISPLAY_ORDER+=("$pending_key")
-                fi
-                return 0 # Success, needs refresh
-                ;;
-            'c'|'C'|"$KEY_ESC")
-                clear_current_line
-                # Cancel
-                if [[ "$pending_key" != "$original_key" || "$pending_value" != "$original_value" || "$pending_comment" != "$original_comment" ]]; then
-                    if ! prompt_yes_no "You have unsaved changes. Discard them?" "y"; then
-                        continue # Go back to editor
-                    fi
-                fi
-                return 2 # No change
-                ;;
-            *)
-                # Invalid key, do nothing and wait for the next keypress.
-                ;;
+                prompt_for_input "New Comment" pending_comment "$pending_comment" "true" 4
+                return 0 ;;
+            *) return 1 ;; # Not handled
         esac
-    done
+    }
+
+    _editor_change_checker() {
+        if [[ "$pending_key" != "$original_key" || "$pending_value" != "$original_value" || "$pending_comment" != "$original_comment" ]]; then
+            return 0 # Has changes
+        else
+            return 1 # No changes
+        fi
+    }
+
+    _editor_reset_func() {
+        pending_key="$original_key"
+        pending_value="$original_value"
+        pending_comment="$original_comment"
+    }
+
+    local banner_text="Variable Editor: ${C_L_YELLOW}${key}${C_BLUE}"
+    if _interactive_editor_loop "$mode" "$banner_text" _editor_draw_func _editor_field_handler _editor_change_checker _editor_reset_func; then
+        # Save was chosen, apply changes
+        if [[ "$mode" == "edit" && "$pending_key" != "$original_key" ]]; then
+            unset "ENV_VARS[$original_key]"
+            unset "ENV_COMMENTS[$original_key]"
+            for i in "${!ENV_ORDER[@]}"; do [[ "${ENV_ORDER[i]}" == "$original_key" ]] && ENV_ORDER[i]="$pending_key" && break; done
+            for i in "${!DISPLAY_ORDER[@]}"; do [[ "${DISPLAY_ORDER[i]}" == "$original_key" ]] && DISPLAY_ORDER[i]="$pending_key" && break; done
+        fi
+
+        ENV_VARS["$pending_key"]="$pending_value"
+        if [[ -n "$pending_comment" ]]; then ENV_COMMENTS["$pending_key"]="$pending_comment"; else unset "ENV_COMMENTS[$pending_key]"; fi
+        if [[ "$mode" == "add" ]]; then ENV_ORDER+=("$pending_key"); DISPLAY_ORDER+=("$pending_key"); fi
+        return 0 # Success
+    else
+        return 2 # No change
+    fi
 }
 
 # Deletes the variable at the current cursor position.
@@ -836,7 +808,7 @@ function interactive_manager() {
                 # If there are no variables, treat 'edit' as 'add'.
                 local mode="edit"
                 if [[ ${num_options_ref} -eq 0 ]]; then
-                    mode="add"
+                    mode="add" # edit_variable will handle this
                 fi
 
                 local edit_result
