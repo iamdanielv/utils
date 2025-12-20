@@ -454,7 +454,8 @@ prompt_for_input() {
     # Explicitly show the cursor for the input prompt.
     printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty
 
-    local input_str="$default_val" cursor_pos=${#input_str} view_start=0 key
+    local input_str="$default_val"
+    local cursor_pos=${#input_str} view_start=0 key
 
     local icon_prefix_len; icon_prefix_len=$(strip_ansi_codes "${T_QST_ICON} " | wc -c)
     local padding; printf -v padding '%*s' "$icon_prefix_len" ""
@@ -520,10 +521,13 @@ prompt_for_input() {
         printMsgNoNewline "${C_L_CYAN}${display_str}${T_RESET}${T_CLEAR_LINE}" >/dev/tty
 
         # --- Cursor positioning ---
-        local display_cursor_pos=$(( cursor_pos - view_start )); if (( view_start > 0 )); then ((display_cursor_pos++)); fi
-        local chars_after_cursor=$(( ${#display_str} - display_cursor_pos ))
-        if (( chars_after_cursor > 0 )); then
-            printf '\033[%sD' "$chars_after_cursor" >/dev/tty
+        # Go back to the start of the editable area...
+        printf '\r\033[%sC' "$input_line_prefix_len" >/dev/tty
+        # ...then move forward to the cursor's actual position within the visible string.
+        local display_cursor_pos=$(( cursor_pos - view_start ))
+        if (( view_start > 0 )); then ((display_cursor_pos++)); fi # Account for left-side ellipsis
+        if (( display_cursor_pos > 0 )); then
+            printf '\033[%sC' "$display_cursor_pos" >/dev/tty
         fi
     }
 
