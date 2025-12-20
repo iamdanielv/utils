@@ -335,7 +335,7 @@ function draw_header() {
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
     local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen in editor${C_WHITE}"
-    local help_exit=" ${C_L_CYAN}(I)mport Sys${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
+    local help_exit=" ${C_L_YELLOW}(I)mport Sys${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
     printf " %s\n" "$help_nav"
     printf " %s\n" "$help_exit"
 
