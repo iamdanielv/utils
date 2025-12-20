@@ -620,7 +620,7 @@ function draw_sys_env_list() {
             list_content+="${item_content}"
         done
     else
-        list_content+=$(printf "  %s" "${C_GRAY}(No system variables found.)${T_CLEAR_LINE}${T_RESET}")
+        list_content+=$(printf "    %s" "${C_GRAY}(No system variables found)${T_CLEAR_LINE}${T_RESET}")
     fi
 
     # Fill blank lines
