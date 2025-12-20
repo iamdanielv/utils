@@ -1,16 +1,17 @@
 # utils 🛠️
 
-A collection of command-line utilities for SSH management, system monitoring, string generation, and Git automation.
+A collection of command-line utilities for developer setup, system administration, and automation.
 
 ## 🧠 Overview
 
 This repository contains shell scripts for:
 
 - Developer machine setup
-- SSH host and key management
-- System monitoring (temperature, user checks)
-- String generation
+- Interactive environment variable management
 - Git automation
+- Docker automation and scheduling
+- System monitoring (temperature, user checks)
+- Miscellaneous utilities (string generation, color palettes)
 
 All scripts are designed to be run in Unix-like environments.
 
@@ -18,40 +19,43 @@ All scripts are designed to be run in Unix-like environments.
 
 ### 💻 Developer Machine Setup (`setup-dev-machine.sh`)
 
-**Description:**  
+**Description:**
 Script to set up a new dev machine.
 
-- Installs essential CLI tools like `eza`, `ag` (the_silver_searcher), `net-tools`, and `lazygit`.
-- Copies the `.bash_aliases` file to the home directory.
-- Runs the `install-lazyvim.sh` script to provide a full Neovim and LazyVim environment.
+- Installs essential CLI tools like `eza`, `ag` (the_silver_searcher), `net-tools`, `micro`, and `jq`.
+- Installs the latest versions of `lazygit`, `lazydocker`, and `golang`.
+- Copies the `.bash_aliases` file from the repository to `~/.bash_aliases`.
+- Executes the `install-lazyvim.sh` script to provide a full Neovim and LazyVim environment.
 
-### 🌡️ System Temperature Monitor (`temp-monitor.sh`)
+### 🚀 LazyVim Installer (`install-lazyvim.sh`)
 
-**Description:**  
-Continuous temperature monitoring with:
+**Description:**
+A comprehensive script to automate the installation of LazyVim and all its prerequisites.
 
-- Color-coded sensor readings
-- Trend arrows (↑/↓/→) for temperature changes
-- Support for multiple thermal sensors
+- Supports Debian/Ubuntu-based Linux distributions on x86_64 architecture.
+- Installs dependencies like `ripgrep`, `fd`, and build tools.
+- Installs `fzf` from its official repository
+- Downloads, installs, and updates the latest stable Neovim AppImage
+- Installs the FiraCode Nerd Font for proper icon display
+- Sets up a custom fzf configuration in `.bashrc` for enhanced fuzzy finding
+- Backs up your existing Neovim config and sets up the LazyVim starter template
 
-### 🧑‍🤝‍🧑 User Check (`user-check.sh`)
+### 📝 Env Manager (`env-manager.sh`)
 
-**Description:**  
-Ensures the script is running as a specific user, attempting to switch with sudo if not.
+**Description:**
+An interactive TUI for managing environment variables in a `.env` file. It provides a safe and structured way to view, add, edit, and delete variables without manual text editing.
 
-- Automatically switches to target user with `sudo -u`
-
-### 🎲 Random String Generator (`random-string.sh`)
-
-**Description:**  
-Generates one or more random hexadecimal strings with configurable:
-
-- Number of strings to generate (`-n`, default: 3)
-- Length of each string (`-l`, default: 5)
+- **Interactive TUI:** A full-screen, list-based interface to manage your environment variables.
+- **Variable Management:** Add, edit, and delete variables and their associated comments.
+- **Smart Comments:** Supports special comments (`##@ VAR_NAME comment text`) that are linked to variables and preserved during edits.
+- **Safe Editing:** Automatically handles quoting for values with spaces.
+- **System Environment Import:** Interactively view and import variables from your current system environment into the `.env` file.
+- **External Editor Integration:** Quickly open the `.env` file in your default editor (`$EDITOR`).
+- **Automatic Discovery:** Finds and edits the `.env` file in the project root by default, or you can specify a path.
 
 ### 🧾 Git Utilities (`git-utils.sh`)
 
-**Description:**  
+**Description:**
 Recursively performs Git commands on the current directory and all subdirectories that are Git repositories.
 
 - Check status of all repos (`-gs`)
@@ -60,7 +64,6 @@ Recursively performs Git commands on the current directory and all subdirectorie
 - Switch all repos to a specific branch (`-gb <branch>`)
 
 ### 🐳 Docker Compose Autoscaler (`docker-autoscale.sh`)
-
 
 **Description:**
 Utility to automatically scale a Docker Compose service up or down based on resource utilization. It can run as a sidecar container and monitor the target service or on the host.
@@ -199,41 +202,39 @@ services:
 2.  Run `PROJECT_NAME=$(basename "$PWD") docker compose up scheduler`.
 3.  Watch the logs from the `scheduler` container. You will see it discover the two tasks and start running them based on their defined schedules, streaming their output in real-time.
 
+### 🌡️ System Temperature Monitor (`temp-monitor.sh`)
+
+**Description:**
+Continuously displays temperatures from system thermal sensors.
+
+- Color-coded sensor readings (green/yellow/red).
+- Trend arrows (↑/↓/→) show change against a moving average.
+- Supports multiple thermal sensors.
+- Configurable refresh interval (`-i`), temperature delta (`-d`), and averaging count (`-a`).
+
+### 🧑‍🤝‍🧑 User Check (`user-check.sh`)
+
+**Description:**
+Ensures the script is running as a specific user, attempting to switch with sudo if not.
+
+- Automatically switches to target user with `sudo -u`.
+
+### 🎲 Random String Generator (`random-string.sh`)
+
+**Description:**
+Generates one or more random hexadecimal strings with configurable:
+
+- Number of strings to generate (`-n`, default: 3).
+- Length of each string (`-l`, default: 5).
 
 ### 🎨 Color Palette Viewer (`colors.sh`)
 
-**Description:**  
+**Description:**
 A utility to display all 256 terminal colors for both foreground and background.
 
-- Helps in choosing colors for shell scripts and TUIs
-- Can display colors as numbers or solid blocks (`-b` flag)
-- Supports foreground (`-g fg`) and background (`-g bg`) modes
-
-### 🔑 SSH Manager (`ssh-manager.sh`)
-
-**Description:**  
-An interactive TUI for managing and connecting to SSH hosts defined in `~/.ssh/config`.
-
-- Connect, test, add, edit, rename, clone, reorder, and remove hosts
-- Generate new SSH keys and copy them to servers
-- Backup, import, and export host configurations
-- Bypass menus for quick actions:
-  - `-c, --connect`: Directly connect to a host
-  - `-a, --add`: Directly add a new host
-  - `-t, --test [host|all]`: Test connection to one or all hosts
-
-### 🚀 LazyVim Installer (`install-lazyvim.sh`)
-
-**Description:**  
-A comprehensive script to automate the installation of LazyVim and all its prerequisites.
-
-- Supports Debian/Ubuntu-based Linux distributions on x86_64 architecture.
-- Installs dependencies like `ripgrep`, `fd`, and build tools
-- Installs `fzf` from its official repository
-- Downloads, installs, and updates the latest stable Neovim AppImage
-- Installs the FiraCode Nerd Font for proper icon display
-- Sets up a custom fzf configuration in `.bashrc` for enhanced fuzzy finding
-- Backs up your existing Neovim config and sets up the LazyVim starter template
+- Helps in choosing colors for shell scripts and TUIs.
+- Can display colors as numbers or solid blocks (`-b` flag).
+- Supports foreground (`-g fg`) and background (`-g bg`) modes.
 
 ## 🤝 Contributing
 
