@@ -281,6 +281,40 @@ _sanitize_and_truncate_value() {
     fi
 }
 
+# (Private) Generates a color preview block if the value is an ANSI color code.
+# Usage: _get_color_preview_string <value> <is_current> color_preview_ref preview_len_ref
+_get_color_preview_string() {
+    local value="$1"
+    local is_current="$2"
+    local -n color_preview_ref="$3"
+    local -n preview_len_ref="$4"
+
+    local esc=$'\033'
+    local ansi_color_pattern="^$esc\\[[0-9;]*m$"
+    if [[ "$value" =~ $ansi_color_pattern ]]; then
+        local display_code="$value"
+        local inner="${value#*$esc[}"
+        inner="${inner%m}"
+        local -a code_arr
+        IFS=';' read -ra code_arr <<< "$inner"
+        local is_bg_color=false
+        for code in "${code_arr[@]}"; do
+            if [[ "$code" =~ ^(4[0-9]|10[0-9]|48)$ ]]; then
+                is_bg_color=true
+                break
+            fi
+        done
+
+        if [[ "$is_bg_color" == "true" && "$is_current" != "true" ]]; then
+            display_code="${value}${T_REVERSE}"
+        elif [[ "$is_bg_color" == "false" && "$is_current" == "true" ]]; then
+            display_code="\033[27m${value}" # ANSI "Not Reversed"
+        fi
+        color_preview_ref=$(printf "   %s██%s" "$display_code" "$T_RESET")
+        preview_len_ref=5 # Visible length of "   ██"
+    fi
+}
+
 # Draws the main list of environment variables.
 function draw_var_list() {
     local -n current_option_ref=$1
@@ -305,11 +339,20 @@ function draw_var_list() {
                 local value="${ENV_VARS[$key]}"
                 local comment="${ENV_COMMENTS[$key]:-}"
                 
-                local value_display="$value"
-                _sanitize_and_truncate_value value_display 45
+                local color_preview=""
+                local preview_visible_len=0
+                _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
+
+                local max_len=$(( 43 - preview_visible_len ))
+                local value_display_sanitized
+                value_display_sanitized="$value"
+                _sanitize_and_truncate_value value_display_sanitized "$max_len"
+                local final_display="${value_display_sanitized}${color_preview}"
                 
                 # Line 1: Key and Value
-                line_output=$(printf "${C_L_BLUE}%-21s${T_FG_RESET} ${C_L_CYAN}%-43s${T_FG_RESET}" "${key}" "$value_display")
+                local visible_len=$(( ${#value_display_sanitized} + preview_visible_len ))
+                local padding_needed=$(( 43 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
+                line_output=$(printf "${C_L_BLUE}%-21s${T_FG_RESET} ${C_L_CYAN}%s%*s${T_FG_RESET}" "${key}" "$final_display" "$padding_needed" "")
 
                 # Line 2: Comment (if it exists)
                 if [[ -n "$comment" ]]; then
@@ -570,8 +613,15 @@ function draw_sys_env_list() {
             local line_output=""
 
             local value="${SYS_ENV_VARS[$key]}"
-            local value_display="$value"
-            _sanitize_and_truncate_value value_display 43
+            local color_preview=""
+            local preview_visible_len=0
+            _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
+
+            local max_len=$(( 43 - preview_visible_len ))
+            local value_display_sanitized
+            value_display_sanitized="$value"
+            _sanitize_and_truncate_value value_display_sanitized "$max_len"
+            local final_display="${value_display_sanitized}${color_preview}"
             
             # Check if exists in .env
             local status_indicator=" "
@@ -584,7 +634,9 @@ function draw_sys_env_list() {
                 key_display="${key_display:0:19}…"
             fi
 
-            line_output=$(printf "%b${C_L_CYAN}%-20s${T_FG_RESET} ${C_L_WHITE}%-43s${T_FG_RESET}" "$status_indicator" "${key_display}" "$value_display")
+            local visible_len=$(( ${#value_display_sanitized} + preview_visible_len ))
+            local padding_needed=$(( 43 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
+            line_output=$(printf "%b${C_L_CYAN}%-20s${T_FG_RESET} ${C_L_WHITE}%s%*s${T_FG_RESET}" "$status_indicator" "${key_display}" "$final_display" "$padding_needed" "")
 
             local item_content=""
             _draw_menu_item "$is_current" "false" "false" "$line_output" item_content
