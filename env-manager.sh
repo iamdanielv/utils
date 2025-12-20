@@ -288,7 +288,17 @@ function draw_var_list() {
                 local value="${ENV_VARS[$key]}"
                 local comment="${ENV_COMMENTS[$key]:-}"
                 # Give more space to the value now that comment is on its own line
-                local value_display; value_display=$(_truncate_string "${value}" 45)
+                local value_display="${value%%$'\n'*}"
+                # Escape ANSI codes to prevent display corruption but keep them visible
+                if [[ "$value_display" == *$'\033'* ]]; then
+                    value_display="${value_display//$'\033'/^[}"
+                fi
+                if [[ "$value_display" == *$'\t'* ]]; then
+                    value_display="${value_display//$'\t'/^I}"
+                fi
+                if (( ${#value_display} > 45 )); then
+                    value_display="${value_display:0:44}…"
+                fi
                 
                 # Line 1: Key and Value
                 line_output=$(printf "${C_L_BLUE}%-21s${T_FG_RESET} ${C_L_CYAN}%-43s${T_FG_RESET}" "${key}" "$value_display")
@@ -579,14 +589,12 @@ function draw_sys_env_list() {
             # Optimization: Inline truncation to avoid subshell overhead
             # Also ensure we only take the first line to avoid breaking layout
             local value_display="${value%%$'\n'*}"
-            # Strip ANSI codes to prevent display corruption
+            # Escape ANSI codes to prevent display corruption but keep them visible
             if [[ "$value_display" == *$'\033'* ]]; then
-                local esc=$'\033'
-                local ansi_pattern="$esc\\[[0-9;]*[a-zA-Z]"
-                while [[ "$value_display" =~ $ansi_pattern ]]; do
-                    value_display="${value_display/${BASH_REMATCH[0]}/}"
-                done
-                value_display="${value_display//$esc/}"
+                value_display="${value_display//$'\033'/^[}"
+            fi
+            if [[ "$value_display" == *$'\t'* ]]; then
+                value_display="${value_display//$'\t'/^I}"
             fi
             if (( ${#value_display} > 43 )); then
                 value_display="${value_display:0:42}…"
