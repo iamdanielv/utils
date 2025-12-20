@@ -853,9 +853,30 @@ function interactive_manager() {
                 fi
                 ;;
             'o'|'O')
-                if _launch_editor_for_file; then
-                    # After editor closes, force a re-parse and redraw
-                    handler_result_ref="refresh_data"
+                local proceed=true
+                if _has_pending_changes; then
+                    clear_current_line
+                    clear_lines_up 2
+                    prompt_yes_no "You have unsaved changes. Save before opening editor?" "y"
+                    local ret=$?
+                    if [[ $ret -eq 0 ]]; then
+                        if ! save_env_file "$FILE_PATH"; then
+                            proceed=false
+                            handler_result_ref="redraw"
+                        fi
+                    elif [[ $ret -eq 2 ]]; then
+                        proceed=false
+                        handler_result_ref="redraw"
+                    fi
+                fi
+
+                if [[ "$proceed" == "true" ]]; then
+                    if _launch_editor_for_file; then
+                        # After editor closes, force a re-parse and redraw
+                        handler_result_ref="refresh_data"
+                    else
+                        handler_result_ref="redraw"
+                    fi
                 fi
                 ;;
             'i'|'I')
