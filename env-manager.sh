@@ -355,7 +355,7 @@ function draw_header() {
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
     local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen in editor${C_WHITE}"
-    local help_exit=" ${C_L_YELLOW}(I)mport Sys${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
+    local help_exit=" ${C_L_GREEN}(I)mport Sys${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
     printf " %s${T_CLEAR_LINE}\n" "$help_nav"
     printf " %s${T_CLEAR_LINE}\n" "$help_exit"
 
@@ -560,6 +560,7 @@ _launch_editor_for_file() {
 
 declare -A SYS_ENV_VARS
 declare -a SYS_ENV_ORDER
+declare -a SYS_ENV_DISPLAY_ORDER
 
 # Loads system environment variables into global arrays.
 function load_system_env() {
@@ -576,6 +577,7 @@ function load_system_env() {
         SYS_ENV_VARS["$name"]="${!name}"
         SYS_ENV_ORDER+=("$name")
     done
+    SYS_ENV_DISPLAY_ORDER=("${SYS_ENV_ORDER[@]}")
 }
 
 # Draws the list of system environment variables.
@@ -587,11 +589,11 @@ function draw_sys_env_list() {
     local list_content=""
     local start_index=$list_offset_ref
     local end_index=$(( list_offset_ref + viewport_height - 1 ))
-    if (( end_index >= ${#SYS_ENV_ORDER[@]} )); then end_index=$(( ${#SYS_ENV_ORDER[@]} - 1 )); fi
+    if (( end_index >= ${#SYS_ENV_DISPLAY_ORDER[@]} )); then end_index=$(( ${#SYS_ENV_DISPLAY_ORDER[@]} - 1 )); fi
 
-    if [[ ${#SYS_ENV_ORDER[@]} -gt 0 ]]; then
+    if [[ ${#SYS_ENV_DISPLAY_ORDER[@]} -gt 0 ]]; then
         for (( i=start_index; i<=end_index; i++ )); do
-            local key="${SYS_ENV_ORDER[i]}"
+            local key="${SYS_ENV_DISPLAY_ORDER[i]}"
             local is_current="false"; if (( i == current_option_ref )); then is_current="true"; fi
             local line_output=""
 
@@ -623,10 +625,10 @@ function draw_sys_env_list() {
 
     # Fill blank lines
     local list_draw_height=0
-    if [[ ${#SYS_ENV_ORDER[@]} -gt 0 ]]; then
+    if [[ ${#SYS_ENV_DISPLAY_ORDER[@]} -gt 0 ]]; then
         list_draw_height=$(( end_index - start_index + 1 ))
     fi
-    if (( ${#SYS_ENV_ORDER[@]} <= 0 )); then list_draw_height=1; fi
+    if (( ${#SYS_ENV_DISPLAY_ORDER[@]} <= 0 )); then list_draw_height=1; fi
     local lines_to_fill=$(( viewport_height - list_draw_height ))
     if (( lines_to_fill > 0 )); then
         for ((j=0; j<lines_to_fill; j++)); do list_content+=$(printf '\n%s' "${T_CLEAR_LINE}"); done
@@ -640,11 +642,28 @@ function system_env_manager() {
     load_system_env
     local current_option=0
     local list_offset=0
+    local search_query=""
+
+    _apply_filter() {
+        if [[ -z "$search_query" ]]; then
+            SYS_ENV_DISPLAY_ORDER=("${SYS_ENV_ORDER[@]}")
+        else
+            SYS_ENV_DISPLAY_ORDER=()
+            for key in "${SYS_ENV_ORDER[@]}"; do
+                local val="${SYS_ENV_VARS[$key]}"
+                if [[ "${key,,}" == *"${search_query,,}"* ]] || [[ "${val,,}" == *"${search_query,,}"* ]]; then
+                    SYS_ENV_DISPLAY_ORDER+=("$key")
+                fi
+            done
+        fi
+    }
 
     # Helper for viewport
     _sys_viewport_calc() {
         local term_height; term_height=$(tput lines)
-        echo $(( term_height - 5 ))
+        local extra=5
+        if [[ -n "$search_query" ]]; then extra=6; fi
+        echo $(( term_height - extra ))
     }
 
     printMsgNoNewline "${T_CURSOR_HIDE}"
@@ -655,7 +674,7 @@ function system_env_manager() {
 
     while true; do
         viewport_height=$(_sys_viewport_calc)
-        local num_options=${#SYS_ENV_ORDER[@]}
+        local num_options=${#SYS_ENV_DISPLAY_ORDER[@]}
 
         # Scroll logic
         if (( current_option >= list_offset + viewport_height )); then list_offset=$(( current_option - viewport_height + 1 )); fi
@@ -674,8 +693,11 @@ function system_env_manager() {
         screen_buffer+=$'\n'
         screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
         
-        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_YELLOW}(I)mport${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
+        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
         screen_buffer+=$(printf " %s${T_CLEAR_LINE}\n ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env${T_CLEAR_LINE}" "$help_nav")
+        if [[ -n "$search_query" ]]; then
+             screen_buffer+=$(printf "\n ${T_INFO_ICON} Filter: ${C_L_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
+        fi
         
         printf '\033[H%b' "$screen_buffer"
 
@@ -693,9 +715,26 @@ function system_env_manager() {
             'q'|'Q'|"$KEY_ESC"|"$KEY_LEFT")
                 break
                 ;;
+            '/')
+                # To create an inline prompt, we manually clear the footer area
+                # and then call prompt_for_input, telling it how many lines to occupy
+                # so it doesn't clear the whole screen.
+                local footer_height=2
+                if [[ -n "$search_query" ]]; then footer_height=3; fi
+                move_cursor_up "$((footer_height - 1))"
+                printf '\033[J' >/dev/tty # Clear from cursor to end of screen
+
+                local new_query="$search_query"
+                if prompt_for_input "Filter variables" new_query "$search_query" "true" "$footer_height"; then
+                    search_query="$new_query"
+                    _apply_filter
+                    current_option=0
+                    list_offset=0
+                fi
+                ;;
             'i'|'I')
-                if [[ ${#SYS_ENV_ORDER[@]} -eq 0 ]]; then continue; fi
-                local selected_key="${SYS_ENV_ORDER[current_option]}"
+                if [[ ${#SYS_ENV_DISPLAY_ORDER[@]} -eq 0 ]]; then continue; fi
+                local selected_key="${SYS_ENV_DISPLAY_ORDER[current_option]}"
                 local selected_value="${SYS_ENV_VARS[$selected_key]}"
                 
                 local do_import=true
