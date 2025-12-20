@@ -667,7 +667,7 @@ function system_env_manager() {
         screen_buffer+=$'\n'
         screen_buffer+="${C_GRAY}${DIV}${T_RESET}\n"
         
-        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(Enter) Import${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
+        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_YELLOW}(I)mport${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
         screen_buffer+=$(printf " %s\n ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env${T_CLEAR_LINE}" "$help_nav")
         
         printf '\033[H%b' "$screen_buffer"
@@ -686,8 +686,7 @@ function system_env_manager() {
             'q'|'Q'|"$KEY_ESC"|"$KEY_LEFT")
                 break
                 ;;
-            ''|'i'|'I')
-                # Enter or I
+            'i'|'I')
                 if [[ ${#SYS_ENV_ORDER[@]} -eq 0 ]]; then continue; fi
                 local selected_key="${SYS_ENV_ORDER[current_option]}"
                 local selected_value="${SYS_ENV_VARS[$selected_key]}"
@@ -698,6 +697,7 @@ function system_env_manager() {
                     clear_lines_up 1
                     if ! prompt_yes_no "Variable '$selected_key' exists. Overwrite?" "n"; then
                         do_import=false
+                        echo -e "\n"
                     fi
                 fi
                 
@@ -712,8 +712,9 @@ function system_env_manager() {
                         ENV_ORDER+=("$selected_key")
                         DISPLAY_ORDER+=("$selected_key")
                     fi
-                    
-                    show_timed_message "${T_OK_ICON} Imported '$selected_key'." 1
+                    clear_current_line
+                    clear_lines_up 1
+                    show_timed_message "${T_OK_ICON} Imported '$selected_key'" 1
                 fi
                 ;;
         esac
