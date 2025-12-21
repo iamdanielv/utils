@@ -181,6 +181,7 @@ function show_help() {
 
     printMsg "\n${T_ULINE}Options:${T_RESET}"
     printMsg "  ${C_L_BLUE}-h, --help${T_RESET}      Show this help message."
+    printMsg "  ${C_L_BLUE}-H, --hide-values${T_RESET}   Hide variable values on startup."
 
     printMsg "\n${T_ULINE}Examples:${T_RESET}"
     printMsg "  ${C_GRAY}# Edit the root .env file${T_RESET}"
@@ -1031,15 +1032,25 @@ function interactive_manager() {
 
 main() {
     # --- Argument Parsing ---
-    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-        show_help
-        exit 0
-    fi
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -H|--hide-values)
+                SHOW_VALUES="false"
+                shift
+                ;;
+            *)
+                FILE_PATH="$1"
+                shift
+                ;;
+        esac
+    done
 
-    # Determine the target .env file
-    if [[ -n "$1" ]]; then
-        FILE_PATH="$1"
-    else
+    # Determine the target .env file if not set
+    if [[ -z "$FILE_PATH" ]]; then
         if _find_project_root; then
             FILE_PATH="${_PROJECT_ROOT}/.env"
         else
