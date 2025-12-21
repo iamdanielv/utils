@@ -21,7 +21,7 @@ fi
 declare -A ENV_VARS # Associative array to hold variable values
 declare -A ENV_COMMENTS # Associative array to hold comments
 declare -a ENV_ORDER # Array to maintain the original order of variables
-declare -a DISPLAY_ORDER # Filtered array for TUI display (only real variables)
+declare -a DISPLAY_ORDER # Filtered array for TUI display
 
 FILE_PATH="" # Path to the .env file being edited
 ERROR_MESSAGE="" # Holds the current validation error message
@@ -87,7 +87,6 @@ function parse_env_file() {
 
             ENV_VARS["$key"]="$value"
             ENV_ORDER+=("$key")
-            DISPLAY_ORDER+=("$key")
         else
             ERROR_MESSAGE="Validation Error: Invalid format on line $line_num: '$line'"
             return 1
@@ -403,7 +402,7 @@ function draw_header() {
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
     local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen${C_WHITE}"
-    local help_exit=" ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(V)alues${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
+    local help_exit=" ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(V)alues${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
     printf " %s${T_CLEAR_LINE}\n" "$help_nav"
     printf " %s${T_CLEAR_LINE}\n" "$help_exit"
 
@@ -505,12 +504,11 @@ function edit_variable() {
             unset "ENV_VARS[$original_key]"
             unset "ENV_COMMENTS[$original_key]"
             for i in "${!ENV_ORDER[@]}"; do [[ "${ENV_ORDER[i]}" == "$original_key" ]] && ENV_ORDER[i]="$pending_key" && break; done
-            for i in "${!DISPLAY_ORDER[@]}"; do [[ "${DISPLAY_ORDER[i]}" == "$original_key" ]] && DISPLAY_ORDER[i]="$pending_key" && break; done
         fi
 
         ENV_VARS["$pending_key"]="$pending_value"
         if [[ -n "$pending_comment" ]]; then ENV_COMMENTS["$pending_key"]="$pending_comment"; else unset "ENV_COMMENTS[$pending_key]"; fi
-        if [[ "$mode" == "add" ]]; then ENV_ORDER+=("$pending_key"); DISPLAY_ORDER+=("$pending_key"); fi
+        if [[ "$mode" == "add" ]]; then ENV_ORDER+=("$pending_key"); fi
         return 0 # Success
     else
         return 2 # No change
@@ -541,19 +539,6 @@ function delete_variable() {
             fi
         done
         ENV_ORDER=("${new_env_order[@]}")
-
-        local new_display_order=()
-        for item in "${DISPLAY_ORDER[@]}"; do
-            if [[ "$item" != "$key_to_delete" ]]; then
-                new_display_order+=("$item")
-            fi
-        done
-        DISPLAY_ORDER=("${new_display_order[@]}")
-
-        # Adjust cursor if we deleted the last item
-        if (( current_option_idx_ref >= ${#DISPLAY_ORDER[@]} && ${#DISPLAY_ORDER[@]} > 0 )); then
-            current_option_idx_ref=$(( ${#DISPLAY_ORDER[@]} - 1 ))
-        fi
 
         return 0 # Needs refresh
     fi
@@ -828,6 +813,24 @@ SHOW_VALUES=true
 function interactive_manager() {
     local current_option=0
     local list_offset=0
+    local search_query=""
+
+    _apply_filter() {
+        DISPLAY_ORDER=()
+        if [[ -z "$search_query" ]]; then
+            # No filter, show all items from ENV_ORDER
+            DISPLAY_ORDER=("${ENV_ORDER[@]}")
+        else
+            # Filter is active, only show matching variables
+            for key in "${ENV_ORDER[@]}"; do
+                if [[ "$key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then continue; fi
+                local val="${ENV_VARS[$key]}"
+                if [[ "${key,,}" == *"${search_query,,}"* ]] || [[ "${val,,}" == *"${search_query,,}"* ]]; then
+                    DISPLAY_ORDER+=("$key")
+                fi
+            done
+        fi
+    }
 
     # --- TUI Helper Functions ---
     _header_func() { draw_header; }
@@ -840,8 +843,10 @@ function interactive_manager() {
     _viewport_calc_func() {
         # Calculate available height for the list
         local term_height; term_height=$(tput lines)
-        # banner(1) + header(1) + list(...) + div(1) + footer(3)
-        echo $(( term_height - 6 ))
+        # banner(1) + header(1) + list(...) + div(1) + footer(3) + filter_status(1 if active)
+        local extra=6
+        if [[ -n "$search_query" ]]; then extra=7; fi
+        echo $(( term_height - extra ))
     }
 
     # --- Key Handler ---
@@ -943,6 +948,21 @@ function interactive_manager() {
                 if [[ "$SHOW_VALUES" == "true" ]]; then SHOW_VALUES="false"; else SHOW_VALUES="true"; fi
                 handler_result_ref="redraw"
                 ;;
+            '/')
+                local footer_height=3
+                if [[ -n "$search_query" ]]; then footer_height=4; fi
+                move_cursor_up "$((footer_height - 1))"
+                printf '\033[J' >/dev/tty # Clear from cursor to end of screen
+
+                local new_query="$search_query"
+                if prompt_for_input "Filter variables" new_query "$search_query" "true" "1"; then
+                    search_query="$new_query"
+                    handler_result_ref="refresh_data"
+                else
+                    # User cancelled, just redraw to clean up the prompt area
+                    handler_result_ref="redraw"
+                fi
+                ;;
             *)
                 handler_result_ref="noop"
                 ;;
@@ -955,6 +975,9 @@ function interactive_manager() {
     printMsgNoNewline "${T_CURSOR_HIDE}"
     # The global EXIT trap in tui.lib.sh will handle showing the cursor.
     local viewport_height
+
+    _apply_filter # Initial population of DISPLAY_ORDER
+
     local _tui_resized=0
     trap '_tui_resized=1' WINCH
     while true; do
@@ -984,6 +1007,9 @@ function interactive_manager() {
             screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
             screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
             screen_buffer+=$(_footer_func)
+            if [[ -n "$search_query" ]]; then
+                 screen_buffer+=$(printf "\n ${T_INFO_ICON} Filter: ${C_L_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
+            fi
             printf '\033[H%b\033[J' "$screen_buffer"
 
             # --- Handle Input ---
@@ -1017,12 +1043,15 @@ function interactive_manager() {
                 break
             elif [[ "$handler_result" == "refresh_data" ]]; then
                 # After a save, we re-parse the file to get a clean state.
-                # For other actions like 'add' or 'delete', the state is already
-                # updated in memory, so we just need to redraw. A manual edit needs a re-parse.
                 if [[ "$key" == "s" || "$key" == "S" || "$key" == "o" || "$key" == "O" ]]; then
                     parse_env_file "$FILE_PATH"
                 fi
-                # Loop will redraw
+                # For any data change (add, edit, delete, save, filter), we rebuild the display list.
+                _apply_filter
+                # After filtering, the list size may change, so reset cursor.
+                if (( current_option >= ${#DISPLAY_ORDER[@]} )); then current_option=$(( ${#DISPLAY_ORDER[@]} - 1 )); fi
+                if (( current_option < 0 )); then current_option=0; fi
+                # The main loop will handle redrawing.
             fi
         done
     clear
