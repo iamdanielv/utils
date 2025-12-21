@@ -718,7 +718,7 @@ function system_env_manager() {
         screen_buffer+=$'\n'
         screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
         
-        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
+        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(I) Toggle${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
         local info_line=" ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env"
         if [[ -n "$status_msg" ]]; then
             info_line=" $status_msg"
@@ -767,28 +767,37 @@ function system_env_manager() {
                 if [[ ${#SYS_ENV_DISPLAY_ORDER[@]} -eq 0 ]]; then continue; fi
                 local selected_key="${SYS_ENV_DISPLAY_ORDER[current_option]}"
                 local selected_value="${SYS_ENV_VARS[$selected_key]}"
-                
-                local do_import=true
+
                 if [[ -n "${ENV_VARS[$selected_key]+x}" ]]; then
+                    # Variable exists, this is a destructive action (removal). Ask for confirmation.
                     clear_current_line
-                    clear_lines_up 1
-                    if ! prompt_yes_no "Variable '$selected_key' exists. Overwrite?" "n"; then
-                        do_import=false
-                        echo -e "\n"
+                    prompt_yes_no "'${C_L_BLUE}${selected_key}${T_RESET}' already exists. Remove it from .env?" "y"
+                    local prompt_ret=$?
+
+                    if [[ $prompt_ret -eq 0 ]]; then # Yes, remove it
+                        unset "ENV_VARS[$selected_key]"
+                        unset "ENV_COMMENTS[$selected_key]"
+
+                        # Rebuild arrays to remove the key
+                        local new_order=()
+                        local new_display=()
+                        for k in "${ENV_ORDER[@]}"; do [[ "$k" != "$selected_key" ]] && new_order+=("$k"); done
+                        for k in "${DISPLAY_ORDER[@]}"; do [[ "$k" != "$selected_key" ]] && new_display+=("$k"); done
+                        ENV_ORDER=("${new_order[@]}")
+                        DISPLAY_ORDER=("${new_display[@]}")
+
+                        status_msg="${T_OK_ICON} Removed '${C_L_BLUE}${selected_key}${T_RESET}'"
+                    elif [[ $prompt_ret -eq 1 ]]; then # No
+                        status_msg="${T_INFO_ICON} Action cancelled for '${C_L_BLUE}${selected_key}${T_RESET}'."
                     fi
-                fi
-                
-                if [[ "$do_import" == "true" ]]; then
+                    # On cancel (ret=2), prompt_yes_no shows a timed message, so we do nothing.
+                else
+                    # Variable does not exist, import it (toggle on) - non-destructive
                     ENV_VARS["$selected_key"]="$selected_value"
                     ENV_COMMENTS["$selected_key"]="Imported from system"
-                    
-                    # Add to order if not exists
-                    local exists_in_order=false
-                    for k in "${ENV_ORDER[@]}"; do [[ "$k" == "$selected_key" ]] && exists_in_order=true && break; done
-                    if [[ "$exists_in_order" == "false" ]]; then
-                        ENV_ORDER+=("$selected_key")
-                        DISPLAY_ORDER+=("$selected_key")
-                    fi
+
+                    ENV_ORDER+=("$selected_key")
+                    DISPLAY_ORDER+=("$selected_key")
                     status_msg="${T_OK_ICON} Imported '${C_L_BLUE}${selected_key}${T_RESET}'"
                 fi
                 ;;
