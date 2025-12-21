@@ -320,6 +320,7 @@ function draw_var_list() {
     local -n current_option_ref=$1
     local -n list_offset_ref=$2
     local viewport_height=$3
+    local show_values="${4:-true}"
 
     local list_content=""
     local start_index=$list_offset_ref
@@ -341,7 +342,12 @@ function draw_var_list() {
                 
                 local color_preview=""
                 local preview_visible_len=0
-                _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
+
+                if [[ "$show_values" == "false" ]]; then
+                    value="*****"
+                else
+                    _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
+                fi
 
                 local max_len=$(( 43 - preview_visible_len ))
                 local value_display_sanitized
@@ -395,8 +401,8 @@ function draw_header() {
 
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
-    local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen in editor${C_WHITE}"
-    local help_exit=" ${C_L_GREEN}(I)mport Sys${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
+    local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen${C_WHITE}"
+    local help_exit=" ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(V)alues${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
     printf " %s${T_CLEAR_LINE}\n" "$help_nav"
     printf " %s${T_CLEAR_LINE}\n" "$help_exit"
 
@@ -810,6 +816,7 @@ function system_env_manager() {
 function interactive_manager() {
     local current_option=0
     local list_offset=0
+    local show_values=true
 
     # --- TUI Helper Functions ---
     _header_func() { draw_header; }
@@ -921,6 +928,10 @@ function interactive_manager() {
                 system_env_manager
                 handler_result_ref="redraw"
                 ;;
+            'v'|'V')
+                if [[ "$show_values" == "true" ]]; then show_values="false"; else show_values="true"; fi
+                handler_result_ref="redraw"
+                ;;
             *)
                 handler_result_ref="noop"
                 ;;
@@ -930,15 +941,12 @@ function interactive_manager() {
     # --- Custom List View Loop ---
     # This is a simplified version of _interactive_list_view from tui.lib.sh
     # to better handle local state management.
-    (
-        printMsgNoNewline "${T_CURSOR_HIDE}"
-        trap 'printMsgNoNewline "${T_CURSOR_SHOW}"' EXIT
-
-        local viewport_height
-        local _tui_resized=0
-        trap '_tui_resized=1' WINCH
-
-        while true; do
+    printMsgNoNewline "${T_CURSOR_HIDE}"
+    # The global EXIT trap in tui.lib.sh will handle showing the cursor.
+    local viewport_height
+    local _tui_resized=0
+    trap '_tui_resized=1' WINCH
+    while true; do
             # --- Recalculate and Redraw ---
             viewport_height=$(_viewport_calc_func)
             num_options=${#DISPLAY_ORDER[@]}
@@ -962,7 +970,7 @@ function interactive_manager() {
             screen_buffer+=$(_header_func)
             screen_buffer+=$'\n'
             # The div after the header is removed since the header is underlined.
-            screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height")
+            screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height" "$show_values")
             screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
             screen_buffer+=$(_footer_func)
             printf '\033[H%b\033[J' "$screen_buffer"
@@ -1006,7 +1014,6 @@ function interactive_manager() {
                 # Loop will redraw
             fi
         done
-    )
     clear
 }
 
