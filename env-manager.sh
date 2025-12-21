@@ -667,6 +667,7 @@ function system_env_manager() {
     local current_option=0
     local list_offset=0
     local search_query=""
+    local status_msg=""
 
     _apply_filter() {
         if [[ -z "$search_query" ]]; then
@@ -718,7 +719,13 @@ function system_env_manager() {
         screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
         
         local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
-        screen_buffer+=$(printf " %s${T_CLEAR_LINE}\n ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env${T_CLEAR_LINE}" "$help_nav")
+        local info_line=" ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env"
+        if [[ -n "$status_msg" ]]; then
+            info_line=" $status_msg"
+            status_msg=""
+        fi
+        screen_buffer+=$(printf " %s${T_CLEAR_LINE}\n%s${T_CLEAR_LINE}" "$help_nav" "$info_line")
+
         if [[ -n "$search_query" ]]; then
              screen_buffer+=$(printf "\n ${T_INFO_ICON} Filter: ${C_L_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
         fi
@@ -782,9 +789,7 @@ function system_env_manager() {
                         ENV_ORDER+=("$selected_key")
                         DISPLAY_ORDER+=("$selected_key")
                     fi
-                    clear_current_line
-                    clear_lines_up 1
-                    show_timed_message "${T_OK_ICON} Imported '$selected_key'" 1
+                    status_msg="${T_OK_ICON} Imported '${C_L_BLUE}${selected_key}${T_RESET}'"
                 fi
                 ;;
         esac
