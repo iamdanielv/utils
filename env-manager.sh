@@ -401,8 +401,8 @@ function draw_header() {
 
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
-    local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_MAGENTA}(O)pen${C_WHITE}"
-    local help_exit=" ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(V)alues${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
+    local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_YELLOW}(C)lone${C_WHITE}"
+    local help_exit=" ${C_L_MAGENTA}(O)pen${C_WHITE} | ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(V)alues${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
     printf " %s${T_CLEAR_LINE}\n" "$help_nav"
     printf " %s${T_CLEAR_LINE}\n" "$help_exit"
 
@@ -421,12 +421,16 @@ function draw_footer() {
 function edit_variable() {
     local -n current_option_idx_ref=$1
     local mode="$2" # "add" or "edit"
+    # Optional arguments for pre-populating 'add' mode (used for cloning)
+    local initial_key="${3:-}"
+    local initial_value="${4:-}"
+    local initial_comment="${5:-}"
 
     local key value comment
     local original_key original_value original_comment
     local pending_key pending_value pending_comment
 
-    if [[ "$mode" == "edit" && ${#DISPLAY_ORDER[@]} -gt 0 ]]; then
+    if [[ "$mode" == "edit" ]] && [[ ${#DISPLAY_ORDER[@]} -gt 0 ]]; then
         original_key="${DISPLAY_ORDER[current_option_idx_ref]}"
         # Disallow editing of comments/blank lines
         if [[ "$original_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
@@ -445,13 +449,13 @@ function edit_variable() {
 
     # --- Add Mode Initialization ---
     if [[ "$mode" == "add" ]]; then
-        key="NEW_VARIABLE"
+        key="${initial_key:-NEW_VARIABLE}"
         # For 'add' mode, originals are empty
         original_value=""
-        pending_key="NEW_VARIABLE"
+        pending_key="${initial_key:-NEW_VARIABLE}"
         original_comment=""
-        pending_value=""
-        pending_comment=""
+        pending_value="${initial_value:-}"
+        pending_comment="${initial_comment:-}"
     fi
 
     # --- Define functions for the generic editor loop ---
@@ -890,8 +894,11 @@ function interactive_manager() {
                 local edit_result
                 edit_variable current_option_ref "add"
                 edit_result=$?
-                if [[ $edit_result -eq 0 ]]; then handler_result_ref="refresh_data"; fi
-                if [[ $edit_result -eq 2 ]]; then handler_result_ref="redraw"; fi
+                if [[ $edit_result -eq 0 ]]; then
+                    handler_result_ref="refresh_data"
+                elif [[ $edit_result -eq 2 ]]; then
+                    handler_result_ref="redraw"
+                fi
                 ;;
             'e'|'E')
                 # If there are no variables, treat 'edit' as 'add'.
@@ -903,8 +910,11 @@ function interactive_manager() {
                 local edit_result
                 edit_variable current_option_ref "$mode"
                 edit_result=$?
-                if [[ $edit_result -eq 0 ]]; then handler_result_ref="refresh_data"; fi
-                if [[ $edit_result -eq 2 ]]; then handler_result_ref="redraw"; fi
+                if [[ $edit_result -eq 0 ]]; then
+                    handler_result_ref="refresh_data"
+                elif [[ $edit_result -eq 2 ]]; then
+                    handler_result_ref="redraw"
+                fi
                 ;;
             'd'|'D')
                 if delete_variable current_option_ref; then
@@ -947,6 +957,41 @@ function interactive_manager() {
             'v'|'V')
                 if [[ "$SHOW_VALUES" == "true" ]]; then SHOW_VALUES="false"; else SHOW_VALUES="true"; fi
                 handler_result_ref="redraw"
+                ;;
+            'c'|'C')
+                # Clone
+                if [[ ${num_options_ref} -gt 0 ]]; then
+                    local selected_key="${DISPLAY_ORDER[current_option_ref]}"
+                    if [[ "$selected_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
+                        show_timed_message "${T_WARN_ICON} Cannot clone blank lines or comments." 1.5
+                        handler_result_ref="redraw"
+                    else
+                        # Prepare data for clone
+                        local source_value="${ENV_VARS[$selected_key]}"
+                        local source_comment="${ENV_COMMENTS[$selected_key]:-}"
+
+                        # Find a unique name for the clone
+                        local new_key="${selected_key}_COPY"
+                        local i=1
+                        while [[ -n "${ENV_VARS[$new_key]+x}" ]]; do
+                            new_key="${selected_key}_COPY_${i}"
+                            ((i++))
+                        done
+
+                        # Call the editor in "add" mode with pre-filled data
+                        local edit_result
+                        edit_variable current_option_ref "add" "$new_key" "$source_value" "$source_comment"
+                        edit_result=$?
+                        if [[ $edit_result -eq 0 ]]; then
+                            handler_result_ref="refresh_data"
+                        elif [[ $edit_result -eq 2 ]]; then
+                            handler_result_ref="redraw"
+                        fi
+                    fi
+                else
+                    # No items in list, do nothing
+                    handler_result_ref="noop"
+                fi
                 ;;
             '/')
                 local footer_height=3
