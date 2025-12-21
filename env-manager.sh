@@ -606,6 +606,7 @@ function draw_sys_env_list() {
     local -n current_option_ref=$1
     local -n list_offset_ref=$2
     local viewport_height=$3
+    local show_values="${4:-true}"
 
     local list_content=""
     local start_index=$list_offset_ref
@@ -621,7 +622,12 @@ function draw_sys_env_list() {
             local value="${SYS_ENV_VARS[$key]}"
             local color_preview=""
             local preview_visible_len=0
-            _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
+
+            if [[ "$show_values" == "false" ]]; then
+                value="*****"
+            else
+                _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
+            fi
 
             local max_len=$(( 43 - preview_visible_len ))
             local value_display_sanitized
@@ -720,11 +726,11 @@ function system_env_manager() {
         screen_buffer+=$'\n'
         screen_buffer+=$(printf "${C_BLUE}┗━━ ${T_FG_RESET}${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-43s${T_RESET}" "VARIABLE" "VALUE")
         screen_buffer+=$'\n'
-        screen_buffer+=$(draw_sys_env_list current_option list_offset "$viewport_height")
+        screen_buffer+=$(draw_sys_env_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
         screen_buffer+=$'\n'
         screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
         
-        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(I) Toggle${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
+        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(I) Toggle${C_WHITE} | ${C_L_YELLOW}(V)alues${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
         local info_line=" ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env"
         if [[ -n "$status_msg" ]]; then
             info_line=" $status_msg"
@@ -807,16 +813,20 @@ function system_env_manager() {
                     status_msg="${T_OK_ICON} Imported '${C_L_BLUE}${selected_key}${T_RESET}'"
                 fi
                 ;;
+            'v'|'V')
+                if [[ "$SHOW_VALUES" == "true" ]]; then SHOW_VALUES="false"; else SHOW_VALUES="true"; fi
+                ;;
         esac
     done
 }
 
 # --- TUI Main Loop ---
 
+SHOW_VALUES=true
+
 function interactive_manager() {
     local current_option=0
     local list_offset=0
-    local show_values=true
 
     # --- TUI Helper Functions ---
     _header_func() { draw_header; }
@@ -929,7 +939,7 @@ function interactive_manager() {
                 handler_result_ref="redraw"
                 ;;
             'v'|'V')
-                if [[ "$show_values" == "true" ]]; then show_values="false"; else show_values="true"; fi
+                if [[ "$SHOW_VALUES" == "true" ]]; then SHOW_VALUES="false"; else SHOW_VALUES="true"; fi
                 handler_result_ref="redraw"
                 ;;
             *)
@@ -970,7 +980,7 @@ function interactive_manager() {
             screen_buffer+=$(_header_func)
             screen_buffer+=$'\n'
             # The div after the header is removed since the header is underlined.
-            screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height" "$show_values")
+            screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
             screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
             screen_buffer+=$(_footer_func)
             printf '\033[H%b\033[J' "$screen_buffer"
