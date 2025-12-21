@@ -604,19 +604,27 @@ prompt_for_input() {
 _interactive_editor_loop() {
     local mode="$1" banner_text="$2" draw_func="$3" field_handler_func="$4" change_checker_func="$5" reset_func="$6"
 
+    clear_screen; printBanner "$banner_text"; "$draw_func"
+
     while true; do
-        clear_screen; printBanner "$banner_text"; "$draw_func"
         local key; key=$(read_single_char)
+        local redraw=false
+
         case "$key" in
             'c'|'C'|'d'|'D')
                 clear_current_line
                 local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi
-                if prompt_yes_no "$question" "y"; then "$reset_func"; show_timed_message "${T_INFO_ICON} Changes discarded."; fi ;;
+                if prompt_yes_no "$question" "y"; then "$reset_func"; show_timed_message "${T_INFO_ICON} Changes discarded."; fi
+                redraw=true
+                ;;
             's'|'S') return 0 ;; # Signal to Save
             'q'|'Q'|"$KEY_ESC")
                 if "$change_checker_func"; then
-                    if ! prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then
-                        show_timed_message "${T_INFO_ICON} Operation cancelled."; return 1
+                    if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then
+                        return 1
+                    else
+                        show_timed_message "${T_INFO_ICON} Operation cancelled."
+                        redraw=true
                     fi
                 else
                     clear_current_line
@@ -626,8 +634,12 @@ _interactive_editor_loop() {
             *)
                 # Delegate to the context-specific field handler.
                 # It returns 0 on success (key was handled), 1 on failure (key was not for it).
-                if ! "$field_handler_func" "$key"; then :; fi ;; # Key was not handled, loop to redraw.
+                if "$field_handler_func" "$key"; then redraw=true; fi ;;
         esac
+
+        if [[ "$redraw" == "true" ]]; then
+            clear_screen; printBanner "$banner_text"; "$draw_func"
+        fi
     done
 }
 #endregion
