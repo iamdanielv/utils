@@ -38,6 +38,7 @@ function parse_env_file() {
     ENV_ORDER=()
     DISPLAY_ORDER=()
     ERROR_MESSAGE=""
+    local -A PENDING_COMMENTS
 
     if [[ ! -f "$file_to_parse" ]]; then
         # File doesn't exist, which is fine. We'll create it on save.
@@ -58,8 +59,7 @@ function parse_env_file() {
         if [[ "$trimmed_line" =~ ^##@[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]+(.*) ]]; then
             local var_name="${BASH_REMATCH[1]}"
             local comment_text="${BASH_REMATCH[2]}"
-            ENV_COMMENTS["$var_name"]="$comment_text"
-            # Don't add to ENV_ORDER here; the associated variable will handle it.
+            PENDING_COMMENTS["$var_name"]="$comment_text"
             continue
         fi
 
@@ -87,6 +87,11 @@ function parse_env_file() {
                 storage_key="${key}__DUPLICATE_KEY_${dup_count}"
                 ((dup_count++))
             done
+
+            if [[ -n "${PENDING_COMMENTS[$key]}" ]]; then
+                ENV_COMMENTS["$storage_key"]="${PENDING_COMMENTS[$key]}"
+                unset "PENDING_COMMENTS[$key]"
+            fi
 
             ENV_VARS["$storage_key"]="$value"
             ENV_ORDER+=("$storage_key")
