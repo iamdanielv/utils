@@ -80,13 +80,16 @@ function parse_env_file() {
                 value="${BASH_REMATCH[1]}"
             fi
 
-            if [[ -n "${ENV_VARS[$key]}" ]]; then
-                ERROR_MESSAGE="Validation Error: Duplicate key '$key' found on line $line_num."
-                return 1
-            fi
+            # Handle duplicates by appending a unique suffix
+            local storage_key="$key"
+            local dup_count=1
+            while [[ -n "${ENV_VARS[$storage_key]}" ]]; do
+                storage_key="${key}__DUPLICATE_KEY_${dup_count}"
+                ((dup_count++))
+            done
 
-            ENV_VARS["$key"]="$value"
-            ENV_ORDER+=("$key")
+            ENV_VARS["$storage_key"]="$value"
+            ENV_ORDER+=("$storage_key")
         else
             ERROR_MESSAGE="Validation Error: Invalid format on line $line_num: '$line'"
             return 1
@@ -111,17 +114,18 @@ function save_env_file() {
         elif [[ "$key" =~ ^COMMENT_LINE_ ]]; then
             echo "${ENV_VARS[$key]}" >> "$temp_file"
         else
+            local real_key="${key%%__DUPLICATE_KEY_*}"
             # This is a regular variable. Check if it has a special comment.
             if [[ -n "${ENV_COMMENTS[$key]}" ]]; then
-                echo "##@ $key ${ENV_COMMENTS[$key]}" >> "$temp_file"
+                echo "##@ $real_key ${ENV_COMMENTS[$key]}" >> "$temp_file"
             fi
 
             # Best Practice: Add quotes only if the value contains spaces or is empty.
             local value="${ENV_VARS[$key]}"
             if [[ "$value" == *[[:space:]]* || -z "$value" ]]; then
-                echo "$key=\"$value\"" >> "$temp_file"
+                echo "$real_key=\"$value\"" >> "$temp_file"
             else
-                echo "$key=$value" >> "$temp_file"
+                echo "$real_key=$value" >> "$temp_file"
             fi
         fi
     done
@@ -199,9 +203,9 @@ _draw_variable_editor() {
     local pending_comment="$6"
 
     # Use the combined display helper to show pending changes with an arrow.
-    local name_display; name_display=$(_get_combined_display "name" "$original_key" "$pending_key")
-    local value_display; value_display=$(_get_combined_display "value" "$original_value" "$pending_value")
-    local comment_display; comment_display=$(_get_combined_display "comment" "$original_comment" "$pending_comment")
+    local name_display; name_display=$(_get_combined_display "name" "$current_key" "$pending_key")
+    local value_display; value_display=$(_get_combined_display "value" "$current_value" "$pending_value")
+    local comment_display; comment_display=$(_get_combined_display "comment" "$current_comment" "$pending_comment")
 
     printf "${C_BLUE}┗━━${T_RESET} ${C_WHITE}${T_BOLD}${T_ULINE}Choose an option to configure:${T_RESET}\n"
     _print_menu_item "1" "Name" "$name_display"
@@ -337,6 +341,7 @@ function draw_var_list() {
                 local display_text="${ENV_VARS[$key]:-${C_GRAY}(Blank Line)${T_RESET}}"
                 line_output=$(_format_fixed_width_string "${C_GRAY}${display_text}${T_RESET}" 70)
             else
+                local display_key="${key%%__DUPLICATE_KEY_*}"
                 local value="${ENV_VARS[$key]}"
                 local comment="${ENV_COMMENTS[$key]:-}"
                 
@@ -358,7 +363,7 @@ function draw_var_list() {
                 # Line 1: Key and Value
                 local visible_len=$(( ${#value_display_sanitized} + preview_visible_len ))
                 local padding_needed=$(( 43 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
-                line_output=$(printf "${C_L_BLUE}%-21s${T_FG_RESET} ${C_L_CYAN}%s%*s${T_FG_RESET}" "${key}" "$final_display" "$padding_needed" "")
+                line_output=$(printf "${C_L_BLUE}%-21s${T_FG_RESET} ${C_L_CYAN}%s%*s${T_FG_RESET}" "${display_key}" "$final_display" "$padding_needed" "")
 
                 # Line 2: Comment (if it exists)
                 if [[ -n "$comment" ]]; then
@@ -434,13 +439,15 @@ function edit_variable() {
         original_key="${DISPLAY_ORDER[current_option_idx_ref]}"
         # Disallow editing of comments/blank lines
         if [[ "$original_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
+            clear_lines_up 2
             show_timed_message "${T_WARN_ICON} Cannot edit blank lines or comments." 1.5
             return 2 # Signal no change
         fi
-        key="$original_key"
+        local display_name="${original_key%%__DUPLICATE_KEY_*}"
+        key="$display_name"
         original_value="${ENV_VARS[$original_key]}"
         original_comment="${ENV_COMMENTS[$original_key]}"
-        pending_key="$original_key"
+        pending_key="$display_name"
         pending_value="$original_value"
         pending_comment="$original_comment"
     else
@@ -461,7 +468,8 @@ function edit_variable() {
     # --- Define functions for the generic editor loop ---
 
     _editor_draw_func() {
-        _draw_variable_editor "$original_key" "$pending_key" "$original_value" "$pending_value" "$original_comment" "$pending_comment"
+        local original_display_name="${original_key%%__DUPLICATE_KEY_*}"
+        _draw_variable_editor "$original_display_name" "$pending_key" "$original_value" "$pending_value" "$original_comment" "$pending_comment"
     }
 
     _editor_field_handler() {
@@ -471,9 +479,6 @@ function edit_variable() {
                 if ! prompt_for_input "New Name" pending_key "$pending_key" "false" 4; then return 0; fi
                 if ! [[ "$pending_key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
                     show_timed_message "${T_ERR_ICON} Invalid variable name. Must be alphanumeric and start with a letter or underscore." 3
-                    pending_key="${key:-$original_key}" # Revert
-                elif [[ "$pending_key" != "$original_key" && -n "${ENV_VARS[$pending_key]}" ]]; then
-                    show_timed_message "${T_ERR_ICON} Variable '$pending_key' already exists." 2
                     pending_key="${key:-$original_key}" # Revert
                 fi
                 return 0 ;;
@@ -488,7 +493,8 @@ function edit_variable() {
     }
 
     _editor_change_checker() {
-        if [[ "$pending_key" != "$original_key" || "$pending_value" != "$original_value" || "$pending_comment" != "$original_comment" ]]; then
+        local original_display_name="${original_key%%__DUPLICATE_KEY_*}"
+        if [[ "$pending_key" != "$original_display_name" || "$pending_value" != "$original_value" || "$pending_comment" != "$original_comment" ]]; then
             return 0 # Has changes
         else
             return 1 # No changes
@@ -496,23 +502,39 @@ function edit_variable() {
     }
 
     _editor_reset_func() {
-        pending_key="$original_key"
+        pending_key="${original_key%%__DUPLICATE_KEY_*}"
         pending_value="$original_value"
         pending_comment="$original_comment"
     }
 
     local banner_text="Variable Editor: ${C_L_YELLOW}${key}${C_BLUE}"
     if _interactive_editor_loop "$mode" "$banner_text" _editor_draw_func _editor_field_handler _editor_change_checker _editor_reset_func; then
-        # Save was chosen, apply changes
-        if [[ "$mode" == "edit" && "$pending_key" != "$original_key" ]]; then
-            unset "ENV_VARS[$original_key]"
-            unset "ENV_COMMENTS[$original_key]"
-            for i in "${!ENV_ORDER[@]}"; do [[ "${ENV_ORDER[i]}" == "$original_key" ]] && ENV_ORDER[i]="$pending_key" && break; done
+        # Calculate final storage key to handle duplicates
+        local final_storage_key="$pending_key"
+        local original_display_name="${original_key%%__DUPLICATE_KEY_*}"
+
+        if [[ "$pending_key" == "$original_display_name" ]]; then
+             final_storage_key="$original_key"
+        else
+             local dup_count=1
+             local check_key="$pending_key"
+             while [[ -n "${ENV_VARS[$check_key]}" && "$check_key" != "$original_key" ]]; do
+                  check_key="${pending_key}__DUPLICATE_KEY_${dup_count}"
+                  ((dup_count++))
+             done
+             final_storage_key="$check_key"
         fi
 
-        ENV_VARS["$pending_key"]="$pending_value"
-        if [[ -n "$pending_comment" ]]; then ENV_COMMENTS["$pending_key"]="$pending_comment"; else unset "ENV_COMMENTS[$pending_key]"; fi
-        if [[ "$mode" == "add" ]]; then ENV_ORDER+=("$pending_key"); fi
+        # Save was chosen, apply changes
+        if [[ "$mode" == "edit" && "$final_storage_key" != "$original_key" ]]; then
+            unset "ENV_VARS[$original_key]"
+            unset "ENV_COMMENTS[$original_key]"
+            for i in "${!ENV_ORDER[@]}"; do [[ "${ENV_ORDER[i]}" == "$original_key" ]] && ENV_ORDER[i]="$final_storage_key" && break; done
+        fi
+
+        ENV_VARS["$final_storage_key"]="$pending_value"
+        if [[ -n "$pending_comment" ]]; then ENV_COMMENTS["$final_storage_key"]="$pending_comment"; else unset "ENV_COMMENTS[$final_storage_key]"; fi
+        if [[ "$mode" == "add" ]]; then ENV_ORDER+=("$final_storage_key"); fi
         return 0 # Success
     else
         return 2 # No change
