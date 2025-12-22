@@ -525,6 +525,7 @@ function delete_variable() {
     local key_to_delete="${DISPLAY_ORDER[current_option_idx_ref]}"
 
     if [[ "$key_to_delete" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
+        clear_lines_up 2
         show_timed_message "${T_WARN_ICON} Cannot delete blank lines or comments this way." 1.5
         return 2 # No refresh needed
     fi
@@ -876,13 +877,11 @@ function interactive_manager() {
                 ;;
             's'|'S')
                 if ! _has_pending_changes; then
-                    clear_current_line
-                    clear_lines_up 1
+                    clear_lines_up 2
                     show_timed_message " ${T_INFO_ICON} No changes to save." 1.5
                     handler_result_ref="redraw"
                 else
-                    clear_current_line
-                    clear_lines_up 1
+                    clear_lines_up 2
                     if prompt_yes_no "Are you sure you want to save these changes?" "y"; then
                         save_env_file "$FILE_PATH"
                         handler_result_ref="refresh_data" # Re-parse file after saving
@@ -963,6 +962,7 @@ function interactive_manager() {
                 if [[ ${num_options_ref} -gt 0 ]]; then
                     local selected_key="${DISPLAY_ORDER[current_option_ref]}"
                     if [[ "$selected_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
+                        clear_lines_up 2
                         show_timed_message "${T_WARN_ICON} Cannot clone blank lines or comments." 1.5
                         handler_result_ref="redraw"
                     else
