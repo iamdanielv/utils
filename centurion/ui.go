@@ -182,7 +182,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items[i] = item{u}
 		}
 		m.list.SetItems(items)
-		m.list.Title = fmt.Sprintf("Centurion - %d Services", len(items))
 	case statusMsg:
 		m.viewport.SetContent(string(msg))
 		m.showDetails = true
@@ -204,6 +203,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.viewport, cmd = m.viewport.Update(msg)
 			return m, cmd
+		}
+
+		if m.list.FilterState() == list.Filtering {
+			break
 		}
 
 		switch msg.String() {
@@ -230,6 +233,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if !m.showDetails {
 		m.list, cmd = m.list.Update(msg)
+
+		title := fmt.Sprintf("Centurion - %d Services", len(m.list.VisibleItems()))
+		if filter := m.list.FilterValue(); filter != "" {
+			title += fmt.Sprintf(" - Filter: %s", filter)
+		}
+		m.list.Title = title
 	}
 	return m, cmd
 }
