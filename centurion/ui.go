@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -15,7 +17,7 @@ type item struct {
 	SystemdUnit
 }
 
-func (i item) Title() string {
+func (i item) RenderTitle(colored bool) string {
 	name := i.Name
 	if len(name) > 50 {
 		name = name[:49] + "…"
@@ -51,7 +53,11 @@ func (i item) Title() string {
 		statusIcon = "-"
 	}
 
-	statusDisplay := lipgloss.NewStyle().Foreground(statusColor).Render(fmt.Sprintf("%s %-10s", statusIcon, status))
+	statusText := fmt.Sprintf("%s %-10s", statusIcon, status)
+	statusDisplay := statusText
+	if colored {
+		statusDisplay = lipgloss.NewStyle().Foreground(statusColor).Render(statusText)
+	}
 
 	sub := i.SubState
 	var subColor lipgloss.Color
@@ -94,13 +100,49 @@ func (i item) Title() string {
 		subColor = lipgloss.Color("255")
 		subIcon = "-"
 	}
-	subDisplay := lipgloss.NewStyle().Foreground(subColor).Render(fmt.Sprintf("%s %s", subIcon, sub))
+	subText := fmt.Sprintf("%s %s", subIcon, sub)
+	subDisplay := subText
+	if colored {
+		subDisplay = lipgloss.NewStyle().Foreground(subColor).Render(subText)
+	}
 
 	return fmt.Sprintf("%-50s %s %s", name, statusDisplay, subDisplay)
 }
 
 func (i item) Description() string { return i.SystemdUnit.Description }
-func (i item) FilterValue() string { return i.Name }
+func (i item) FilterValue() string {
+	return i.Name + " " + i.ActiveState + " " + i.SubState + " " + i.SystemdUnit.Description
+}
+
+type itemDelegate struct{}
+
+func (d itemDelegate) Height() int                             { return 2 }
+func (d itemDelegate) Spacing() int                            { return 0 }
+func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(item)
+	if !ok {
+		return
+	}
+
+	if index == m.Index() {
+		selectedStyle := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, false, false, true).
+			BorderForeground(lipgloss.Color("229")).
+			Foreground(lipgloss.Color("229")).
+			Background(lipgloss.Color("57")).
+			Padding(0, 0, 0, 1).
+			Width(m.Width() - 2)
+
+		title := i.RenderTitle(false)
+		desc := " " + i.Description()
+		fmt.Fprint(w, selectedStyle.Render(lipgloss.JoinVertical(lipgloss.Left, title, desc)))
+	} else {
+		title := "  " + i.RenderTitle(true)
+		desc := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("   " + i.Description())
+		fmt.Fprint(w, title+"\n"+desc)
+	}
+}
 
 type model struct {
 	list        list.Model
@@ -113,10 +155,11 @@ type model struct {
 }
 
 func initialModel() model {
-	l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+	l := list.New([]list.Item{}, itemDelegate{}, 0, 0)
 	l.Title = "Centurion Services"
 	l.SetShowTitle(true)
 	l.SetShowStatusBar(false)
+	l.Filter = filterContains
 	l.Help.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	l.Help.Styles.ShortDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	l.Help.Styles.FullKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
@@ -125,6 +168,26 @@ func initialModel() model {
 	l.Help.Styles.FullSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	vp := viewport.New(0, 0)
 	return model{list: l, viewport: vp}
+}
+
+func filterContains(term string, targets []string) []list.Rank {
+	var ranks []list.Rank
+	for i, target := range targets {
+		lowerTarget := strings.ToLower(target)
+		lowerTerm := strings.ToLower(term)
+		if strings.Contains(lowerTarget, lowerTerm) {
+			start := strings.Index(lowerTarget, lowerTerm)
+			var matchedIndexes []int
+			for j := 0; j < len(term); j++ {
+				matchedIndexes = append(matchedIndexes, start+j)
+			}
+			ranks = append(ranks, list.Rank{
+				Index:          i,
+				MatchedIndexes: matchedIndexes,
+			})
+		}
+	}
+	return ranks
 }
 
 type servicesMsg []SystemdUnit

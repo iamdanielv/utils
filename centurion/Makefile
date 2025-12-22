@@ -15,7 +15,7 @@ help: ##@ Show this help message
 
 .PHONY: run
 run: ##@ Run the application
-	@echo "  \033[32mRunning $(BINARY_NAME)...\033[0m"
+#   @echo "  \033[32mRunning $(BINARY_NAME)...\033[0m"
 	@go run .
 
 .PHONY: fmt
