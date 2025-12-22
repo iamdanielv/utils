@@ -59,3 +59,25 @@ func ListServices() ([]SystemdUnit, error) {
 
 	return units, nil
 }
+
+// StartUnit starts a systemd service
+func StartUnit(name string) error {
+	return exec.Command("systemctl", "start", name).Run()
+}
+
+// StopUnit stops a systemd service
+func StopUnit(name string) error {
+	return exec.Command("systemctl", "stop", name).Run()
+}
+
+// RestartUnit restarts a systemd service
+func RestartUnit(name string) error {
+	return exec.Command("systemctl", "restart", name).Run()
+}
+
+// GetUnitStatus returns the full status output for a unit
+func GetUnitStatus(name string) (string, error) {
+	cmd := exec.Command("systemctl", "status", name, "--no-pager", "--full")
+	output, _ := cmd.CombinedOutput()
+	return string(output), nil
+}
