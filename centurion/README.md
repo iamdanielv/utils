@@ -1,0 +1,70 @@
+# Centurion 🏛️
+
+A Go-based TUI (Text User Interface) for managing `systemd` services.
+
+**Centurion** provides an interactive, terminal-based interface for `systemctl`, making it easier to visualize the status of services, perform common actions, and view logs without remembering complex command-line flags.
+
+It is named **Centurion** because it commands system "units".
+
+## ✨ Planned Features
+
+- **Service Explorer**: View all systemd services in a scrollable, real-time list.
+- **Color-Coded Status**: Instantly identify the state of services (e.g., `active`, `failed`, `inactive`).
+- **Core Controls**: Start, stop, and restart services with keyboard shortcuts.
+- **Detailed Inspection**: View the full `systemctl status` output for any selected service.
+- **Live Log Tailing**: Stream `journalctl` logs for a service directly within the UI.
+- **Search & Filter**: Quickly find services by name.
+
+## Getting Started
+
+### Installation
+
+1. Clone the repo:
+
+    ```sh
+    git clone https://github.com/iamdanielv/utils.git
+    cd utils/centurion
+    ```
+
+2. Build the binary using the Makefile:
+
+    ```sh
+    make build
+    ```
+
+    This will create the `centurion` binary in the `bin/` directory.
+
+3. Run the application:
+
+    ```sh
+    ./bin/centurion
+    ```
+
+## ⌨️ Keybindings
+
+| Key       | Action                       |
+| :-------- | :----------------------      |
+| `↑`/`k`   | Move Up                      |
+| `↓`/`j`   | Move Down                    |
+| `s`       | **S**tart selected service   |
+| `x`       | Stop selected service        |
+| `r`       | **R**estart selected service |
+| `/`       | Search / Filter services     |
+| `enter`   | Inspect service details      |
+| `l`       | View service **l**ogs        |
+| `q`       | **Q**uit                     |
+
+## 🤝 Contributing
+
+I'm open to and encourage contributions of bug fixes, improvements, and documentation!
+
+## 📜 License
+
+[MIT License](../LICENSE) - See the `LICENSE` file for details.
+
+## 📧 Contact
+
+Let me know if you have any questions or suggestions.
+
+- [Twitter](https://twitter.com/IAmDanielV)
+- [BlueSky](https://bsky.app/profile/iamdanielv.bsky.social)
