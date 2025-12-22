@@ -423,7 +423,7 @@ function draw_footer() {
         if _find_project_root --silent && [[ "$FILE_PATH" == "$_PROJECT_ROOT"* ]]; then
             relative_path=".${FILE_PATH#$_PROJECT_ROOT}"
         fi
-        printf " ${T_BOLD}${T_OK_ICON} Valid File: ${C_L_BLUE}%s${T_RESET}${T_CLEAR_LINE}" "${relative_path}"
+        printf "  ${T_BOLD}${T_OK_ICON} Valid File: ${C_L_BLUE}%s${T_RESET}${T_CLEAR_LINE}" "${relative_path}"
     fi
 }
 
