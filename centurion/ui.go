@@ -413,6 +413,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.SetContent(wrap(content, m.viewport.Width))
 		}
 	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+
 		if m.showConfirm {
 			switch msg.String() {
 			case "y", "Y":
@@ -491,7 +495,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.list.FilterState() != list.Filtering {
 			switch msg.String() {
-			case "q", "ctrl+c":
+			case "q":
 				return m, tea.Quit
 			case "?":
 				m.help.ShowAll = !m.help.ShowAll
