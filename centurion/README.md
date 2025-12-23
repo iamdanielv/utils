@@ -6,13 +6,13 @@ A Go-based TUI (Text User Interface) for managing `systemd` services.
 
 It is named **Centurion** because it commands system "units".
 
-## ✨ Planned Features
+## ✨ Features
 
-- **Service Explorer**: View all systemd services in a scrollable, real-time list.
-- **Color-Coded Status**: Instantly identify the state of services (e.g., `active`, `failed`, `inactive`).
+- **Service Explorer**: View all systemd services in a scrollable list.
+- **Color-Coded Status**: Instantly identify the state of services (e.g., `active`, `failed`, `inactive`) with icons.
 - **Core Controls**: Start, stop, and restart services with keyboard shortcuts.
 - **Detailed Inspection**: View the full `systemctl status` output for any selected service.
-- **Live Log Tailing**: Stream `journalctl` logs for a service directly within the UI.
+- **Log Viewing**: View recent `journalctl` logs for a service directly within the UI, with filtering capabilities.
 - **Search & Filter**: Quickly find services by name.
 
 ## Getting Started
@@ -42,17 +42,30 @@ It is named **Centurion** because it commands system "units".
 
 ## ⌨️ Keybindings
 
+### Main List
+
 | Key       | Action                       |
 | :-------- | :----------------------      |
 | `↑`/`k`   | Move Up                      |
 | `↓`/`j`   | Move Down                    |
-| `s`       | **S**tart selected service   |
-| `x`       | Stop selected service        |
+| `s`       | **S**tart / **S**top service |
 | `r`       | **R**estart selected service |
-| `/`       | Search / Filter services     |
-| `enter`   | Inspect service details      |
 | `l`       | View service **l**ogs        |
+| `enter`   | Inspect service details      |
+| `/`       | Filter services              |
+| `?`       | Toggle help                  |
 | `q`       | **Q**uit                     |
+
+### Log / Details View
+
+| Key       | Action                       |
+| :-------- | :----------------------      |
+| `↑`/`k`   | Scroll Up                    |
+| `↓`/`j`   | Scroll Down                  |
+| `home`/`g`| Scroll to Top                |
+| `end`/`G` | Scroll to Bottom             |
+| `/`       | Filter logs (Log view only)  |
+| `esc`/`q` | Close view / Back            |
 
 ## 🤝 Contributing
 
