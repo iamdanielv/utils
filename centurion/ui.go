@@ -491,9 +491,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 	}
 
-	title := fmt.Sprintf("Centurion - %d Services", len(m.list.VisibleItems()))
+	total := len(m.list.Items())
+	visible := len(m.list.VisibleItems())
+	title := fmt.Sprintf("Centurion - %d Services", total)
 	if filter := m.list.FilterValue(); filter != "" {
-		title += fmt.Sprintf(" (Filter: %s)", filter)
+		title = fmt.Sprintf("Centurion - %d/%d Services (Filter: %s)", visible, total, filter)
 	}
 	m.list.Title = title
 
