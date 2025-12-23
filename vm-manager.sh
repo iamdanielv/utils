@@ -195,7 +195,7 @@ while true; do
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="shutdown"; cmd="shutdown"
                 else
-                    STATUS_MSG="Shutdown cancelled"
+                    STATUS_MSG="${YELLOW}Shutdown cancelled${NC}"
                 fi ;;
             f|F)
                 STATUS_MSG="${RED}FORCE STOP${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
@@ -204,7 +204,7 @@ while true; do
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="force stop"; cmd="destroy"
                 else
-                    STATUS_MSG="Force stop cancelled"
+                    STATUS_MSG="${YELLOW}Force stop cancelled${NC}"
                 fi ;;
             r|R)
                 STATUS_MSG="${YELLOW}REBOOT${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
@@ -213,7 +213,7 @@ while true; do
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="reboot"; cmd="reboot"
                 else
-                    STATUS_MSG="Reboot cancelled"
+                    STATUS_MSG="${YELLOW}Reboot cancelled${NC}"
                 fi ;;
         esac
 
