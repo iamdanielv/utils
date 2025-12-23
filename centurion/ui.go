@@ -137,7 +137,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	if index == m.Index() {
 		selectedStyle := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, false, false, true).
+			Border(lipgloss.BlockBorder(), false, false, false, true).
 			BorderForeground(lipgloss.Color("229")).
 			Foreground(lipgloss.Color("229")).
 			Background(lipgloss.Color("57")).
