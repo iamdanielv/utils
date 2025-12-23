@@ -105,9 +105,38 @@ fetch_vms() {
 show_vm_details() {
     local vm="$1"
     clear
-    echo -e "${CYAN}== VM Details: ${BOLD}${YELLOW}$vm${NC}${CYAN} ========================================${NC}"
-    echo -e "${BOLD}Basic Info:${NC}"
-    virsh dominfo "$vm" | grep -E "State|CPU\(s\)|Max memory|Used memory|Autostart"
+    
+    # Gather Info
+    local dominfo
+    dominfo=$(virsh dominfo "$vm")
+    local state
+    state=$(echo "$dominfo" | grep "^State:" | awk '{$1=""; print $0}' | xargs)
+    local cpus
+    cpus=$(echo "$dominfo" | grep "^CPU(s):" | awk '{print $2}')
+    local max_mem_kib
+    max_mem_kib=$(echo "$dominfo" | grep "^Max memory:" | awk '{print $3}')
+    local autostart
+    autostart=$(echo "$dominfo" | grep "^Autostart:" | awk '{print $2}')
+    
+    # Format Memory
+    local mem_display=""
+    if [[ -n "$max_mem_kib" ]]; then
+        local mem_gib
+        mem_gib=$(awk -v m="$max_mem_kib" 'BEGIN { printf "%.0f", m / 1048576 }')
+        mem_display="$mem_gib GiB"
+    else
+        mem_display="Unknown"
+    fi
+
+    local state_color="$NC"
+    case "$state" in
+        "running") state_color="$GREEN" ;;
+        "shut off") state_color="$RED" ;;
+        "paused") state_color="$YELLOW" ;;
+    esac
+
+    echo -e "${CYAN}== VM Details: ${BOLD}${YELLOW}$vm${NC} (${state_color}$state${NC})${CYAN} ========================================${NC}"
+    printf "   CPU(s): %s\t Memory: %s\t Autostart: %s\n" "$cpus" "$mem_display" "$autostart"
 
     echo -e "\n${BOLD}Network Interfaces:${NC}"
     local net_info
@@ -124,27 +153,41 @@ show_vm_details() {
     fi
 
     echo -e "\n${BOLD}Storage:${NC}"
-    local targets
-    targets=$(virsh domblklist "$vm" | tail -n +3 | awk '{print $1}')
+    local blklist
+    blklist=$(virsh domblklist "$vm" | tail -n +3)
     
-    if [[ -z "$targets" ]]; then
+    if [[ -z "$blklist" ]]; then
         echo "  No storage devices found."
     else
-        for target in $targets; do
+        while read -r target source; do
             [[ -z "$target" ]] && continue
             echo -e "  ${BOLD}Device: $target${NC}"
-            local blk_info
-            blk_info=$(virsh domblkinfo "$vm" "$target" --human 2>/dev/null)
-            if [[ $? -ne 0 ]]; then
-                 blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
+            
+            if [[ "$source" == "-" ]]; then
+                source="(unknown or passthrough)"
             fi
+            echo -e "    Host path: ${YELLOW}$source${NC}"
+            
+            local blk_info
+            blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
             
             if [[ -n "$blk_info" ]]; then
-                echo "$blk_info" | grep -E "Capacity|Allocation" | sed 's/^/    /'
+                local cap
+                cap=$(echo "$blk_info" | grep "Capacity:" | awk '{print $2}')
+                local alloc
+                alloc=$(echo "$blk_info" | grep "Allocation:" | awk '{print $2}')
+                
+                if [[ -n "$cap" && -n "$alloc" ]]; then
+                    local usage_str
+                    usage_str=$(awk -v c="$cap" -v a="$alloc" 'BEGIN { printf "%.0f/%.0f GiB", a/1073741824, c/1073741824 }')
+                    echo "    Capacity: $usage_str"
+                else
+                    echo "    (No info available)"
+                fi
             else
                 echo "    (No info available)"
             fi
-        done
+        done <<< "$blklist"
     fi
 
     echo -e "\n${BLUE}Press any key to return...${NC}"
