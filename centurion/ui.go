@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -173,6 +174,7 @@ type model struct {
 	width         int
 	height        int
 	viewport      viewport.Model
+	help          help.Model
 	showDetails   bool
 	detailsTitle  string
 	showConfirm   bool
@@ -180,40 +182,64 @@ type model struct {
 	pendingUnit   string
 }
 
+func (m model) ShortHelp() []key.Binding {
+	if m.list.FilterState() == list.Filtering {
+		return []key.Binding{
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
+			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+		}
+	}
+	return []key.Binding{
+		key.NewBinding(key.WithKeys("up"), key.WithHelp("↑up", "")),
+		key.NewBinding(key.WithKeys("down"), key.WithHelp("↓down", "")),
+		key.NewBinding(key.WithKeys("s"), key.WithHelp("(s)tart/stop", "")),
+		key.NewBinding(key.WithKeys("r"), key.WithHelp("(r)estart", "")),
+		key.NewBinding(key.WithKeys("l"), key.WithHelp("(l)ogs", "")),
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "details")),
+		key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "more")),
+	}
+}
+
+func (m model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{
+			key.NewBinding(key.WithKeys("up"), key.WithHelp("↑/k", "move up")),
+			key.NewBinding(key.WithKeys("down"), key.WithHelp("↓/j", "move down")),
+			key.NewBinding(key.WithKeys("home"), key.WithHelp("home/g", "go to top")),
+			key.NewBinding(key.WithKeys("end"), key.WithHelp("end/G", "go to bottom")),
+		},
+		{
+			key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start/stop service")),
+			key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart service")),
+			key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "view logs")),
+		},
+		{
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "service details")),
+			key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "close help")),
+		},
+	}
+}
+
 func initialModel() model {
 	l := list.New([]list.Item{}, itemDelegate{}, 0, 0)
 	l.Title = "Centurion Services"
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
+	l.SetShowHelp(false)
 	l.Filter = filterContains
 
-	l.Help.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
-	l.Help.Styles.ShortDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	l.Help.Styles.ShortSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
-	l.Help.Styles.FullKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
-	l.Help.Styles.FullDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	l.Help.Styles.FullSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
-	l.Help.ShortSeparator = "•"
-	l.Help.FullSeparator = "•"
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(key.WithKeys("s"), key.WithHelp("(s)tart/stop", "")),
-			key.NewBinding(key.WithKeys("r"), key.WithHelp("(r)estart", "")),
-			key.NewBinding(key.WithKeys("l"), key.WithHelp("(l)ogs", "")),
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "inspect")),
-		}
-	}
-	l.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start/stop service")),
-			key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart service")),
-			key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "view service logs")),
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "inspect service details")),
-		}
-	}
+	h := help.New()
+	h.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
+	h.Styles.ShortDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	h.Styles.ShortSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
+	h.Styles.FullKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
+	h.Styles.FullDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	h.Styles.FullSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
+	h.ShortSeparator = "•"
+	h.FullSeparator = " "
 
 	vp := viewport.New(0, 0)
-	return model{list: l, viewport: vp}
+	return model{list: l, viewport: vp, help: h}
 }
 
 func filterContains(term string, targets []string) []list.Rank {
@@ -315,9 +341,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.list.SetSize(msg.Width, msg.Height-1)
+		m.help.Width = msg.Width
+		m.list, cmd = m.list.Update(msg)
+		bannerHeight := lipgloss.Height(renderBanner("", m.width))
+		helpHeight := lipgloss.Height(m.help.View(m))
+		listHeight := msg.Height - bannerHeight - helpHeight
+		if listHeight < 0 {
+			listHeight = 0
+		}
+		m.list.SetSize(msg.Width, listHeight)
 		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - 1
+		m.viewport.Height = msg.Height - bannerHeight
 	case tea.KeyMsg:
 		if m.showConfirm {
 			switch msg.String() {
@@ -351,6 +385,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "q", "ctrl+c":
 				return m, tea.Quit
+			case "?":
+				m.help.ShowAll = !m.help.ShowAll
+				bannerHeight := lipgloss.Height(renderBanner("", m.width))
+				helpHeight := lipgloss.Height(m.help.View(m))
+				m.list.SetSize(m.width, m.height-bannerHeight-helpHeight)
 			case "s":
 				if i, ok := m.list.SelectedItem().(item); ok {
 					if i.ActiveState == "active" || i.ActiveState == "reloading" || i.ActiveState == "activating" {
@@ -381,7 +420,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	m.list, cmd = m.list.Update(msg)
+	// Only pass messages to list if it's not a WindowSizeMsg, as we've handled that manually
+	if _, ok := msg.(tea.WindowSizeMsg); !ok {
+		m.list, cmd = m.list.Update(msg)
+	}
 
 	title := fmt.Sprintf("Centurion - %d Services", len(m.list.VisibleItems()))
 	if filter := m.list.FilterValue(); filter != "" {
@@ -419,5 +461,5 @@ func (m model) View() string {
 
 	banner := renderBanner(m.list.Title, m.width)
 
-	return lipgloss.JoinVertical(lipgloss.Left, banner, m.list.View())
+	return lipgloss.JoinVertical(lipgloss.Left, banner, m.list.View(), m.help.View(m))
 }
