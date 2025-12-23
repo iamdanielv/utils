@@ -400,7 +400,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			listHeight = 0
 		}
 		m.list.SetSize(msg.Width, listHeight)
-		m.viewport.Width = msg.Width
+		m.viewport.Width = msg.Width - 1
 		m.viewport.Height = msg.Height - bannerHeight - helpHeight
 		if m.showFilter {
 			m.viewport.Height--
@@ -573,10 +573,14 @@ func (m model) View() string {
 	if m.showDetails {
 		banner := renderBanner(m.detailsTitle, m.width)
 		var content string
+		vpView := m.viewport.View()
+		if m.viewport.TotalLineCount() > m.viewport.Height {
+			vpView = lipgloss.JoinHorizontal(lipgloss.Top, vpView, m.scrollbarView())
+		}
 		if m.showFilter {
-			content = lipgloss.JoinVertical(lipgloss.Left, banner, m.textInput.View(), m.viewport.View())
+			content = lipgloss.JoinVertical(lipgloss.Left, banner, m.textInput.View(), vpView)
 		} else {
-			content = lipgloss.JoinVertical(lipgloss.Left, banner, m.viewport.View())
+			content = lipgloss.JoinVertical(lipgloss.Left, banner, vpView)
 		}
 		return lipgloss.JoinVertical(lipgloss.Left, content, m.help.View(m))
 	}
@@ -619,4 +623,39 @@ func wrap(s string, width int) string {
 		return s
 	}
 	return lipgloss.NewStyle().Width(width).Render(s)
+}
+
+func (m model) scrollbarView() string {
+	height := m.viewport.Height
+	if height <= 0 {
+		return ""
+	}
+	total := m.viewport.TotalLineCount()
+	if total <= height {
+		return ""
+	}
+
+	thumbHeight := int(float64(height) * float64(height) / float64(total))
+	if thumbHeight < 1 {
+		thumbHeight = 1
+	}
+
+	thumbY := int(float64(m.viewport.YOffset) * float64(height-thumbHeight) / float64(total-height))
+
+	var sb strings.Builder
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("62"))
+	thumb := style.Render("█")
+	track := style.Render("░")
+
+	for i := 0; i < height; i++ {
+		if i >= thumbY && i < thumbY+thumbHeight {
+			sb.WriteString(thumb)
+		} else {
+			sb.WriteString(track)
+		}
+		if i < height-1 {
+			sb.WriteString("\n")
+		}
+	}
+	return sb.String()
 }
