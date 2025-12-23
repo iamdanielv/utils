@@ -184,9 +184,9 @@ while true; do
         # Handle regular keys
         cmd=""
         case "$key" in
-            q) clear; exit 0 ;;
-            s) action="start"; cmd="start" ;;
-            x)
+            q|Q) clear; exit 0 ;;
+            s|S) action="start"; cmd="start" ;;
+            x|X)
                 STATUS_MSG="SHUTDOWN ${VM_NAMES[$SELECTED]}? (y/n)"
                 draw
                 read -rsn1 confirm
@@ -195,7 +195,7 @@ while true; do
                 else
                     STATUS_MSG="Shutdown cancelled"
                 fi ;;
-            f)
+            f|F)
                 STATUS_MSG="FORCE STOP ${VM_NAMES[$SELECTED]}? (y/n)"
                 draw
                 read -rsn1 confirm
@@ -204,7 +204,7 @@ while true; do
                 else
                     STATUS_MSG="Force stop cancelled"
                 fi ;;
-            r) action="reboot"; cmd="reboot" ;;
+            r|R) action="reboot"; cmd="reboot" ;;
         esac
 
         if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
