@@ -189,7 +189,7 @@ while true; do
             j|J) ((SELECTED++)) ;;
             s|S) action="start"; cmd="start" ;;
             x|X)
-                STATUS_MSG="SHUTDOWN ${VM_NAMES[$SELECTED]}? (y/n)"
+                STATUS_MSG="${RED}SHUTDOWN${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
                 draw
                 read -rsn1 confirm
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
@@ -198,7 +198,7 @@ while true; do
                     STATUS_MSG="Shutdown cancelled"
                 fi ;;
             f|F)
-                STATUS_MSG="FORCE STOP ${VM_NAMES[$SELECTED]}? (y/n)"
+                STATUS_MSG="${RED}FORCE STOP${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
                 draw
                 read -rsn1 confirm
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
