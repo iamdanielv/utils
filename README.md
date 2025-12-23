@@ -68,6 +68,8 @@ Recursively performs Git commands on the current directory and all subdirectorie
 **Description:**
 Utility to automatically scale a Docker Compose service up or down based on resource utilization. It can run as a sidecar container and monitor the target service or on the host.
 
+*Note: A Go-based version of this tool is available in `docker/go-scale/`.*
+
 - Scales based on CPU, Memory, or a combination of both.
 
 - **Flexible Scaling Logic:**
@@ -136,16 +138,17 @@ services:
 
 **To run this example:**
 
-1.  Save the content above as `docker-compose.yml`.
-2.  Run `PROJECT_NAME=$(basename "$PWD") docker compose up`.
-3.  The `autoscaler` will start with one `webapp` instance.
-4.  To trigger a scale-up, you can generate load. For example, using `hey` or `ab`:
+1. Save the content above as `docker-compose.yml`.
+2. Run `PROJECT_NAME=$(basename "$PWD") docker compose up`.
+3. The `autoscaler` will start with one `webapp` instance.
+4. To trigger a scale-up, you can generate load. For example, using `hey` or `ab`:
+
     ```sh
     # Install hey: sudo apt install hey
     hey -z 1m http://localhost:8080
     ```
-5.  Watch the logs from the `autoscaler` container to see it detect the high CPU usage and scale the `webapp` service up to the `--max` limit. When the load test finishes, it will eventually scale back down.
 
+5. Watch the logs from the `autoscaler` container to see it detect the high CPU usage and scale the `webapp` service up to the `--max` limit. When the load test finishes, it will eventually scale back down.
 
 ### 🗓️ Docker Compose Scheduler (`docker/schedule/scheduler.py`)
 
@@ -157,7 +160,7 @@ A Python-based scheduler that runs one-off tasks from your `docker-compose.yml` 
 - **Simple Setup:** Define your tasks as regular services in `docker-compose.yml`, add a `scheduler.cron` or `scheduler.interval` label, and use a `profiles: ["donotstart"]` to prevent them from running automatically.
 - **Live Log Streaming:** The scheduler captures and streams the logs from each task run in real-time, prefixed with the service name for clarity.
 
-#### Example Usage
+#### Docker Compose Scheduler - Example Usage
 
 Here is a `docker-compose.yml` that defines the scheduler and two sample tasks: one running every 10 seconds (interval) and another running every minute (cron).
 
@@ -198,9 +201,9 @@ services:
 
 **To run this example:**
 
-1.  Save the content above as `docker-compose.yml`.
-2.  Run `PROJECT_NAME=$(basename "$PWD") docker compose up scheduler`.
-3.  Watch the logs from the `scheduler` container. You will see it discover the two tasks and start running them based on their defined schedules, streaming their output in real-time.
+1. Save the content above as `docker-compose.yml`.
+2. Run `PROJECT_NAME=$(basename "$PWD") docker compose up scheduler`.
+3. Watch the logs from the `scheduler` container. You will see it discover the two tasks and start running them based on their defined schedules, streaming their output in real-time.
 
 ### 🌡️ System Temperature Monitor (`temp-monitor.sh`)
 
