@@ -203,7 +203,14 @@ func initialModel() model {
 			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "inspect")),
 		}
 	}
-	l.AdditionalFullHelpKeys = l.AdditionalShortHelpKeys
+	l.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start/stop service")),
+			key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart service")),
+			key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "view service logs")),
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "inspect service details")),
+		}
+	}
 
 	vp := viewport.New(0, 0)
 	return model{list: l, viewport: vp}
