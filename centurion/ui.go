@@ -167,14 +167,17 @@ func renderBanner(text string, width int) string {
 }
 
 type model struct {
-	list         list.Model
-	units        []SystemdUnit
-	err          error
-	width        int
-	height       int
-	viewport     viewport.Model
-	showDetails  bool
-	detailsTitle string
+	list          list.Model
+	units         []SystemdUnit
+	err           error
+	width         int
+	height        int
+	viewport      viewport.Model
+	showDetails   bool
+	detailsTitle  string
+	showConfirm   bool
+	pendingAction string
+	pendingUnit   string
 }
 
 func initialModel() model {
@@ -183,12 +186,12 @@ func initialModel() model {
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.Filter = filterContains
-	l.Help.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	l.Help.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
 	l.Help.Styles.ShortDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	l.Help.Styles.ShortSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	l.Help.Styles.FullKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	l.Help.Styles.ShortSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
+	l.Help.Styles.FullKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
 	l.Help.Styles.FullDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	l.Help.Styles.FullSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	l.Help.Styles.FullSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
@@ -307,6 +310,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height - 1
 	case tea.KeyMsg:
+		if m.showConfirm {
+			switch msg.String() {
+			case "y", "Y":
+				m.showConfirm = false
+				msg := ""
+				if m.pendingAction == "stop" {
+					msg = fmt.Sprintf("Stopping %s...", m.pendingUnit)
+				} else {
+					msg = fmt.Sprintf("Restarting %s...", m.pendingUnit)
+				}
+				return m, tea.Batch(performAction(m.pendingAction, m.pendingUnit), m.list.NewStatusMessage(msg))
+			default:
+				m.showConfirm = false
+				m.pendingAction = ""
+				m.pendingUnit = ""
+				return m, nil
+			}
+		}
 		if m.showDetails {
 			switch msg.String() {
 			case "q", "esc":
@@ -327,11 +348,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "x":
 				if i, ok := m.list.SelectedItem().(item); ok {
-					return m, tea.Batch(performAction("stop", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Stopping %s...", i.Name)))
+					m.pendingAction = "stop"
+					m.pendingUnit = i.Name
+					m.showConfirm = true
+					return m, nil
 				}
 			case "r":
 				if i, ok := m.list.SelectedItem().(item); ok {
-					return m, tea.Batch(performAction("restart", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Restarting %s...", i.Name)))
+					m.pendingAction = "restart"
+					m.pendingUnit = i.Name
+					m.showConfirm = true
+					return m, nil
 				}
 			case "enter":
 				if i, ok := m.list.SelectedItem().(item); ok {
@@ -362,6 +389,18 @@ func (m model) View() string {
 	}
 	if m.width == 0 {
 		return "Loading..."
+	}
+
+	if m.showConfirm {
+		question := fmt.Sprintf("Are you sure you want to %s service:\n\n%s\n\n(y/N)", strings.ToUpper(m.pendingAction), m.pendingUnit)
+		dialog := lipgloss.NewStyle().
+			Width(50).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("196")).
+			Padding(1, 2).
+			Align(lipgloss.Center).
+			Render(question)
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
 	}
 
 	if m.showDetails {
