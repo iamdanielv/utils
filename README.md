@@ -13,9 +13,18 @@ This repository contains shell scripts for:
 - System monitoring (temperature, user checks)
 - Miscellaneous utilities (string generation, color palettes)
 
-All scripts are designed to be run in Unix-like environments.
+All tools are designed to be run in Unix-like environments.
 
-## 🧩 Scripts
+## 🧩 Scripts & Tools
+
+### 🏛️ Centurion (`centurion/`)
+
+**Description:**
+A Go-based TUI (Text User Interface) for managing `systemd` services.
+
+- **Service Explorer**: View and filter systemd services.
+- **Controls**: Start, stop, and restart units.
+- **Logs**: Integrated journalctl log viewing.
 
 ### 💻 Developer Machine Setup (`setup-dev-machine.sh`)
 
