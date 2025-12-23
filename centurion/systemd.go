@@ -81,3 +81,10 @@ func GetUnitStatus(name string) (string, error) {
 	output, _ := cmd.CombinedOutput()
 	return string(output), nil
 }
+
+// GetUnitLogs returns the recent logs for a unit
+func GetUnitLogs(name string) (string, error) {
+	cmd := exec.Command("journalctl", "-u", name, "-n", "1000", "--no-pager")
+	output, _ := cmd.CombinedOutput()
+	return string(output), nil
+}

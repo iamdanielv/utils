@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,6 +23,14 @@ func (i item) RenderTitle(colored bool) string {
 	if len(name) > 50 {
 		name = name[:49] + "…"
 	}
+	name = fmt.Sprintf("%-50s", name)
+
+	if colored {
+		name = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("255")).Render(name)
+	} else {
+		name = "\033[1m" + name + "\033[22m"
+	}
+
 	status := i.ActiveState
 	var statusColor lipgloss.Color
 	var statusIcon string
@@ -106,7 +115,7 @@ func (i item) RenderTitle(colored bool) string {
 		subDisplay = lipgloss.NewStyle().Foreground(subColor).Render(subText)
 	}
 
-	return fmt.Sprintf("%-50s %s %s", name, statusDisplay, subDisplay)
+	return fmt.Sprintf("%s %s %s", name, statusDisplay, subDisplay)
 }
 
 func (i item) Description() string { return i.SystemdUnit.Description }
@@ -144,28 +153,53 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 }
 
+func renderBanner(text string, width int) string {
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
+	prefix := "┏ "
+	suffix := " "
+	contentWidth := lipgloss.Width(prefix) + lipgloss.Width(text) + lipgloss.Width(suffix)
+	lineWidth := width - contentWidth
+	if lineWidth < 0 {
+		lineWidth = 0
+	}
+	line := strings.Repeat("━", lineWidth)
+	return style.Render(prefix + text + suffix + line)
+}
+
 type model struct {
-	list        list.Model
-	units       []SystemdUnit
-	err         error
-	width       int
-	height      int
-	viewport    viewport.Model
-	showDetails bool
+	list         list.Model
+	units        []SystemdUnit
+	err          error
+	width        int
+	height       int
+	viewport     viewport.Model
+	showDetails  bool
+	detailsTitle string
 }
 
 func initialModel() model {
 	l := list.New([]list.Item{}, itemDelegate{}, 0, 0)
 	l.Title = "Centurion Services"
-	l.SetShowTitle(true)
+	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.Filter = filterContains
 	l.Help.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	l.Help.Styles.ShortDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	l.Help.Styles.ShortSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	l.Help.Styles.FullKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	l.Help.Styles.FullDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
-	l.Help.Styles.ShortSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	l.Help.Styles.FullSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	l.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
+			key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
+			key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart")),
+			key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "logs")),
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "inspect")),
+		}
+	}
+	l.AdditionalFullHelpKeys = l.AdditionalShortHelpKeys
+
 	vp := viewport.New(0, 0)
 	return model{list: l, viewport: vp}
 }
@@ -204,11 +238,19 @@ func fetchServices() tea.Cmd {
 }
 
 type statusMsg string
+type logsMsg string
 
 func fetchStatus(name string) tea.Cmd {
 	return func() tea.Msg {
 		status, _ := GetUnitStatus(name)
 		return statusMsg(status)
+	}
+}
+
+func fetchLogs(name string) tea.Cmd {
+	return func() tea.Msg {
+		logs, _ := GetUnitLogs(name)
+		return logsMsg(logs)
 	}
 }
 
@@ -247,7 +289,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetItems(items)
 	case statusMsg:
 		m.viewport.SetContent(string(msg))
+		m.detailsTitle = "Service Details (Esc/q to close)"
 		m.showDetails = true
+		return m, nil
+	case logsMsg:
+		m.viewport.SetContent(string(msg))
+		m.detailsTitle = "Service Logs (Esc/q to close)"
+		m.showDetails = true
+		m.viewport.GotoBottom()
 		return m, nil
 	case errMsg:
 		m.err = msg
@@ -268,41 +317,42 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-		if m.list.FilterState() == list.Filtering {
-			break
-		}
-
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		case "s":
-			if i, ok := m.list.SelectedItem().(item); ok {
-				return m, tea.Batch(performAction("start", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Starting %s...", i.Name)))
-			}
-		case "x":
-			if i, ok := m.list.SelectedItem().(item); ok {
-				return m, tea.Batch(performAction("stop", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Stopping %s...", i.Name)))
-			}
-		case "r":
-			if i, ok := m.list.SelectedItem().(item); ok {
-				return m, tea.Batch(performAction("restart", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Restarting %s...", i.Name)))
-			}
-		case "enter":
-			if i, ok := m.list.SelectedItem().(item); ok {
-				return m, fetchStatus(i.Name)
+		if m.list.FilterState() != list.Filtering {
+			switch msg.String() {
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			case "s":
+				if i, ok := m.list.SelectedItem().(item); ok {
+					return m, tea.Batch(performAction("start", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Starting %s...", i.Name)))
+				}
+			case "x":
+				if i, ok := m.list.SelectedItem().(item); ok {
+					return m, tea.Batch(performAction("stop", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Stopping %s...", i.Name)))
+				}
+			case "r":
+				if i, ok := m.list.SelectedItem().(item); ok {
+					return m, tea.Batch(performAction("restart", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Restarting %s...", i.Name)))
+				}
+			case "enter":
+				if i, ok := m.list.SelectedItem().(item); ok {
+					return m, fetchStatus(i.Name)
+				}
+			case "l":
+				if i, ok := m.list.SelectedItem().(item); ok {
+					return m, fetchLogs(i.Name)
+				}
 			}
 		}
 	}
 
-	if !m.showDetails {
-		m.list, cmd = m.list.Update(msg)
+	m.list, cmd = m.list.Update(msg)
 
-		title := fmt.Sprintf("Centurion - %d Services", len(m.list.VisibleItems()))
-		if filter := m.list.FilterValue(); filter != "" {
-			title += fmt.Sprintf(" - Filter: %s", filter)
-		}
-		m.list.Title = title
+	title := fmt.Sprintf("Centurion - %d Services", len(m.list.VisibleItems()))
+	if filter := m.list.FilterValue(); filter != "" {
+		title += fmt.Sprintf(" - Filter: %s", filter)
 	}
+	m.list.Title = title
+
 	return m, cmd
 }
 
@@ -315,8 +365,10 @@ func (m model) View() string {
 	}
 
 	if m.showDetails {
-		return lipgloss.JoinVertical(lipgloss.Left, "Service Details (Esc/q to close)", m.viewport.View())
+		banner := renderBanner(m.detailsTitle, m.width)
+		return lipgloss.JoinVertical(lipgloss.Left, banner, m.viewport.View())
 	}
 
-	return m.list.View()
+	banner := renderBanner(m.list.Title, m.width)
+	return lipgloss.JoinVertical(lipgloss.Left, banner, m.list.View())
 }
