@@ -347,7 +347,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logsMsg:
 		m.rawLogContent = string(msg)
 		m.isLogView = true
-		m.viewport.SetContent(string(msg))
+		m.viewport.SetContent(wrap(m.rawLogContent, m.viewport.Width))
 		m.detailsTitle = fmt.Sprintf("Service Logs: %s (Esc/q to close, / to filter)", m.activeUnitName)
 		m.showDetails = true
 		m.viewport.GotoBottom()
@@ -372,6 +372,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Height = msg.Height - bannerHeight
 		if m.showFilter {
 			m.viewport.Height--
+		}
+		if m.showDetails && m.isLogView {
+			content := m.rawLogContent
+			if m.showFilter && m.textInput.Value() != "" {
+				content = filterLogs(m.rawLogContent, m.textInput.Value())
+			}
+			m.viewport.SetContent(wrap(content, m.viewport.Width))
 		}
 	case tea.KeyMsg:
 		if m.showConfirm {
@@ -402,10 +409,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if filterTerm != "" {
 						m.detailsTitle = fmt.Sprintf("Service Logs: %s (Filter: %s)", m.activeUnitName, filterTerm)
 						filtered := filterLogs(m.rawLogContent, filterTerm)
-						m.viewport.SetContent(filtered)
+						m.viewport.SetContent(wrap(filtered, m.viewport.Width))
 					} else {
 						m.detailsTitle = fmt.Sprintf("Service Logs: %s (Esc/q to close, / to filter)", m.activeUnitName)
-						m.viewport.SetContent(m.rawLogContent)
+						m.viewport.SetContent(wrap(m.rawLogContent, m.viewport.Width))
 					}
 					m.viewport.GotoBottom()
 					m.viewport.Height++
@@ -550,4 +557,11 @@ func filterLogs(content, term string) string {
 		return "No matches found."
 	}
 	return strings.Join(lines, "\n")
+}
+
+func wrap(s string, width int) string {
+	if width <= 0 {
+		return s
+	}
+	return lipgloss.NewStyle().Width(width).Render(s)
 }
