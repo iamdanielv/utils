@@ -237,8 +237,10 @@ func initialModel() model {
 
 	ti := textinput.New()
 	ti.Placeholder = "Filter logs..."
-	ti.Prompt = "/"
-	ti.CharLimit = 50
+	ti.Prompt = "  Filter: "
+	ti.PromptStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("220"))
+
+	ti.CharLimit = 60
 	ti.Width = 30
 
 	h := help.New()
@@ -491,7 +493,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	title := fmt.Sprintf("Centurion - %d Services", len(m.list.VisibleItems()))
 	if filter := m.list.FilterValue(); filter != "" {
-		title += fmt.Sprintf(" - Filter: %s", filter)
+		title += fmt.Sprintf(" (Filter: %s)", filter)
 	}
 	m.list.Title = title
 
@@ -521,7 +523,7 @@ func (m model) View() string {
 	if m.showDetails {
 		banner := renderBanner(m.detailsTitle, m.width)
 		if m.showFilter {
-			return lipgloss.JoinVertical(lipgloss.Left, banner, m.viewport.View(), m.textInput.View())
+			return lipgloss.JoinVertical(lipgloss.Left, banner, m.textInput.View(), m.viewport.View())
 		}
 		return lipgloss.JoinVertical(lipgloss.Left, banner, m.viewport.View())
 	}
