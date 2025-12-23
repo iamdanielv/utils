@@ -190,6 +190,22 @@ type model struct {
 }
 
 func (m model) ShortHelp() []key.Binding {
+	if m.showDetails {
+		if m.showFilter {
+			return []key.Binding{
+				key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply")),
+				key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+			}
+		}
+		bindings := []key.Binding{
+			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc/q", "close")),
+		}
+		if m.isLogView {
+			bindings = append(bindings, key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")))
+		}
+		bindings = append(bindings, key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "more")))
+		return bindings
+	}
 	if m.list.FilterState() == list.Filtering {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
@@ -208,6 +224,20 @@ func (m model) ShortHelp() []key.Binding {
 }
 
 func (m model) FullHelp() [][]key.Binding {
+	if m.showDetails {
+		return [][]key.Binding{
+			{
+				key.NewBinding(key.WithKeys("up"), key.WithHelp("↑/k", "scroll up")),
+				key.NewBinding(key.WithKeys("down"), key.WithHelp("↓/j", "scroll down")),
+				key.NewBinding(key.WithKeys("home"), key.WithHelp("home/g", "top")),
+				key.NewBinding(key.WithKeys("end"), key.WithHelp("end/G", "bottom")),
+			},
+			{
+				key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc/q", "close view")),
+				key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "close help")),
+			},
+		}
+	}
 	return [][]key.Binding{
 		{
 			key.NewBinding(key.WithKeys("up"), key.WithHelp("↑/k", "move up")),
@@ -343,14 +373,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statusMsg:
 		m.viewport.SetContent(string(msg))
 		m.isLogView = false
-		m.detailsTitle = fmt.Sprintf("Service Details: %s (Esc/q to close)", m.activeUnitName)
+		m.detailsTitle = fmt.Sprintf("Service Details: %s", m.activeUnitName)
 		m.showDetails = true
 		return m, nil
 	case logsMsg:
 		m.rawLogContent = string(msg)
 		m.isLogView = true
 		m.viewport.SetContent(wrap(m.rawLogContent, m.viewport.Width))
-		m.detailsTitle = fmt.Sprintf("Service Logs: %s (Esc/q to close, / to filter)", m.activeUnitName)
+		m.detailsTitle = fmt.Sprintf("Service Logs: %s", m.activeUnitName)
 		m.showDetails = true
 		m.viewport.GotoBottom()
 		m.textInput.Reset()
@@ -371,7 +401,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.list.SetSize(msg.Width, listHeight)
 		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - bannerHeight
+		m.viewport.Height = msg.Height - bannerHeight - helpHeight
 		if m.showFilter {
 			m.viewport.Height--
 		}
@@ -413,7 +443,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						filtered := filterLogs(m.rawLogContent, filterTerm)
 						m.viewport.SetContent(wrap(filtered, m.viewport.Width))
 					} else {
-						m.detailsTitle = fmt.Sprintf("Service Logs: %s (Esc/q to close, / to filter)", m.activeUnitName)
+						m.detailsTitle = fmt.Sprintf("Service Logs: %s", m.activeUnitName)
 						m.viewport.SetContent(wrap(m.rawLogContent, m.viewport.Width))
 					}
 					m.viewport.GotoBottom()
@@ -440,6 +470,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.viewport.Height--
 					return m, nil
 				}
+			case "?":
+				m.help.ShowAll = !m.help.ShowAll
+				bannerHeight := lipgloss.Height(renderBanner("", m.width))
+				helpHeight := lipgloss.Height(m.help.View(m))
+				m.viewport.Height = m.height - bannerHeight - helpHeight
+				if m.showFilter {
+					m.viewport.Height--
+				}
+			case "home":
+			case "g":
+				m.viewport.GotoTop()
+			case "end":
+			case "G":
+				m.viewport.GotoBottom()
 			}
 			m.viewport, cmd = m.viewport.Update(msg)
 			return m, cmd
@@ -524,10 +568,13 @@ func (m model) View() string {
 
 	if m.showDetails {
 		banner := renderBanner(m.detailsTitle, m.width)
+		var content string
 		if m.showFilter {
-			return lipgloss.JoinVertical(lipgloss.Left, banner, m.textInput.View(), m.viewport.View())
+			content = lipgloss.JoinVertical(lipgloss.Left, banner, m.textInput.View(), m.viewport.View())
+		} else {
+			content = lipgloss.JoinVertical(lipgloss.Left, banner, m.viewport.View())
 		}
-		return lipgloss.JoinVertical(lipgloss.Left, banner, m.viewport.View())
+		return lipgloss.JoinVertical(lipgloss.Left, content, m.help.View(m))
 	}
 
 	banner := renderBanner(m.list.Title, m.width)
