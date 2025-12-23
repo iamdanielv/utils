@@ -146,8 +146,8 @@ draw() {
     echo -e "${BOLD} ${STATUS_MSG}${NC}"
     echo -e "${BLUE}----------------------------------------------------${NC}"
     echo -e "${BOLD}Controls:${NC}"
-    echo -e " [${BOLD}${CYAN}↑/↓${NC}] Select   [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}x${NC}]Shutdown"
-    echo -e " [${BOLD}${RED}F${NC}]orce Stop   [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${RED}Q${NC}]uit"
+    echo -e " [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown"
+    echo -e " [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${RED}Q${NC}]uit"
 }
 
 # Main Loop
@@ -185,6 +185,8 @@ while true; do
         cmd=""
         case "$key" in
             q|Q) clear; exit 0 ;;
+            k|K) ((SELECTED--)) ;;
+            j|J) ((SELECTED++)) ;;
             s|S) action="start"; cmd="start" ;;
             x|X)
                 STATUS_MSG="SHUTDOWN ${VM_NAMES[$SELECTED]}? (y/n)"
