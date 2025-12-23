@@ -48,6 +48,8 @@ It is named **Centurion** because it commands system "units".
 | :-------- | :----------------------      |
 | `↑`/`k`   | Move Up                      |
 | `↓`/`j`   | Move Down                    |
+| `home`/`g`| Go to Top                    |
+| `end`/`G` | Go to Bottom                 |
 | `s`       | **S**tart / **S**top service |
 | `r`       | **R**estart selected service |
 | `l`       | View service **l**ogs        |
