@@ -146,8 +146,8 @@ draw() {
     echo -e "${BOLD} ${STATUS_MSG}${NC}"
     echo -e "${BLUE}----------------------------------------------------${NC}"
     echo -e "${BOLD}Controls:${NC}"
-    echo -e " [${BOLD}↑/↓${NC}] Select   [${BOLD}S${NC}]tart      [${BOLD}x${NC}]Shutdown"
-    echo -e " [${BOLD}F${NC}]orce Stop   [${BOLD}R${NC}]eboot     [${BOLD}Q${NC}]uit"
+    echo -e " [${BOLD}${CYAN}↑/↓${NC}] Select   [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}x${NC}]Shutdown"
+    echo -e " [${BOLD}${RED}F${NC}]orce Stop   [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${RED}Q${NC}]uit"
 }
 
 # Main Loop
