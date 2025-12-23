@@ -186,18 +186,20 @@ func initialModel() model {
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.Filter = filterContains
+
 	l.Help.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
 	l.Help.Styles.ShortDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	l.Help.Styles.ShortSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
 	l.Help.Styles.FullKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
 	l.Help.Styles.FullDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	l.Help.Styles.FullSeparator = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF00FF"))
+	l.Help.ShortSeparator = "•"
+	l.Help.FullSeparator = "•"
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
-			key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
-			key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
-			key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart")),
-			key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "logs")),
+			key.NewBinding(key.WithKeys("s"), key.WithHelp("(s)tart/stop", "")),
+			key.NewBinding(key.WithKeys("r"), key.WithHelp("(r)estart", "")),
+			key.NewBinding(key.WithKeys("l"), key.WithHelp("(l)ogs", "")),
 			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "inspect")),
 		}
 	}
@@ -344,14 +346,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			case "s":
 				if i, ok := m.list.SelectedItem().(item); ok {
-					return m, tea.Batch(performAction("start", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Starting %s...", i.Name)))
-				}
-			case "x":
-				if i, ok := m.list.SelectedItem().(item); ok {
-					m.pendingAction = "stop"
-					m.pendingUnit = i.Name
-					m.showConfirm = true
-					return m, nil
+					if i.ActiveState == "active" || i.ActiveState == "reloading" || i.ActiveState == "activating" {
+						m.pendingAction = "stop"
+						m.pendingUnit = i.Name
+						m.showConfirm = true
+						return m, nil
+					} else {
+						return m, tea.Batch(performAction("start", i.Name), m.list.NewStatusMessage(fmt.Sprintf("Starting %s...", i.Name)))
+					}
 				}
 			case "r":
 				if i, ok := m.list.SelectedItem().(item); ok {
@@ -409,5 +411,6 @@ func (m model) View() string {
 	}
 
 	banner := renderBanner(m.list.Title, m.width)
+
 	return lipgloss.JoinVertical(lipgloss.Left, banner, m.list.View())
 }
