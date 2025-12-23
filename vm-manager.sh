@@ -206,7 +206,15 @@ while true; do
                 else
                     STATUS_MSG="Force stop cancelled"
                 fi ;;
-            r|R) action="reboot"; cmd="reboot" ;;
+            r|R)
+                STATUS_MSG="${YELLOW}REBOOT${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
+                render_ui
+                read -rsn1 confirm
+                if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+                    action="reboot"; cmd="reboot"
+                else
+                    STATUS_MSG="Reboot cancelled"
+                fi ;;
         esac
 
         if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
