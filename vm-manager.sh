@@ -101,6 +101,56 @@ fetch_vms() {
     LAST_TIMESTAMP="$current_timestamp"
 }
 
+# Function to show VM details
+show_vm_details() {
+    local vm="$1"
+    clear
+    echo -e "${CYAN}== VM Details: ${BOLD}${YELLOW}$vm${NC}${CYAN} ========================================${NC}"
+    echo -e "${BOLD}Basic Info:${NC}"
+    virsh dominfo "$vm" | grep -E "State|CPU\(s\)|Max memory|Used memory|Autostart"
+
+    echo -e "\n${BOLD}Network Interfaces:${NC}"
+    local net_info
+    # Try agent first, then lease
+    net_info=$(virsh domifaddr "$vm" --source agent 2>/dev/null)
+    if [[ -z "$net_info" ]]; then
+        net_info=$(virsh domifaddr "$vm" --source lease 2>/dev/null)
+    fi
+    
+    if [[ -n "$net_info" ]]; then
+        echo "$net_info" | tail -n +3 | sed 's/^/  /'
+    else
+        echo "  No IP address found (requires qemu-guest-agent or DHCP lease)"
+    fi
+
+    echo -e "\n${BOLD}Storage:${NC}"
+    local targets
+    targets=$(virsh domblklist "$vm" | tail -n +3 | awk '{print $1}')
+    
+    if [[ -z "$targets" ]]; then
+        echo "  No storage devices found."
+    else
+        for target in $targets; do
+            [[ -z "$target" ]] && continue
+            echo -e "  ${BOLD}Device: $target${NC}"
+            local blk_info
+            blk_info=$(virsh domblkinfo "$vm" "$target" --human 2>/dev/null)
+            if [[ $? -ne 0 ]]; then
+                 blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
+            fi
+            
+            if [[ -n "$blk_info" ]]; then
+                echo "$blk_info" | grep -E "Capacity|Allocation" | sed 's/^/    /'
+            else
+                echo "    (No info available)"
+            fi
+        done
+    fi
+
+    echo -e "\n${BLUE}Press any key to return...${NC}"
+    read -rsn1
+}
+
 # Function to render the UI
 render_ui() {
     clear
@@ -147,7 +197,7 @@ render_ui() {
     echo -e "${BLUE}----------------------------------------------------${NC}"
     echo -e "${BOLD}Controls:${NC}"
     echo -e " [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown"
-    echo -e " [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${RED}Q${NC}]uit"
+    echo -e " [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo     [${BOLD}${RED}Q${NC}]uit"
 }
 
 # Main Loop
@@ -187,6 +237,11 @@ while true; do
             q|Q) clear; exit 0 ;;
             k|K) ((SELECTED--)) ;;
             j|J) ((SELECTED++)) ;;
+            i|I)
+                if [[ -n "${VM_NAMES[$SELECTED]}" ]]; then
+                    show_vm_details "${VM_NAMES[$SELECTED]}"
+                fi
+                ;;
             s|S) action="start"; cmd="start" ;;
             x|X)
                 STATUS_MSG="${RED}SHUTDOWN${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
