@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -168,18 +170,23 @@ func renderBanner(text string, width int) string {
 }
 
 type model struct {
-	list          list.Model
-	units         []SystemdUnit
-	err           error
-	width         int
-	height        int
-	viewport      viewport.Model
-	help          help.Model
-	showDetails   bool
-	detailsTitle  string
-	showConfirm   bool
-	pendingAction string
-	pendingUnit   string
+	list           list.Model
+	units          []SystemdUnit
+	err            error
+	width          int
+	height         int
+	viewport       viewport.Model
+	help           help.Model
+	showDetails    bool
+	detailsTitle   string
+	showConfirm    bool
+	pendingAction  string
+	pendingUnit    string
+	activeUnitName string
+	textInput      textinput.Model
+	showFilter     bool
+	rawLogContent  string
+	isLogView      bool
 }
 
 func (m model) ShortHelp() []key.Binding {
@@ -228,6 +235,12 @@ func initialModel() model {
 	l.SetShowHelp(false)
 	l.Filter = filterContains
 
+	ti := textinput.New()
+	ti.Placeholder = "Filter logs..."
+	ti.Prompt = "/"
+	ti.CharLimit = 50
+	ti.Width = 30
+
 	h := help.New()
 	h.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF"))
 	h.Styles.ShortDesc = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
@@ -239,7 +252,7 @@ func initialModel() model {
 	h.FullSeparator = " "
 
 	vp := viewport.New(0, 0)
-	return model{list: l, viewport: vp, help: h}
+	return model{list: l, viewport: vp, help: h, textInput: ti}
 }
 
 func filterContains(term string, targets []string) []list.Rank {
@@ -327,14 +340,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetItems(items)
 	case statusMsg:
 		m.viewport.SetContent(string(msg))
-		m.detailsTitle = "Service Details (Esc/q to close)"
+		m.isLogView = false
+		m.detailsTitle = fmt.Sprintf("Service Details: %s (Esc/q to close)", m.activeUnitName)
 		m.showDetails = true
 		return m, nil
 	case logsMsg:
+		m.rawLogContent = string(msg)
+		m.isLogView = true
 		m.viewport.SetContent(string(msg))
-		m.detailsTitle = "Service Logs (Esc/q to close)"
+		m.detailsTitle = fmt.Sprintf("Service Logs: %s (Esc/q to close, / to filter)", m.activeUnitName)
 		m.showDetails = true
 		m.viewport.GotoBottom()
+		m.textInput.Reset()
+		m.showFilter = false
 		return m, nil
 	case errMsg:
 		m.err = msg
@@ -352,6 +370,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetSize(msg.Width, listHeight)
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height - bannerHeight
+		if m.showFilter {
+			m.viewport.Height--
+		}
 	case tea.KeyMsg:
 		if m.showConfirm {
 			switch msg.String() {
@@ -372,10 +393,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if m.showDetails {
+			if m.showFilter {
+				switch msg.String() {
+				case "enter":
+					m.showFilter = false
+					m.textInput.Blur()
+					filterTerm := m.textInput.Value()
+					if filterTerm != "" {
+						m.detailsTitle = fmt.Sprintf("Service Logs: %s (Filter: %s)", m.activeUnitName, filterTerm)
+						filtered := filterLogs(m.rawLogContent, filterTerm)
+						m.viewport.SetContent(filtered)
+					} else {
+						m.detailsTitle = fmt.Sprintf("Service Logs: %s (Esc/q to close, / to filter)", m.activeUnitName)
+						m.viewport.SetContent(m.rawLogContent)
+					}
+					m.viewport.GotoBottom()
+					m.viewport.Height++
+					return m, nil
+				case "esc":
+					m.showFilter = false
+					m.textInput.Blur()
+					m.viewport.Height++
+					return m, nil
+				}
+				m.textInput, cmd = m.textInput.Update(msg)
+				return m, cmd
+			}
 			switch msg.String() {
 			case "q", "esc":
 				m.showDetails = false
+				m.isLogView = false
 				return m, nil
+			case "/":
+				if m.isLogView {
+					m.showFilter = true
+					m.textInput.Focus()
+					m.viewport.Height--
+					return m, nil
+				}
 			}
 			m.viewport, cmd = m.viewport.Update(msg)
 			return m, cmd
@@ -410,10 +465,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "enter":
 				if i, ok := m.list.SelectedItem().(item); ok {
+					m.activeUnitName = i.Name
 					return m, fetchStatus(i.Name)
 				}
 			case "l":
 				if i, ok := m.list.SelectedItem().(item); ok {
+					m.activeUnitName = i.Name
 					return m, fetchLogs(i.Name)
 				}
 			}
@@ -456,10 +513,41 @@ func (m model) View() string {
 
 	if m.showDetails {
 		banner := renderBanner(m.detailsTitle, m.width)
+		if m.showFilter {
+			return lipgloss.JoinVertical(lipgloss.Left, banner, m.viewport.View(), m.textInput.View())
+		}
 		return lipgloss.JoinVertical(lipgloss.Left, banner, m.viewport.View())
 	}
 
 	banner := renderBanner(m.list.Title, m.width)
 
 	return lipgloss.JoinVertical(lipgloss.Left, banner, m.list.View(), m.help.View(m))
+}
+
+func filterLogs(content, term string) string {
+	if term == "" {
+		return content
+	}
+
+	re, err := regexp.Compile("(?i)" + regexp.QuoteMeta(term))
+	if err != nil {
+		return content
+	}
+
+	highlightStyle := lipgloss.NewStyle().Background(lipgloss.Color("11")).Foreground(lipgloss.Color("0"))
+
+	var lines []string
+	linesStr := strings.Split(content, "\n")
+	for _, line := range linesStr {
+		if re.MatchString(line) {
+			highlighted := re.ReplaceAllStringFunc(line, func(match string) string {
+				return highlightStyle.Render(match)
+			})
+			lines = append(lines, highlighted)
+		}
+	}
+	if len(lines) == 0 {
+		return "No matches found."
+	}
+	return strings.Join(lines, "\n")
 }
