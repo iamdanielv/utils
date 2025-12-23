@@ -102,7 +102,7 @@ fetch_vms() {
 }
 
 # Function to render the UI
-draw() {
+render_ui() {
     clear
     echo -e "${CYAN}==VM Manager========================================${NC}"
     
@@ -157,7 +157,7 @@ while true; do
     if [[ $SELECTED -ge ${#VM_NAMES[@]} ]]; then SELECTED=$((${#VM_NAMES[@]} - 1)); fi
     if [[ $SELECTED -lt 0 ]]; then SELECTED=0; fi
 
-    draw
+    render_ui
 
     # Read input (1 char) with 2s timeout for auto-refresh
     read -rsn1 -t 2 key
@@ -190,7 +190,7 @@ while true; do
             s|S) action="start"; cmd="start" ;;
             x|X)
                 STATUS_MSG="${RED}SHUTDOWN${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                draw
+                render_ui
                 read -rsn1 confirm
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="shutdown"; cmd="shutdown"
@@ -199,7 +199,7 @@ while true; do
                 fi ;;
             f|F)
                 STATUS_MSG="${RED}FORCE STOP${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                draw
+                render_ui
                 read -rsn1 confirm
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="force stop"; cmd="destroy"
@@ -212,7 +212,7 @@ while true; do
         if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
             vm="${VM_NAMES[$SELECTED]}"
             STATUS_MSG="Performing $action on $vm..."
-            draw
+            render_ui
             virsh "$cmd" "$vm" >/dev/null 2>&1
             sleep 1
             fetch_vms
