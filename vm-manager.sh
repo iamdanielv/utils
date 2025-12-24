@@ -9,6 +9,11 @@ CYAN='\033[36m'
 BOLD='\033[1m'
 REVERSE='\033[7m'
 NC='\033[0m' # No Color
+CURSOR_HIDE='\033[?25l'
+CURSOR_SHOW='\033[?25h'
+
+# Trap to restore cursor on exit
+trap 'echo -e "${CURSOR_SHOW}"; exit' EXIT INT TERM
 
 # Check dependencies
 if ! command -v virsh &> /dev/null; then
@@ -282,6 +287,7 @@ render_ui() {
 }
 
 # Main Loop
+echo -e "${CURSOR_HIDE}"
 fetch_vms
 while true; do
     # Ensure selection is within bounds
