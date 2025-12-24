@@ -6,6 +6,7 @@ GREEN='\033[32m'
 YELLOW='\033[33m'
 BLUE='\033[34m'
 CYAN='\033[36m'
+GRAY='\033[38;5;244m'
 BOLD='\033[1m'
 REVERSE='\033[7m'
 UNDERLINE='\033[4m'
@@ -322,6 +323,7 @@ render_main_ui() {
 
             local line_color="$NC"
             local state_color="$NC"
+            local row_text_color="$GRAY"
             local cursor="${CYAN}│${NC} "
             local state_icon=" "
             
@@ -330,6 +332,7 @@ render_main_ui() {
                 "running")
                     state_color="$GREEN"
                     state_icon="$ICON_RUNNING"
+                    row_text_color="${NC}"
                     ;;
                 "shut off")
                     state_color="$RED"
@@ -351,11 +354,12 @@ render_main_ui() {
             if [[ $i -eq $SELECTED ]]; then
                 cursor="${CYAN}│❱${NC}"
                 line_color="${BOLD}${BLUE}${REVERSE}"
+                row_text_color=""
             fi
             
             # Print line with padding
             local line_str
-            printf -v line_str "${cursor}${line_color}%-20s ${state_color}%-12s${NC}${line_color} %-8s %-8s %b${NC}${CLEAR_LINE}\n" "$name" "$state_display" "$cpu" "$mem" "$autostart_display"
+            printf -v line_str "${cursor}${line_color}${row_text_color}%-20s${NC}${line_color} ${state_color}%-12s${NC}${line_color} ${row_text_color}%-8s %-8s${NC}${line_color} %b${NC}${CLEAR_LINE}\n" "$name" "$state_display" "$cpu" "$mem" "$autostart_display"
             buffer+="$line_str"
         done
     fi
