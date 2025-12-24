@@ -207,7 +207,7 @@ show_vm_details() {
     fi
 
     local buffer=""
-    buffer+="${CYAN}==VM Details: ${BOLD}${YELLOW}$vm${NC} (${REVERSE}${state_color}${state_icon}${state}${REVERSE}${NC})${CYAN}==${NC}\n"
+    buffer+="${CYAN}╭─VM Details: ${BOLD}${YELLOW}$vm${NC} (${REVERSE}${state_color}${state_icon}${state}${REVERSE}${NC})${CYAN}──────────────────────${NC}\n"
     
     local line
     printf -v line "  CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
@@ -302,9 +302,9 @@ show_vm_details() {
 render_ui() {
     # Double buffering to prevent flicker
     local buffer=""
-    buffer+="${CYAN}==VM Manager============================================${NC}\n"
+    buffer+="${CYAN}╭─VM Manager────────────────────────────────────────────${NC}\n"
     local header
-    printf -v header "  ${BOLD}${UNDERLINE}%-20s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-3s${NO_UNDERLINE}${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
+    printf -v header "${CYAN}│${NC} ${BOLD}${UNDERLINE}%-20s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-3s${NO_UNDERLINE}${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
     buffer+="$header"
         
     local count=${#VM_NAMES[@]}
@@ -328,7 +328,7 @@ render_ui() {
 
             local line_color="$NC"
             local state_color="$NC"
-            local cursor="  "
+            local cursor="${CYAN}│${NC} "
             local state_icon=" "
             
             # Determine State Color
@@ -355,7 +355,7 @@ render_ui() {
             
             # Highlight selection
             if [[ $i -eq $SELECTED ]]; then
-                cursor="${CYAN}❯ ${NC}"
+                cursor="${CYAN}│❱${NC}"
                 line_color="${BOLD}${BLUE}${REVERSE}"
             fi
             
@@ -366,11 +366,11 @@ render_ui() {
         done
     fi
     
-    buffer+="${CYAN}========================================================${NC}\n"
+    buffer+="${CYAN}╰───────────────────────────────────────────────────────${NC}\n"
     buffer+="${BOLD} ${STATUS_MSG}${NC}${CLEAR_LINE}\n"
-    buffer+="${BLUE}-Controls:----------------------------------------------${NC}\n"
-    buffer+=" [${BOLD}${CYAN}↑/↓/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown${CLEAR_LINE}\n"
-    buffer+=" [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo       [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
+    buffer+="${BLUE}╭Controls:──────────────────────────────────────────────${NC}\n"
+    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↑/↓/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown${CLEAR_LINE}\n"
+    buffer+="${BLUE}╰${NC} [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo       [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
 
     # Print buffer at home position and clear rest of screen
     printf "\033[H%b\033[J" "$buffer"
