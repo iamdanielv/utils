@@ -274,7 +274,7 @@ render_ui() {
         local header
         printf -v header "  ${BOLD}%-20s %-10s %-6s %-10s${NC}\n" "NAME" "STATE" "CPU" "MEM"
         buffer+="$header"
-        buffer+="  ${BLUE}----                 -----      ---    ---${NC}\n"
+        buffer+="  ${BLUE}-------------------- ---------- ------ ----------${NC}\n"
         
         for ((i=0; i<count; i++)); do
             local name="${VM_NAMES[$i]}"
