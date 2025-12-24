@@ -235,7 +235,7 @@ show_vm_details() {
                 continue
             fi
 
-            buffer+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC})\n"
+            buffer+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC}) - Type: ${CYAN}${type}${NC}\n"
             
             if [[ "$source" == "-" ]]; then
                 source="(unknown or passthrough)"
