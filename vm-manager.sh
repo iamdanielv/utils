@@ -146,10 +146,11 @@ show_vm_details() {
         net_info=$(virsh domifaddr "$vm" --source lease 2>/dev/null)
     fi
     
-    if [[ -n "$net_info" ]]; then
-        echo "$net_info" | tail -n +3 | sed 's/^/  /'
+    local clean_net_info=$(echo "$net_info" | tail -n +3)
+    if [[ -n "$clean_net_info" ]]; then
+        echo "$clean_net_info" | sed 's/^/  /'
     else
-        echo "  No IP address found (requires qemu-guest-agent or DHCP lease)"
+        echo -e "  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}"
     fi
 
     echo -e "\n${BOLD}Storage:${NC}"
