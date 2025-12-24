@@ -279,7 +279,7 @@ render_ui() {
     printf -v header "  ${BOLD}%-20s %-10s %-6s %-10s %-3s${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
     buffer+="$header"
     buffer+="  ${BLUE}-------------------- ---------- ------ ---------- ---${NC}\n"
-    
+        
     local count=${#VM_NAMES[@]}
     
     if [[ $count -eq 0 ]]; then
@@ -327,8 +327,8 @@ render_ui() {
     buffer+="${BLUE}=======================================================${NC}\n"
     buffer+="${BOLD} ${STATUS_MSG}${NC}${CLEAR_LINE}\n"
     buffer+="${BLUE}Controls:----------------------------------------------${NC}\n"
-    buffer+=" [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown\n"
-    buffer+=" [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo     [${BOLD}${RED}Q${NC}]uit\n"
+    buffer+=" [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown${CLEAR_LINE}\n"
+    buffer+=" [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo     [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
 
     # Print buffer at home position and clear rest of screen
     printf "\033[H%b\033[J" "$buffer"
