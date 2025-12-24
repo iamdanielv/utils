@@ -13,6 +13,18 @@ CURSOR_HIDE='\033[?25l'
 CURSOR_SHOW='\033[?25h'
 CLEAR_LINE='\033[K'
 
+# Icons
+ICON_RUNNING="▶"
+ICON_STOPPED="■"
+ICON_PAUSED="⏸"
+
+# Alternate Arrows
+# ICON_RUNNING="➜"
+# ICON_STOPPED="✖"
+# ICON_PAUSED="॥"
+
+ICON_UNKNOWN="?"
+
 clear_screen() { printf '\033[H\033[J' >/dev/tty; }
 
 # Trap to restore cursor on exit
@@ -151,10 +163,23 @@ show_vm_details() {
     fi
 
     local state_color="$NC"
+    local state_icon=""
     case "$state" in
-        "running") state_color="$GREEN" ;;
-        "shut off") state_color="$RED" ;;
-        "paused") state_color="$YELLOW" ;;
+        "running")
+            state_color="$GREEN"
+            state_icon="$ICON_RUNNING"
+            ;;
+        "shut off")
+            state_color="$RED"
+            state_icon="$ICON_STOPPED"
+            ;;
+        "paused")
+            state_color="$YELLOW"
+            state_icon="$ICON_PAUSED"
+            ;;
+        *)
+            state_icon="$ICON_UNKNOWN"
+            ;;
     esac
 
     local agent_status="Not Detected"
@@ -303,14 +328,29 @@ render_ui() {
             local line_color="$NC"
             local state_color="$NC"
             local cursor="  "
+            local state_icon=" "
             
             # Determine State Color
             case "$state" in
-                "running") state_color="$GREEN" ;;
-                "shut off") state_color="$RED" ;;
-                "paused") state_color="$YELLOW" ;;
-                *) state_color="$NC" ;;
+                "running")
+                    state_color="$GREEN"
+                    state_icon="$ICON_RUNNING"
+                    ;;
+                "shut off")
+                    state_color="$RED"
+                    state_icon="$ICON_STOPPED"
+                    ;;
+                "paused")
+                    state_color="$YELLOW"
+                    state_icon="$ICON_PAUSED"
+                    ;;
+                *)
+                    state_color="$NC"
+                    state_icon="$ICON_UNKNOWN"
+                    ;;
             esac
+            
+            local state_display="${state_icon}${state}"
             
             # Highlight selection
             if [[ $i -eq $SELECTED ]]; then
@@ -320,14 +360,14 @@ render_ui() {
             
             # Print line with padding
             local line_str
-            printf -v line_str "${cursor}${line_color}%-20s ${state_color}%-10s${NC}${line_color} %-6s %-10s %b${NC}\n" "$name" "$state" "$cpu" "$mem" "$autostart_display"
+            printf -v line_str "${cursor}${line_color}%-20s ${state_color}%-12s${NC}${line_color} %-6s %-10s %b${NC}${CLEAR_LINE}\n" "$name" "$state_display" "$cpu" "$mem" "$autostart_display"
             buffer+="$line_str"
         done
     fi
     
-    buffer+="${BLUE}=======================================================${NC}\n"
+    buffer+="${BLUE}========================================================${NC}\n"
     buffer+="${BOLD} ${STATUS_MSG}${NC}${CLEAR_LINE}\n"
-    buffer+="${BLUE}Controls:----------------------------------------------${NC}\n"
+    buffer+="${BLUE}Controls:-----------------------------------------------${NC}\n"
     buffer+=" [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown${CLEAR_LINE}\n"
     buffer+=" [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo     [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
 
