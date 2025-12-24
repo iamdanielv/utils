@@ -30,6 +30,7 @@ VM_STATES=()
 declare -A VM_CPU_USAGE
 declare -A VM_MEM_USAGE
 declare -A PREV_CPU_TIME
+declare -A VM_AUTOSTART
 LAST_TIMESTAMP=0
 SELECTED=0
 STATUS_MSG=""
@@ -67,6 +68,9 @@ fetch_vms() {
     local raw_names
     raw_names=$(virsh list --all --name | sort | sed '/^$/d')
     
+    local autostart_list
+    autostart_list=$(virsh list --all --autostart --name)
+    
     while IFS= read -r name; do
         if [[ -n "$name" ]]; then
             VM_NAMES+=("$name")
@@ -74,6 +78,12 @@ fetch_vms() {
             local state
             state=$(virsh domstate "$name" 2>/dev/null | tr -d '\n')
             VM_STATES+=("$state")
+            
+            if echo "$autostart_list" | grep -qFx "$name"; then
+                VM_AUTOSTART["$name"]="Yes"
+            else
+                VM_AUTOSTART["$name"]="No"
+            fi
             
             # Process Memory (KiB -> MiB/GiB)
             local mem_kib="${current_mems[$name]}"
@@ -264,7 +274,7 @@ show_vm_details() {
 render_ui() {
     # Double buffering to prevent flicker
     local buffer=""
-    buffer+="${CYAN}==VM Manager========================================${NC}\n"
+    buffer+="${CYAN}==VM Manager===========================================${NC}\n"
     
     local count=${#VM_NAMES[@]}
     
@@ -272,15 +282,24 @@ render_ui() {
         buffer+="\n  ${YELLOW}No VMs defined on this host${NC}\n\n"
     else
         local header
-        printf -v header "  ${BOLD}%-20s %-10s %-6s %-10s${NC}\n" "NAME" "STATE" "CPU" "MEM"
+        printf -v header "  ${BOLD}%-20s %-10s %-6s %-10s %-3s${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
         buffer+="$header"
-        buffer+="  ${BLUE}-------------------- ---------- ------ ----------${NC}\n"
+        buffer+="  ${BLUE}-------------------- ---------- ------ ---------- ---${NC}\n"
         
         for ((i=0; i<count; i++)); do
             local name="${VM_NAMES[$i]}"
             local state="${VM_STATES[$i]}"
             local cpu="${VM_CPU_USAGE[$name]}"
             local mem="${VM_MEM_USAGE[$name]}"
+            local autostart="${VM_AUTOSTART[$name]}"
+            local autostart_display=""
+            
+            if [[ "$autostart" == "Yes" ]]; then
+                autostart_display="${GREEN}Yes${NC}"
+            else
+                autostart_display="${RED}No ${NC}"
+            fi
+
             local line_color="$NC"
             local state_color="$NC"
             local cursor="  "
@@ -301,12 +320,12 @@ render_ui() {
             
             # Print line with padding
             local line_str
-            printf -v line_str "${cursor}${line_color}%-20s ${state_color}%-10s${NC}${line_color} %-6s %-10s${NC}\n" "$name" "$state" "$cpu" "$mem"
+            printf -v line_str "${cursor}${line_color}%-20s ${state_color}%-10s${NC}${line_color} %-6s %-10s %b${NC}\n" "$name" "$state" "$cpu" "$mem" "$autostart_display"
             buffer+="$line_str"
         done
     fi
     
-    buffer+="${BLUE}====================================================${NC}\n"
+    buffer+="${BLUE}=======================================================${NC}\n"
     buffer+="${BOLD} ${STATUS_MSG}${NC}${CLEAR_LINE}\n"
     buffer+="${BLUE}----------------------------------------------------${NC}\n"
     buffer+="${BOLD}Controls:${NC}\n"
