@@ -158,7 +158,14 @@ show_vm_details() {
     
     local clean_net_info=$(echo "$net_info" | tail -n +3)
     if [[ -n "$clean_net_info" ]]; then
-        echo "$clean_net_info" | sed 's/^/  /'
+        while read -r iface mac proto addr; do
+            [[ -z "$iface" ]] && continue
+            local iface_disp="$iface"
+            local mac_disp="$mac"
+            [[ "$iface" == "-" ]] && iface_disp=""
+            [[ "$mac" == "-" ]] && mac_disp=""
+            printf "  ${CYAN}%-10s${NC} ${BLUE}%-17s${NC} ${YELLOW}%-4s${NC} ${GREEN}%s${NC}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
+        done <<< "$clean_net_info"
     else
         echo -e "  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}"
     fi
