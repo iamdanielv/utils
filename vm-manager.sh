@@ -327,8 +327,7 @@ render_ui() {
     
     buffer+="${BLUE}=======================================================${NC}\n"
     buffer+="${BOLD} ${STATUS_MSG}${NC}${CLEAR_LINE}\n"
-    buffer+="${BLUE}----------------------------------------------------${NC}\n"
-    buffer+="${BOLD}Controls:${NC}\n"
+    buffer+="${BLUE}Controls:----------------------------------------------${NC}\n"
     buffer+=" [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown\n"
     buffer+=" [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo     [${BOLD}${RED}Q${NC}]uit\n"
 
