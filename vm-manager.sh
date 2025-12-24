@@ -304,7 +304,7 @@ render_ui() {
     local buffer=""
     buffer+="${CYAN}==VM Manager============================================${NC}\n"
     local header
-    printf -v header "  ${BOLD}${UNDERLINE}%-20s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-6s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-3s${NO_UNDERLINE}${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
+    printf -v header "  ${BOLD}${UNDERLINE}%-20s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-3s${NO_UNDERLINE}${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
     buffer+="$header"
         
     local count=${#VM_NAMES[@]}
@@ -361,7 +361,7 @@ render_ui() {
             
             # Print line with padding
             local line_str
-            printf -v line_str "${cursor}${line_color}%-20s ${state_color}%-12s${NC}${line_color} %-6s %-10s %b${NC}${CLEAR_LINE}\n" "$name" "$state_display" "$cpu" "$mem" "$autostart_display"
+            printf -v line_str "${cursor}${line_color}%-20s ${state_color}%-12s${NC}${line_color} %-8s %-8s %b${NC}${CLEAR_LINE}\n" "$name" "$state_display" "$cpu" "$mem" "$autostart_display"
             buffer+="$line_str"
         done
     fi
