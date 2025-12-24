@@ -136,7 +136,7 @@ show_vm_details() {
     esac
 
     echo -e "${CYAN}== VM Details: ${BOLD}${YELLOW}$vm${NC} (${state_color}$state${NC})${CYAN} ========================================${NC}"
-    printf "   CPU(s): %s\t Memory: %s\t Autostart: %s\n" "$cpus" "$mem_display" "$autostart"
+    printf "   CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
 
     echo -e "\n${BOLD}Network Interfaces:${NC}"
     local net_info
