@@ -148,7 +148,7 @@ show_vm_details() {
     printf "   CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
     printf "   Agent:  ${agent_color}%s${NC}\n" "$agent_status"
 
-    echo -e "\n${BOLD}Network Interfaces:${NC}"
+    echo -e "${BOLD}Network Interfaces:${NC}"
     local net_info
     # Try agent first, then lease
     net_info=$(virsh domifaddr "$vm" --source agent 2>/dev/null)
@@ -163,7 +163,7 @@ show_vm_details() {
         echo -e "  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}"
     fi
 
-    echo -e "\n${BOLD}Storage:${NC}"
+    echo -e "${BOLD}Storage:${NC}"
     local blklist
     blklist=$(virsh domblklist "$vm" | tail -n +3)
     
