@@ -8,6 +8,8 @@ BLUE='\033[34m'
 CYAN='\033[36m'
 BOLD='\033[1m'
 REVERSE='\033[7m'
+UNDERLINE='\033[4m'
+NO_UNDERLINE='\033[24m'
 NC='\033[0m' # No Color
 CURSOR_HIDE='\033[?25l'
 CURSOR_SHOW='\033[?25h'
@@ -300,11 +302,10 @@ show_vm_details() {
 render_ui() {
     # Double buffering to prevent flicker
     local buffer=""
-    buffer+="${CYAN}==VM Manager===========================================${NC}\n"
+    buffer+="${CYAN}==VM Manager============================================${NC}\n"
     local header
-    printf -v header "  ${BOLD}%-20s %-10s %-6s %-10s %-3s${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
+    printf -v header "  ${BOLD}${UNDERLINE}%-20s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-6s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-3s${NO_UNDERLINE}${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
     buffer+="$header"
-    buffer+="  ${BLUE}-------------------- ---------- ------ ---------- ---${NC}\n"
         
     local count=${#VM_NAMES[@]}
     
