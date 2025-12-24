@@ -211,17 +211,21 @@ show_vm_details() {
 
     buffer+="${BOLD}Storage:${NC}\n"
     local blklist
-    blklist=$(virsh domblklist "$vm" | tail -n +3)
+    blklist=$(virsh domblklist "$vm" --details | tail -n +3)
     
     if [[ -z "$blklist" ]]; then
         buffer+="  No storage devices found.\n"
     else
-        while read -r target source; do
+        while read -r type device target source; do
             [[ -z "$target" ]] && continue
-            buffer+="  ${BOLD}Device: $target${NC}\n"
+            buffer+="  ${BOLD}Device: $target${NC} ($device)\n"
             
             if [[ "$source" == "-" ]]; then
-                source="(unknown or passthrough)"
+                if [[ "$device" == "cdrom" ]]; then
+                    source="(Empty)"
+                else
+                    source="(unknown or passthrough)"
+                fi
             fi
             buffer+="    Host path: ${CYAN}$source${NC}\n"
             
