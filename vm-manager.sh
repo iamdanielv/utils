@@ -103,8 +103,8 @@ fetch_vms() {
             local mem_kib="${current_mems[$name]}"
             if [[ -n "$mem_kib" && "$mem_kib" -gt 0 ]]; then
                 if (( mem_kib > 1048576 )); then
-                    local gib=$(( mem_kib * 10 / 1048576 ))
-                    VM_MEM_USAGE["$name"]="${gib:0:-1}.${gib: -1} GiB"
+                    local gib=$(( mem_kib / 1048576 ))
+                    VM_MEM_USAGE["$name"]="${gib} GiB"
                 else
                     VM_MEM_USAGE["$name"]="$(( mem_kib / 1024 )) MiB"
                 fi
