@@ -87,7 +87,7 @@ fetch_vms() {
             
             # Process CPU Usage
             local cpu_time="${current_cpu_times[$name]}"
-            if [[ -n "$cpu_time" && -n "${PREV_CPU_TIME[$name]}" && $time_diff -gt 0 ]]; then
+            if [[ "$state" == "running" && -n "$cpu_time" && -n "${PREV_CPU_TIME[$name]}" && $time_diff -gt 0 ]]; then
                 local cpu_diff=$(( cpu_time - PREV_CPU_TIME[$name] ))
                 # Usage % = (cpu_diff_ns / time_diff_ns) * 100. Multiply by 1000 for 1 decimal place.
                 local usage=$(( cpu_diff * 1000 / time_diff ))
