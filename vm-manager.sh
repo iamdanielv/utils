@@ -367,11 +367,14 @@ render_ui() {
     fi
     
     buffer+="${CYAN}╰───────────────────────────────────────────────────────${NC}\n"
-    buffer+="${BOLD} ${STATUS_MSG}${NC}${CLEAR_LINE}\n"
     buffer+="${BLUE}╭Controls:──────────────────────────────────────────────${NC}\n"
     buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↑/↓/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown${CLEAR_LINE}\n"
     buffer+="${BLUE}╰${NC} [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo       [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
-
+    if [[ -n "$STATUS_MSG" ]]; then
+        buffer+="${YELLOW}╭Message:───────────────────────────────────────────────${NC}\n"
+        buffer+="${YELLOW}╰${NC} ${BOLD}${STATUS_MSG}${NC}${CLEAR_LINE}\n"
+    fi
+    
     # Print buffer at home position and clear rest of screen
     printf "\033[H%b\033[J" "$buffer"
 }
