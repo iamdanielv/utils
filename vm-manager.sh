@@ -112,7 +112,11 @@ fetch_vms() {
 # Function to show VM details
 show_vm_details() {
     local vm="$1"
-    clear
+    
+    clear_screen
+
+    # show loading message
+    printf "${CYAN}==VM Details: ${YELLOW}Loading...${NC}"
     
     # Gather Info
     local dominfo
@@ -165,12 +169,18 @@ show_vm_details() {
         agent_color="$YELLOW"
     fi
 
-    echo -e "${CYAN}== VM Details: ${BOLD}${YELLOW}$vm${NC} (${state_color}$state${NC})${CYAN} ========================================${NC}"
-    printf "   CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
+    local buffer=""
+    buffer+="${CYAN}==VM Details: ${BOLD}${YELLOW}$vm${NC} (${state_color}$state${NC})${CYAN}==${NC}\n"
+    
+    local line
+    printf -v line "  CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
+    buffer+="$line"
     if [[ -n "$os_info" ]]; then
-        printf "   ${GREEN}Agent OS: ${CYAN}%s${NC}\n" "$os_info"
+        printf -v line "  ${GREEN}Agent OS: ${CYAN}%s${NC}\n" "$os_info"
+        buffer+="$line"
     else
-        printf "   Agent:  ${agent_color}%s${NC}%s\n" "$agent_status" "$agent_hint"
+        printf -v line "  Agent:  ${agent_color}%s${NC}%s\n" "$agent_status" "$agent_hint"
+        buffer+="$line"
     fi
 
     local net_info
@@ -184,35 +194,36 @@ show_vm_details() {
     
     local clean_net_info=$(echo "$net_info" | tail -n +3)
     if [[ -n "$clean_net_info" ]]; then
-        echo -e "${BOLD}Network Interfaces (${CYAN}Source: $net_source${NC}${BOLD}):${NC}"
+        buffer+="${BOLD}Network Interfaces (${CYAN}Source: $net_source${NC}${BOLD}):${NC}\n"
         while read -r iface mac proto addr; do
             [[ -z "$iface" ]] && continue
             local iface_disp="$iface"
             local mac_disp="$mac"
             [[ "$iface" == "-" ]] && iface_disp=""
             [[ "$mac" == "-" ]] && mac_disp=""
-            printf "  ${CYAN}%-10s${NC} ${BLUE}%-17s${NC} ${YELLOW}%-4s${NC} ${GREEN}%s${NC}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
+            printf -v line "  ${CYAN}%-10s${NC} ${BLUE}%-17s${NC} ${YELLOW}%-4s${NC} ${GREEN}%s${NC}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
+            buffer+="$line"
         done <<< "$clean_net_info"
     else
-        echo -e "${BOLD}Network Interfaces:${NC}"
-        echo -e "  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}"
+        buffer+="${BOLD}Network Interfaces:${NC}\n"
+        buffer+="  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}\n"
     fi
 
-    echo -e "${BOLD}Storage:${NC}"
+    buffer+="${BOLD}Storage:${NC}\n"
     local blklist
     blklist=$(virsh domblklist "$vm" | tail -n +3)
     
     if [[ -z "$blklist" ]]; then
-        echo "  No storage devices found."
+        buffer+="  No storage devices found.\n"
     else
         while read -r target source; do
             [[ -z "$target" ]] && continue
-            echo -e "  ${BOLD}Device: $target${NC}"
+            buffer+="  ${BOLD}Device: $target${NC}\n"
             
             if [[ "$source" == "-" ]]; then
                 source="(unknown or passthrough)"
             fi
-            echo -e "    Host path: ${CYAN}$source${NC}"
+            buffer+="    Host path: ${CYAN}$source${NC}\n"
             
             local blk_info
             blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
@@ -226,32 +237,38 @@ show_vm_details() {
                 if [[ -n "$cap" && -n "$alloc" ]]; then
                     local usage_str
                     usage_str=$(awk -v c="$cap" -v a="$alloc" 'BEGIN { printf "%.0f/%.0f GiB", a/1073741824, c/1073741824 }')
-                    echo "    Capacity: $usage_str"
+                    buffer+="    Capacity: $usage_str\n"
                 else
-                    echo "    (No info available)"
+                    buffer+="    (No info available)\n"
                 fi
             else
-                echo "    (No info available)"
+                buffer+="    (No info available)\n"
             fi
         done <<< "$blklist"
     fi
 
-    echo -e "\n${BLUE}Press any key to return...${NC}"
+    buffer+="\n${BLUE}Press any key to return...${NC}\n"
+    clear_screen
+    printf "\033[H%b\033[J" "$buffer"
     read -rsn1
+    clear_screen
 }
 
 # Function to render the UI
 render_ui() {
-    clear
-    echo -e "${CYAN}==VM Manager========================================${NC}"
+    # Double buffering to prevent flicker
+    local buffer=""
+    buffer+="${CYAN}==VM Manager========================================${NC}\n"
     
     local count=${#VM_NAMES[@]}
     
     if [[ $count -eq 0 ]]; then
-        echo -e "\n  ${YELLOW}No VMs defined on this host${NC}\n"
+        buffer+="\n  ${YELLOW}No VMs defined on this host${NC}\n\n"
     else
-        printf "  ${BOLD}%-20s %-10s %-6s %-10s${NC}\n" "NAME" "STATE" "CPU" "MEM"
-        echo -e "  ${BLUE}----                 -----      ---    ---${NC}"
+        local header
+        printf -v header "  ${BOLD}%-20s %-10s %-6s %-10s${NC}\n" "NAME" "STATE" "CPU" "MEM"
+        buffer+="$header"
+        buffer+="  ${BLUE}----                 -----      ---    ---${NC}\n"
         
         for ((i=0; i<count; i++)); do
             local name="${VM_NAMES[$i]}"
@@ -277,16 +294,21 @@ render_ui() {
             fi
             
             # Print line with padding
-            printf "${cursor}${line_color}%-20s ${state_color}%-10s${NC}${line_color} %-6s %-10s${NC}\n" "$name" "$state" "$cpu" "$mem"
+            local line_str
+            printf -v line_str "${cursor}${line_color}%-20s ${state_color}%-10s${NC}${line_color} %-6s %-10s${NC}\n" "$name" "$state" "$cpu" "$mem"
+            buffer+="$line_str"
         done
     fi
     
-    echo -e "${BLUE}====================================================${NC}"
-    echo -e "${BOLD} ${STATUS_MSG}${NC}"
-    echo -e "${BLUE}----------------------------------------------------${NC}"
-    echo -e "${BOLD}Controls:${NC}"
-    echo -e " [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown"
-    echo -e " [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo     [${BOLD}${RED}Q${NC}]uit"
+    buffer+="${BLUE}====================================================${NC}\n"
+    buffer+="${BOLD} ${STATUS_MSG}${NC}${CLEAR_LINE}\n"
+    buffer+="${BLUE}----------------------------------------------------${NC}\n"
+    buffer+="${BOLD}Controls:${NC}\n"
+    buffer+=" [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown\n"
+    buffer+=" [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo     [${BOLD}${RED}Q${NC}]uit\n"
+
+    # Print buffer at home position and clear rest of screen
+    printf "\033[H%b\033[J" "$buffer"
 }
 
 # Main Loop
