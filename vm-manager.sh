@@ -11,6 +11,9 @@ REVERSE='\033[7m'
 NC='\033[0m' # No Color
 CURSOR_HIDE='\033[?25l'
 CURSOR_SHOW='\033[?25h'
+CLEAR_LINE='\033[K'
+
+clear_screen() { printf '\033[H\033[J' >/dev/tty; }
 
 # Trap to restore cursor on exit
 trap 'echo -e "${CURSOR_SHOW}"; exit' EXIT INT TERM
@@ -321,7 +324,7 @@ while true; do
         # Handle regular keys
         cmd=""
         case "$key" in
-            q|Q) clear; exit 0 ;;
+            q|Q) clear_screen; exit 0 ;;
             k|K) ((SELECTED--)) ;;
             j|J) ((SELECTED++)) ;;
             i|I)
