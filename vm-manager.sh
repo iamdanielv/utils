@@ -218,14 +218,16 @@ show_vm_details() {
     else
         while read -r type device target source; do
             [[ -z "$target" ]] && continue
+            
+            if [[ "$source" == "-" && "$device" == "cdrom" ]]; then
+                buffer+="  ${BOLD}Device: $target${NC} ($device) - ${CYAN}(Empty)${NC}\n"
+                continue
+            fi
+
             buffer+="  ${BOLD}Device: $target${NC} ($device)\n"
             
             if [[ "$source" == "-" ]]; then
-                if [[ "$device" == "cdrom" ]]; then
-                    source="(Empty)"
-                else
-                    source="(unknown or passthrough)"
-                fi
+                source="(unknown or passthrough)"
             fi
             buffer+="    Host path: ${CYAN}$source${NC}\n"
             
