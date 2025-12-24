@@ -138,10 +138,17 @@ show_vm_details() {
     local agent_status="Not Detected"
     local agent_color="$RED"
     local agent_hint=""
+    local os_info=""
     if [[ "$state" == "running" ]]; then
         if virsh qemu-agent-command "$vm" '{"execute":"guest-ping"}' &>/dev/null; then
             agent_status="Running"
             agent_color="$GREEN"
+            # Attempt to fetch OS info via guest agent
+            local os_json
+            os_json=$(virsh qemu-agent-command "$vm" '{"execute":"guest-get-osinfo"}' 2>/dev/null)
+            if [[ -n "$os_json" ]]; then
+                os_info=$(echo "$os_json" | grep -o '"pretty-name":"[^"]*"' | sed 's/"pretty-name":"//;s/"//')
+            fi
         else
             agent_hint=" (Try: apt install qemu-guest-agent)"
         fi
@@ -149,7 +156,11 @@ show_vm_details() {
 
     echo -e "${CYAN}== VM Details: ${BOLD}${YELLOW}$vm${NC} (${state_color}$state${NC})${CYAN} ========================================${NC}"
     printf "   CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
-    printf "   Agent:  ${agent_color}%s${NC}%s\n" "$agent_status" "$agent_hint"
+    if [[ -n "$os_info" ]]; then
+        printf "   ${GREEN}Agent OS: ${CYAN}%s${NC}\n" "$os_info"
+    else
+        printf "   Agent:  ${agent_color}%s${NC}%s\n" "$agent_status" "$agent_hint"
+    fi
 
     echo -e "${BOLD}Network Interfaces:${NC}"
     local net_info
