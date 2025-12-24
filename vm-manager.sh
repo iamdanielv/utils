@@ -349,8 +349,7 @@ while true; do
     render_ui
 
     # Read input (1 char) with 2s timeout for auto-refresh
-    read -rsn1 -t 2 key
-    if [[ $? -ne 0 ]]; then
+    if ! read -rsn1 -t 2 key; then
         fetch_vms
         STATUS_MSG=""
         continue
