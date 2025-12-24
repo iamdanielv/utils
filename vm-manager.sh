@@ -167,7 +167,7 @@ show_vm_details() {
             if [[ "$source" == "-" ]]; then
                 source="(unknown or passthrough)"
             fi
-            echo -e "    Host path: ${YELLOW}$source${NC}"
+            echo -e "    Host path: ${CYAN}$source${NC}"
             
             local blk_info
             blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
