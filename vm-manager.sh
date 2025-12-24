@@ -275,17 +275,16 @@ render_ui() {
     # Double buffering to prevent flicker
     local buffer=""
     buffer+="${CYAN}==VM Manager===========================================${NC}\n"
+    local header
+    printf -v header "  ${BOLD}%-20s %-10s %-6s %-10s %-3s${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
+    buffer+="$header"
+    buffer+="  ${BLUE}-------------------- ---------- ------ ---------- ---${NC}\n"
     
     local count=${#VM_NAMES[@]}
     
     if [[ $count -eq 0 ]]; then
         buffer+="\n  ${YELLOW}No VMs defined on this host${NC}\n\n"
     else
-        local header
-        printf -v header "  ${BOLD}%-20s %-10s %-6s %-10s %-3s${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
-        buffer+="$header"
-        buffer+="  ${BLUE}-------------------- ---------- ------ ---------- ---${NC}\n"
-        
         for ((i=0; i<count; i++)); do
             local name="${VM_NAMES[$i]}"
             local state="${VM_STATES[$i]}"
@@ -337,6 +336,9 @@ render_ui() {
 
 # Main Loop
 echo -e "${CURSOR_HIDE}"
+clear_screen
+# Will render a skeleton UI before data is fetched
+render_ui
 fetch_vms
 while true; do
     # Ensure selection is within bounds
