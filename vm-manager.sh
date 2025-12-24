@@ -165,16 +165,18 @@ show_vm_details() {
         printf "   Agent:  ${agent_color}%s${NC}%s\n" "$agent_status" "$agent_hint"
     fi
 
-    echo -e "${BOLD}Network Interfaces:${NC}"
     local net_info
+    local net_source="Agent"
     # Try agent first, then lease
     net_info=$(virsh domifaddr "$vm" --source agent 2>/dev/null)
     if [[ -z "$net_info" ]]; then
         net_info=$(virsh domifaddr "$vm" --source lease 2>/dev/null)
+        net_source="Lease"
     fi
     
     local clean_net_info=$(echo "$net_info" | tail -n +3)
     if [[ -n "$clean_net_info" ]]; then
+        echo -e "${BOLD}Network Interfaces (${CYAN}Source: $net_source${NC}${BOLD}):${NC}"
         while read -r iface mac proto addr; do
             [[ -z "$iface" ]] && continue
             local iface_disp="$iface"
@@ -184,6 +186,7 @@ show_vm_details() {
             printf "  ${CYAN}%-10s${NC} ${BLUE}%-17s${NC} ${YELLOW}%-4s${NC} ${GREEN}%s${NC}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
         done <<< "$clean_net_info"
     else
+        echo -e "${BOLD}Network Interfaces:${NC}"
         echo -e "  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}"
     fi
 
