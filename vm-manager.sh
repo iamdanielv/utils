@@ -370,7 +370,7 @@ render_ui() {
     buffer+="${BOLD} ${STATUS_MSG}${NC}${CLEAR_LINE}\n"
     buffer+="${BLUE}Controls:-----------------------------------------------${NC}\n"
     buffer+=" [${BOLD}${CYAN}↑/↓/j/k${NC}]Select [${BOLD}${CYAN}S${NC}]tart      [${BOLD}${RED}X${NC}]Shutdown${CLEAR_LINE}\n"
-    buffer+=" [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo     [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
+    buffer+=" [${BOLD}${RED}F${NC}]orce Stop    [${BOLD}${YELLOW}R${NC}]eboot     [${BOLD}${CYAN}I${NC}]nfo       [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
 
     # Print buffer at home position and clear rest of screen
     printf "\033[H%b\033[J" "$buffer"
