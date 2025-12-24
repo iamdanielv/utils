@@ -292,8 +292,8 @@ show_vm_details() {
     clear_screen
 }
 
-# Function to render the UI
-render_ui() {
+# Function to render the main UI
+render_main_ui() {
     # Double buffering to prevent flicker
     local buffer=""
     buffer+="${CYAN}╭─VM Manager────────────────────────────────────────────${NC}\n"
@@ -377,14 +377,14 @@ render_ui() {
 echo -e "${CURSOR_HIDE}"
 clear_screen
 # Will render a skeleton UI before data is fetched
-render_ui
+render_main_ui
 fetch_vms
 while true; do
     # Ensure selection is within bounds
     if [[ $SELECTED -ge ${#VM_NAMES[@]} ]]; then SELECTED=$((${#VM_NAMES[@]} - 1)); fi
     if [[ $SELECTED -lt 0 ]]; then SELECTED=0; fi
 
-    render_ui
+    render_main_ui
 
     # Read input (1 char) with 2s timeout for auto-refresh
     if ! read -rsn1 -t 2 key; then
@@ -420,7 +420,7 @@ while true; do
                 ;;
             s|S)
                 STATUS_MSG="${GREEN}START${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                render_ui
+                render_main_ui
                 read -rsn1 confirm
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="start"; cmd="start"
@@ -429,7 +429,7 @@ while true; do
                 fi ;;
             x|X)
                 STATUS_MSG="${RED}SHUTDOWN${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                render_ui
+                render_main_ui
                 read -rsn1 confirm
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="shutdown"; cmd="shutdown"
@@ -438,7 +438,7 @@ while true; do
                 fi ;;
             f|F)
                 STATUS_MSG="${RED}FORCE STOP${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                render_ui
+                render_main_ui
                 read -rsn1 confirm
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="force stop"; cmd="destroy"
@@ -447,7 +447,7 @@ while true; do
                 fi ;;
             r|R)
                 STATUS_MSG="${YELLOW}REBOOT${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                render_ui
+                render_main_ui
                 read -rsn1 confirm
                 if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
                     action="reboot"; cmd="reboot"
@@ -459,7 +459,7 @@ while true; do
         if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
             vm="${VM_NAMES[$SELECTED]}"
             STATUS_MSG="Performing $action on $vm..."
-            render_ui
+            render_main_ui
             virsh "$cmd" "$vm" >/dev/null 2>&1
             sleep 1
             fetch_vms
