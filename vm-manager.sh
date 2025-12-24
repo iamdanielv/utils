@@ -126,7 +126,7 @@ show_vm_details() {
     clear_screen
 
     # show loading message
-    printf "${CYAN}==VM Details: ${YELLOW}Loading...${NC}"
+    printf "%b==VM Details: %bLoading...%b" "${CYAN}" "${YELLOW}" "${NC}"
     
     # Gather Info
     local dominfo
@@ -202,7 +202,8 @@ show_vm_details() {
         net_source="Lease"
     fi
     
-    local clean_net_info=$(echo "$net_info" | tail -n +3)
+    local clean_net_info
+    clean_net_info=$(echo "$net_info" | tail -n +3)
     if [[ -n "$clean_net_info" ]]; then
         buffer+="${BOLD}Network Interfaces (${CYAN}Source: $net_source${NC}${BOLD}):${NC}\n"
         while read -r iface mac proto addr; do
