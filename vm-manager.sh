@@ -152,6 +152,9 @@ show_vm_details() {
         else
             agent_hint=" (Try: apt install qemu-guest-agent)"
         fi
+    else
+        agent_status="VM Not Running"
+        agent_color="$YELLOW"
     fi
 
     echo -e "${CYAN}== VM Details: ${BOLD}${YELLOW}$vm${NC} (${state_color}$state${NC})${CYAN} ========================================${NC}"
