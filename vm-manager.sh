@@ -16,15 +16,9 @@ CURSOR_SHOW='\033[?25h'
 CLEAR_LINE='\033[K'
 
 # Icons
-ICON_RUNNING="▶"
-ICON_STOPPED="■"
+ICON_RUNNING="✔"
+ICON_STOPPED="✘"
 ICON_PAUSED="⏸"
-
-# Alternate Arrows
-# ICON_RUNNING="➜"
-# ICON_STOPPED="✖"
-# ICON_PAUSED="॥"
-
 ICON_UNKNOWN="?"
 
 clear_screen() { printf '\033[H\033[J' >/dev/tty; }
