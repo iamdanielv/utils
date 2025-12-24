@@ -329,7 +329,15 @@ while true; do
                     show_vm_details "${VM_NAMES[$SELECTED]}"
                 fi
                 ;;
-            s|S) action="start"; cmd="start" ;;
+            s|S)
+                STATUS_MSG="${GREEN}START${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
+                render_ui
+                read -rsn1 confirm
+                if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+                    action="start"; cmd="start"
+                else
+                    STATUS_MSG="${YELLOW}Start cancelled${NC}"
+                fi ;;
             x|X)
                 STATUS_MSG="${RED}SHUTDOWN${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
                 render_ui
