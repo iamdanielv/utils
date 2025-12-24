@@ -200,12 +200,12 @@ show_vm_details() {
             agent_hint=" (Try: apt install qemu-guest-agent)"
         fi
     else
-        agent_status="VM Not Running"
-        agent_color="$YELLOW"
+        agent_status="${REVERSE} VM Not Running ${REVERSE}"
+        agent_color="${YELLOW}"
     fi
 
     local buffer=""
-    buffer+="${CYAN}==VM Details: ${BOLD}${YELLOW}$vm${NC} (${state_color}$state${NC})${CYAN}==${NC}\n"
+    buffer+="${CYAN}==VM Details: ${BOLD}${YELLOW}$vm${NC} (${REVERSE}${state_color}${state_icon}${state}${REVERSE}${NC})${CYAN}==${NC}\n"
     
     local line
     printf -v line "  CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
