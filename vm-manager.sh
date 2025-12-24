@@ -220,11 +220,11 @@ show_vm_details() {
             [[ -z "$target" ]] && continue
             
             if [[ "$source" == "-" && "$device" == "cdrom" ]]; then
-                buffer+="  ${BOLD}Device: $target${NC} ($device) - ${CYAN}(Empty)${NC}\n"
+                buffer+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC}) - ${CYAN}(Empty)${NC}\n"
                 continue
             fi
 
-            buffer+="  ${BOLD}Device: $target${NC} ($device)\n"
+            buffer+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC})\n"
             
             if [[ "$source" == "-" ]]; then
                 source="(unknown or passthrough)"
