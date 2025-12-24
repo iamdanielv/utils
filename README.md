@@ -11,6 +11,7 @@ This repository contains shell scripts for:
 - Git automation
 - Docker automation and scheduling
 - System monitoring (temperature, user checks)
+- Virtual Machine management (KVM/QEMU)
 - Miscellaneous utilities (string generation, color palettes)
 
 All tools are designed to be run in Unix-like environments.
@@ -247,6 +248,15 @@ A utility to display all 256 terminal colors for both foreground and background.
 - Helps in choosing colors for shell scripts and TUIs.
 - Can display colors as numbers or solid blocks (`-b` flag).
 - Supports foreground (`-g fg`) and background (`-g bg`) modes.
+
+### 🖥️ VM Manager (`vm-manager.sh`)
+
+**Description:**
+A TUI (Text User Interface) for managing KVM/QEMU virtual machines using `virsh`.
+
+- **Dashboard**: View real-time status, CPU usage, and memory usage of all VMs.
+- **Controls**: Start, shutdown, reboot, or force stop VMs.
+- **Details View**: Inspect VM specifics like network interfaces (IP addresses), storage devices, and guest agent status.
 
 ## 🤝 Contributing
 
