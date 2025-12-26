@@ -74,3 +74,25 @@ clean: ##@ Clean build artifacts
 	@printf "  %-30s" "Cleaning..."
 	@rm -rf $(BUILD_DIR)
 	@echo "\033[32m[✓]\033[0m"
+
+# Docker helpers
+DOCKER_IMAGE := centurion:dev
+
+.PHONY: docker-image
+docker-image:
+	@printf "  %-30s" "Building docker image..."
+	@docker build -t $(DOCKER_IMAGE) . > /dev/null && echo "\033[32m[✓]\033[0m" || (echo "\033[31m[✗]\033[0m" && exit 1)
+
+.PHONY: docker-build
+docker-build: docker-image ##@ Docker: build the binary using a container
+	@printf "  %-30s" "Extracting binary from image..."
+	@mkdir -p $(BUILD_DIR)
+	@container=$$(docker create $(DOCKER_IMAGE)); \
+	docker cp $$container:/centurion $(BUILD_DIR)/$(BINARY_NAME); \
+	docker rm $$container > /dev/null; \
+	chmod +x $(BUILD_DIR)/$(BINARY_NAME); \
+	echo "\033[32m[✓]\033[0m"
+
+.PHONY: docker-clean
+docker-clean: ##@ Docker: remove local image
+	docker rmi -f $(DOCKER_IMAGE) || true

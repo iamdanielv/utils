@@ -34,6 +34,19 @@ It is named **Centurion** because it commands system "units".
 
     This will create the `centurion` binary in the `bin/` directory.
 
+### 🔧 Building with Docker
+
+If you don't want to install Go locally, you can build the binary inside a Docker container. The image is a builder-only image; after building, the resulting binary is copied to `bin/` so you can run it on your host machine.
+
+```sh
+# Build the image and extract the binary to ./bin/centurion
+make docker-build
+
+# Run the binary on your host
+./bin/centurion
+```
+
+Note: the Docker image is used only as a build environment. To manage systemd services the binary must be run on the host (it needs access to systemd and journalctl).
 3. Run the application:
 
     ```sh
