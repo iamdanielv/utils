@@ -5,6 +5,12 @@ BUILD_DIR := bin
 
 .DEFAULT_GOAL := help
 
+# Visuals
+C_RESET   := \033[0m
+C_GREEN   := \033[32m
+C_RED     := \033[31m
+C_CYAN    := \033[36m
+
 ##@ General
 
 .PHONY: help
@@ -20,37 +26,37 @@ run: ##@ Run the application
 
 .PHONY: fmt
 fmt: ##@ Format Go source code
-	@printf "  %-30s" "Formatting code..."
+	@printf "$(C_CYAN)  %-30s$(C_RESET)" "Formatting code..."
 	@output=$$(go fmt ./... 2>&1); \
 	if [ $$? -eq 0 ]; then \
-		echo "\033[32m[✓]\033[0m"; \
+		echo "$(C_GREEN)[✓]$(C_RESET)"; \
 	else \
-		echo "\033[31m[✗]\033[0m"; \
-		printf "\n\033[31mAn error occurred:\033[0m\n%s\n" "$$output"; \
+		echo "$(C_RED)[✗]$(C_RESET)"; \
+		printf "\n$(C_RED)An error occurred:$(C_RESET)\n%s\n" "$$output"; \
 		exit 1; \
 	fi
 
 .PHONY: vet
 vet: ##@ Run go vet
-	@printf "  %-30s" "Vetting code..."
+	@printf "$(C_CYAN)  %-30s$(C_RESET)" "Vetting code..."
 	@output=$$(go vet ./... 2>&1); \
 	if [ $$? -eq 0 ]; then \
-		echo "\033[32m[✓]\033[0m"; \
+		echo "$(C_GREEN)[✓]$(C_RESET)"; \
 	else \
-		echo "\033[31m[✗]\033[0m"; \
-		printf "\n\033[31mAn error occurred:\033[0m\n%s\n" "$$output"; \
+		echo "$(C_RED)[✗]$(C_RESET)"; \
+		printf "\n$(C_RED)An error occurred:$(C_RESET)\n%s\n" "$$output"; \
 		exit 1; \
 	fi
 
 .PHONY: tidy
 tidy: ##@ Run go mod tidy
-	@printf "  %-30s" "Tidying modules..."
+	@printf "$(C_CYAN)  %-30s$(C_RESET)" "Tidying modules..."
 	@output=$$(go mod tidy 2>&1); \
 	if [ $$? -eq 0 ]; then \
-		echo "\033[32m[✓]\033[0m"; \
+		echo "$(C_GREEN)[✓]$(C_RESET)"; \
 	else \
-		echo "\033[31m[✗]\033[0m"; \
-		printf "\n\033[31mAn error occurred:\033[0m\n%s\n" "$$output"; \
+		echo "$(C_RED)[✗]$(C_RESET)"; \
+		printf "\n$(C_RED)An error occurred:$(C_RESET)\n%s\n" "$$output"; \
 		exit 1; \
 	fi
 
@@ -58,41 +64,43 @@ tidy: ##@ Run go mod tidy
 
 .PHONY: build
 build: tidy fmt vet ##@ Build the binary
-	@printf "  %-30s" "Building $(BINARY_NAME)..."
+	@printf "$(C_CYAN)  %-30s$(C_RESET)" "Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
 	@output=$$(go build -o $(BUILD_DIR)/$(BINARY_NAME) . 2>&1); \
 	if [ $$? -eq 0 ]; then \
-		echo "\033[32m[✓]\033[0m"; \
+		echo "$(C_GREEN)[✓]$(C_RESET)"; \
 	else \
-		echo "\033[31m[✗]\033[0m"; \
-		printf "\n\033[31mAn error occurred:\033[0m\n%s\n" "$$output"; \
+		echo "$(C_RED)[✗]$(C_RESET)"; \
+		printf "\n$(C_RED)An error occurred:$(C_RESET)\n%s\n" "$$output"; \
 		exit 1; \
 	fi
 
 .PHONY: clean
 clean: ##@ Clean build artifacts
-	@printf "  %-30s" "Cleaning..."
+	@printf "$(C_CYAN)  %-30s$(C_RESET)" "Cleaning..."
 	@rm -rf $(BUILD_DIR)
-	@echo "\033[32m[✓]\033[0m"
+	@echo "$(C_GREEN)[✓]$(C_RESET)"
 
 # Docker helpers
 DOCKER_IMAGE := centurion:dev
 
 .PHONY: docker-image
 docker-image:
-	@printf "  %-30s" "Building docker image..."
-	@docker build -t $(DOCKER_IMAGE) . > /dev/null && echo "\033[32m[✓]\033[0m" || (echo "\033[31m[✗]\033[0m" && exit 1)
+	@printf "$(C_CYAN)  %-30s$(C_RESET)" "Building docker image..."
+	@docker build -t $(DOCKER_IMAGE) . > /dev/null && echo "$(C_GREEN)[✓]$(C_RESET)" || (echo "$(C_RED)[✗]$(C_RESET)" && exit 1)
 
 .PHONY: docker-build
 docker-build: docker-image ##@ Docker: build the binary using a container
-	@printf "  %-30s" "Extracting binary from image..."
+	@printf "$(C_CYAN)  %-30s$(C_RESET)" "Extracting binary from image..."
 	@mkdir -p $(BUILD_DIR)
 	@container=$$(docker create $(DOCKER_IMAGE)); \
 	docker cp $$container:/centurion $(BUILD_DIR)/$(BINARY_NAME); \
 	docker rm $$container > /dev/null; \
 	chmod +x $(BUILD_DIR)/$(BINARY_NAME); \
-	echo "\033[32m[✓]\033[0m"
+	echo "$(C_GREEN)[✓]$(C_RESET)"
 
 .PHONY: docker-clean
 docker-clean: ##@ Docker: remove local image
-	docker rmi -f $(DOCKER_IMAGE) || true
+	@printf "$(C_CYAN)  %-30s$(C_RESET)" "Removing docker image..."
+	@docker rmi -f $(DOCKER_IMAGE) > /dev/null 2>&1 || true
+	@echo "$(C_GREEN)[✓]$(C_RESET)"
