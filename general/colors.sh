@@ -59,14 +59,17 @@ print_usage() {
     printBanner "Color Palette Viewer"
     printMsg "A simple utility to display all 256 terminal colors."
     printMsg "\n${T_ULINE}Usage:${T_RESET}"
-    printMsg "  $(basename "$0") [-b] [-g <mode>] [-h]"
+    printMsg "  $(basename "$0") [-b] [-c] [-g <mode>] [-h]"
     printMsg "\n${T_ULINE}Options:${T_RESET}"
     printMsg "  ${C_L_BLUE}-b${T_RESET}            Display colors as solid blocks instead of numbers."
+    printMsg "  ${C_L_BLUE}-c${T_RESET}            Output color codes in a copy-paste friendly format."
     printMsg "  ${C_L_BLUE}-g <mode>${T_RESET}   Display 'fg' (foreground) or 'bg' (background) colors. Default: fg."
     printMsg "  ${C_L_BLUE}-h${T_RESET}            Show this help message."
     printMsg "\n${T_ULINE}Examples:${T_RESET}"
     printMsg "  ${C_GRAY}# Show background colors as blocks${T_RESET}"
     printMsg "  $(basename "$0") -g bg -b"
+    printMsg "  ${C_GRAY}# List color codes for copying${T_RESET}"
+    printMsg "  $(basename "$0") -c"
 }
 
 # Choose a legible foreground color (black or white) for a given background color index.
@@ -88,12 +91,14 @@ get_contrasting_fg_color() {
 main() {
     # Default values
     local use_blocks=0
+    local show_codes=0
     local mode="fg"
 
     # Process arguments using getopts
-    while getopts ":bg:h" opt; do
+    while getopts ":bg:ch" opt; do
         case ${opt} in
             b) use_blocks=1 ;;
+            c) show_codes=1 ;;
             g) mode="$OPTARG" ;;
             h) print_usage; exit 0 ;;
             \?) printErrMsg "Invalid option: -$OPTARG" >&2; print_usage; exit 1 ;;
@@ -111,6 +116,16 @@ main() {
 
     # Loop through all 256 colors
     for i in {0..255}; do
+        if (( show_codes == 1 )); then
+            if [[ "$mode" == "bg" ]]; then
+                local fg_color; fg_color=$(get_contrasting_fg_color "$i")
+                printf "BG_%03d=$'\\\\033[48;5;%dm' # \x1b[48;5;%dm\x1b[38;5;%dm Sample \x1b[0m\n" "$i" "$i" "$i" "$fg_color"
+            else
+                printf "C_%03d=$'\\\\033[38;5;%dm' # \x1b[38;5;%dm Sample \x1b[0m\n" "$i" "$i" "$i"
+            fi
+            continue
+        fi
+
         if [[ "$mode" == "bg" ]]; then
             if (( use_blocks == 1 )); then
                 printf "\x1b[48;5;%dm%-4s" "$i" "$block_char"
