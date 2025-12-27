@@ -19,32 +19,12 @@ printMsg() { printf '%b\n' "$1"; }
 printErrMsg() { printMsg "${T_ERR_ICON}${T_BOLD}${C_L_RED} ${1} ${T_RESET}"; }
 
 # Banner Utils
-strip_ansi_codes() {
-    local s="$1"; local esc=$'\033'
-    if [[ "$s" != *"$esc"* ]]; then echo -n "$s"; return; fi
-    local pattern="$esc\\[[0-9;]*[a-zA-Z]"
-    while [[ $s =~ $pattern ]]; do s="${s/${BASH_REMATCH[0]}/}"; done
-    echo -n "$s"
-}
-
-_truncate_string() {
-    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"; local trunc_char_len=${#trunc_char}
-    local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
-    if (( len <= max_len )); then echo -n "$input_str"; return; fi
-    local truncate_to_len=$(( max_len - trunc_char_len )); local new_str=""; local visible_count=0; local i=0; local in_escape=false
-    while (( i < ${#input_str} && visible_count < truncate_to_len )); do
-        local char="${input_str:i:1}"; new_str+="$char"
-        if [[ "$char" == $'\033' ]]; then in_escape=true; elif ! $in_escape; then (( visible_count++ )); fi
-        if $in_escape && [[ "$char" =~ [a-zA-Z] ]]; then in_escape=false; fi; ((i++))
-    done
-    echo -n "${new_str}${trunc_char}"
-}
-
 generate_banner_string() {
     local text="$1"; local total_width=70; local prefix="┏"; local line
+    # Create a full-width line of '━' characters.
     printf -v line '%*s' "$((total_width - 1))"; line="${line// /━}"; printf '%s' "${C_L_BLUE}${prefix}${line}${T_RESET}"; printf '\r'
-    local text_to_print; text_to_print=$(_truncate_string "$text" $((total_width - 3)))
-    printf '%s' "${C_L_BLUE}${prefix} ${text_to_print} ${T_RESET}"
+    # Use carriage return (\r) to move cursor to the start and print the text over the line.
+    printf '%s' "${C_L_BLUE}${prefix} ${text} ${T_RESET}"
 }
 
 printBanner() { printMsg "$(generate_banner_string "$1")"; }
