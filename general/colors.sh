@@ -92,6 +92,92 @@ get_contrasting_fg_color() {
     fi
 }
 
+# Displays the full 256-color grid.
+# Usage: display_color_grid <mode> <use_blocks>
+display_color_grid() {
+    local mode="$1"
+    local use_blocks="$2"
+    local block_char="██"
+
+    # Loop through all 256 colors
+    for i in {0..255}; do
+        if [[ "$mode" == "bg" ]]; then
+            if (( use_blocks == 1 )); then
+                printf "\x1b[48;5;%dm%-4s" "$i" "$block_char"
+            else
+                local fg_color; fg_color=$(get_contrasting_fg_color "$i")
+                printf "\x1b[48;5;%dm\x1b[38;5;%dm%3d " "$i" "$fg_color" "$i"
+            fi
+        else # mode == "fg"
+            if (( use_blocks == 1 )); then
+                printf "\x1b[38;5;%dm%-4s" "$i" "$block_char"
+            else
+                printf "\x1b[38;5;%dm%3d " "$i" "$i"
+            fi
+        fi
+
+        # Group items into 16 per line for a more grid-like view
+        if (( (i + 1) % 16 == 0 )); then
+            printf "%b\n" "$T_RESET"
+        fi
+    done
+
+    # Reset the color at the end in case the total isn't a multiple of 16
+    printf "%b\n" "$T_RESET"
+}
+
+# Displays a list of color codes for easy copying.
+# Usage: display_code_list <mode> <sample_text>
+display_code_list() {
+    local mode="$1"
+    local sample_text="$2"
+    local display_text="${sample_text:-Sample}"
+
+    for i in {0..255}; do
+        if [[ "$mode" == "bg" ]]; then
+            local fg_color; fg_color=$(get_contrasting_fg_color "$i")
+            printf "BG_%03d=$'\\\\033[48;5;%dm' # \x1b[48;5;%dm\x1b[38;5;%dm %s \x1b[0m\n" "$i" "$i" "$i" "$fg_color" "$display_text"
+        else
+            printf "C_%03d=$'\\\\033[38;5;%dm' # \x1b[38;5;%dm %s \x1b[0m\n" "$i" "$i" "$i" "$display_text"
+        fi
+    done
+}
+
+# Displays details for a single, specific color.
+# Usage: display_specific_color <color_num> <mode> <sample_text>
+display_specific_color() {
+    local specific_color="$1"
+    local mode="$2"
+    local sample_text="$3"
+    local text="${sample_text:-Sample Text}"
+    local color_code=""
+    local var_prefix="C"
+
+    if [[ "$mode" == "bg" ]]; then
+        color_code="48;5;${specific_color}"
+        var_prefix="BG"
+    else
+        color_code="38;5;${specific_color}"
+        var_prefix="C"
+    fi
+
+    printMsg "${T_BOLD}Variable Definition:${T_RESET}"
+    printf "%s_%03d=$'\\\\033[%sm'\n" "$var_prefix" "$specific_color" "$color_code"
+    echo
+
+    printMsg "${T_BOLD}Bash Command:${T_RESET}"
+    printf 'echo -e "\\033[%sm%s\\033[0m"\n' "$color_code" "$text"
+    echo
+
+    printMsg "${T_BOLD}Sample Output:${T_RESET}"
+    if [[ "$mode" == "bg" ]]; then
+         local fg_color; fg_color=$(get_contrasting_fg_color "$specific_color")
+         printf "\x1b[%sm\x1b[38;5;%dm%s\x1b[0m\n" "$color_code" "$fg_color" "$text"
+    else
+         printf "\x1b[%sm%s\x1b[0m\n" "$color_code" "$text"
+    fi
+}
+
 main() {
     # Default values
     local use_blocks=0
@@ -120,86 +206,17 @@ main() {
         exit 1
     fi
 
-    # Handle specific color code generation
     if [[ -n "$specific_color" ]]; then
         if ! [[ "$specific_color" =~ ^[0-9]+$ ]] || (( specific_color < 0 || specific_color > 255 )); then
              printErrMsg "Color number must be between 0 and 255." >&2
              exit 1
         fi
-
-        local text="${sample_text:-Sample Text}"
-        local color_code=""
-        local var_prefix="C"
-
-        if [[ "$mode" == "bg" ]]; then
-            color_code="48;5;${specific_color}"
-            var_prefix="BG"
-        else
-            color_code="38;5;${specific_color}"
-            var_prefix="C"
-        fi
-
-        printMsg "${T_BOLD}Color:${T_RESET}"
-        if [[ "$mode" == "bg" ]]; then
-             local fg_color; fg_color=$(get_contrasting_fg_color "$specific_color")
-             printf "%s_%03d=$'\\\\033[%sm' # \x1b[%sm\x1b[38;5;%dm %s \x1b[0m\n" "$var_prefix" "$specific_color" "$color_code" "$color_code" "$fg_color" "$text"
-        else
-             printf "%s_%03d=$'\\\\033[%sm' # \x1b[%sm %s \x1b[0m\n" "$var_prefix" "$specific_color" "$color_code" "$color_code" "$text"
-        fi
-        echo
-
-        printMsg "${T_BOLD}Script:${T_RESET}"
-        printf 'echo -e "\\033[%sm%s\\033[0m"\n' "$color_code" "$text"
-        echo
-
-        printMsg "${T_BOLD}Sample Output:${T_RESET}"
-        if [[ "$mode" == "bg" ]]; then
-             local fg_color; fg_color=$(get_contrasting_fg_color "$specific_color")
-             printf "\x1b[%sm\x1b[38;5;%dm%s\x1b[0m\n" "$color_code" "$fg_color" "$text"
-        else
-             printf "\x1b[%sm%s\x1b[0m\n" "$color_code" "$text"
-        fi
-        exit 0
+        display_specific_color "$specific_color" "$mode" "$sample_text"
+    elif (( show_codes == 1 )); then
+        display_code_list "$mode" "$sample_text"
+    else
+        display_color_grid "$mode" "$use_blocks"
     fi
-
-    local block_char="██"
-
-    # Loop through all 256 colors
-    for i in {0..255}; do
-        if (( show_codes == 1 )); then
-            local display_text="${sample_text:-Sample}"
-            if [[ "$mode" == "bg" ]]; then
-                local fg_color; fg_color=$(get_contrasting_fg_color "$i")
-                printf "BG_%03d=$'\\\\033[48;5;%dm' # \x1b[48;5;%dm\x1b[38;5;%dm %s \x1b[0m\n" "$i" "$i" "$i" "$fg_color" "$display_text"
-            else
-                printf "C_%03d=$'\\\\033[38;5;%dm' # \x1b[38;5;%dm %s \x1b[0m\n" "$i" "$i" "$i" "$display_text"
-            fi
-            continue
-        fi
-
-        if [[ "$mode" == "bg" ]]; then
-            if (( use_blocks == 1 )); then
-                printf "\x1b[48;5;%dm%-4s" "$i" "$block_char"
-            else
-                local fg_color; fg_color=$(get_contrasting_fg_color "$i")
-                printf "\x1b[48;5;%dm\x1b[38;5;%dm%3d " "$i" "$fg_color" "$i"
-            fi
-        else
-            if (( use_blocks == 1 )); then
-                printf "\x1b[38;5;%dm%-4s" "$i" "$block_char"
-            else
-                printf "\x1b[38;5;%dm%3d " "$i" "$i"
-            fi
-        fi
-
-        # Group items into 16 per line for a more grid-like view
-        if (( (i + 1) % 16 == 0 )); then
-            printf "%b\n" "$T_RESET"
-        fi
-    done
-
-    # Reset the color at the end
-    printf "%b\n" "$T_RESET"
 }
 
 # This block will only run when the script is executed directly, not when sourced.
