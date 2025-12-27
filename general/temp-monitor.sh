@@ -105,11 +105,6 @@ check_thermal_sensors() {
 
 # Checks for required commands and bash version.
 check_dependencies() {
-    if ! command -v bc &>/dev/null; then
-        printErrMsg "'bc' (basic calculator) is required but is not installed."
-        printMsg "${T_INFO_ICON} Please install it using your package manager (e.g., 'sudo apt-get install bc')."
-        exit 1
-    fi
     # Associative arrays were introduced in bash 4.0
     if (( BASH_VERSINFO[0] < 4 )); then
         printErrMsg "This script requires Bash version 4.0 or higher."
@@ -131,40 +126,18 @@ get_temp_color_from_raw() {
     fi
 }
 
-# (Private) Calculates the trend of a temperature reading against its history.
-# Usage: _get_temp_trend <current_raw> <history_string> <avg_count> <delta_raw> trend_arrow_ref trend_color_ref
-_get_temp_trend() {
-    local current_raw="$1"
-    local history_string="$2"
-    local avg_count="$3"
-    local delta_raw="$4"
-    local -n trend_arrow_ref="$5" # Nameref for the arrow
-    local -n trend_color_ref="$6" # Nameref for the color
-
-    # Default to stable trend
-    trend_arrow_ref="→"
-    trend_color_ref="$C_GRAY"
-
-    local -a history_array
-    # Use mapfile for safer parsing of space-separated strings into an array
-    mapfile -t history_array < <(echo "$history_string")
-    local num_readings="${#history_array[@]}"
-
-    # Only calculate trend if we have enough historical data
-    if (( num_readings >= avg_count )); then
-        local sum=0
-        for val in "${history_array[@]}"; do
-            sum=$((sum + val))
-        done
-        local avg_prev_raw=$((sum / num_readings))
-
-        if (( (current_raw - avg_prev_raw) > delta_raw )); then
-            trend_arrow_ref="↑"
-            trend_color_ref="$C_L_RED" # Increasing
-        elif (( (avg_prev_raw - current_raw) > delta_raw )); then
-            trend_arrow_ref="↓"
-            trend_color_ref="$C_L_BLUE" # Decreasing
-        fi
+# Helper to parse float delta input (e.g. 2.5) into raw millidegrees (2500)
+# without using 'bc'.
+calculate_delta_raw() {
+    local delta="$1"
+    if [[ "$delta" =~ ^([0-9]+)(\.([0-9]+))?$ ]]; then
+        local int_part="${BASH_REMATCH[1]}"
+        local dec_part="${BASH_REMATCH[3]}000" # Pad with zeros
+        dec_part="${dec_part:0:3}" # Take first 3 digits
+        # Use 10# to force base 10 to avoid octal interpretation
+        echo $(( int_part * 1000 + 10#$dec_part ))
+    else
+        echo "2000" # Default 2.0
     fi
 }
 
@@ -212,9 +185,7 @@ monitor_temperatures() {
     printMsgNoNewline "${T_CURSOR_HIDE}"
  
     # Pre-calculate temp_delta in raw format to avoid using 'bc' in the loop
-    local temp_delta_raw
-    temp_delta_raw=$(echo "$temp_delta * 1000" | bc)
-    temp_delta_raw=${temp_delta_raw%.*} # Ensure it's an integer
+    local temp_delta_raw; temp_delta_raw=$(calculate_delta_raw "$temp_delta")
  
     # --- Update Loop ---
     while true; do
@@ -243,23 +214,41 @@ monitor_temperatures() {
                 fi
             fi
 
-            local trend_arrow trend_color temp_color
-            _get_temp_trend "$temp_raw" "${temp_history[$name]:-""}" "$avg_count" "$temp_delta_raw" trend_arrow trend_color
-            temp_color=$(get_temp_color_from_raw "$temp_raw")
+            # --- History & Trend Logic ---
+            local hist_str="${temp_history[$name]}"
+            local -a hist_arr
+            read -ra hist_arr <<< "$hist_str"
+
+            local trend_arrow="→"
+            local trend_color="$C_GRAY"
+
+            # Calculate average of previous readings if we have enough history
+            if (( ${#hist_arr[@]} >= avg_count )); then
+                local sum=0
+                for val in "${hist_arr[@]}"; do sum=$((sum + val)); done
+                local avg_prev=$((sum / ${#hist_arr[@]}))
+
+                if (( (temp_raw - avg_prev) > temp_delta_raw )); then
+                    trend_arrow="↑"; trend_color="$C_L_RED"
+                elif (( (avg_prev - temp_raw) > temp_delta_raw )); then
+                    trend_arrow="↓"; trend_color="$C_L_BLUE"
+                fi
+            fi
+
+            # Update history: prepend new value and truncate
+            hist_arr=("$temp_raw" "${hist_arr[@]}")
+            temp_history["$name"]="${hist_arr[*]:0:avg_count}"
             
-            # Only call bc once per loop for display purposes
-            local temp_current; temp_current=$(echo "scale=1; $temp_raw / 1000" | bc)
+            # --- Display Logic ---
+            local temp_color; temp_color=$(get_temp_color_from_raw "$temp_raw")
+            # Simulate float formatting: 55000 -> 55.0
+            local t_int=$(( temp_raw / 1000 ))
+            local t_dec=$(( (temp_raw % 1000) / 100 ))
 
             # Move to the column after the label and print only the dynamic data.
             printf "\033[23G%b%s%b %b%5.1f%b°C\033[K\n" \
                 "$trend_color" "$trend_arrow" "$T_RESET" \
-                "$temp_color" "$temp_current" "$T_RESET"
-
-            # Add current RAW temp to history and trim the array to avg_count
-            history_array=("$temp_raw" "${history_array[@]}")
-            local -a history_array
-            mapfile -t history_array < <(echo "${temp_history[$name]:-""}")
-            temp_history["$name"]="${history_array[*]:0:avg_count}"
+                "$temp_color" "${t_int}.${t_dec}" "$T_RESET"
         done
 
         # Wait for the interval, but also listen for key presses.
