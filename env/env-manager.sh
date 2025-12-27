@@ -11,9 +11,9 @@ set -o pipefail
 
 # --- Source shared libraries ---
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-# shellcheck source=./lib/shared.lib.sh
-if ! source "${SCRIPT_DIR}/src/lib/shared.lib.sh"; then
-    echo "Error: Could not source shared.lib.sh. Make sure it's in the 'src/lib' directory." >&2
+# shellcheck source=../src/lib/shared.lib.sh
+if ! source "${SCRIPT_DIR}/../src/lib/shared.lib.sh"; then
+    echo "Error: Could not source shared.lib.sh. Make sure it's in the '../src/lib' directory." >&2
     exit 1
 fi
 
@@ -1152,11 +1152,13 @@ main() {
 
     # Determine the target .env file if not set
     if [[ -z "$FILE_PATH" ]]; then
-        if _find_project_root; then
+        if [[ -f ".env" ]]; then
+            FILE_PATH=".env"
+        elif _find_project_root; then
             FILE_PATH="${_PROJECT_ROOT}/.env"
         else
-            printErrMsg "Could not find project root. Please specify a path to a .env file."
-            exit 1
+            # Default to current directory if project root cannot be determined
+            FILE_PATH=".env"
         fi
     fi
 
