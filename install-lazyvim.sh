@@ -6,13 +6,122 @@ set -e
 # The return value of a pipeline is the status of the last command to exit with a non-zero status.
 set -o pipefail
 
-# Source common utilities for TUI functions and error handling.
-# shellcheck source=./shared.sh
-# shellcheck source=./src/lib/shared.lib.sh
-if ! source "$(dirname "${BASH_SOURCE[0]}")/src/lib/shared.lib.sh"; then
-    echo "Error: Could not source shared.lib.sh. Make sure it's in the 'src/lib' directory." >&2
-    exit 1
-fi
+# Colors & Styles
+C_RED=$'\033[31m'
+C_GREEN=$'\033[32m'
+C_YELLOW=$'\033[33m'
+C_BLUE=$'\033[34m'
+C_CYAN=$'\033[36m'
+C_L_RED=$'\033[31;1m'
+C_L_GREEN=$'\033[32m'
+C_L_YELLOW=$'\033[33m'
+C_L_BLUE=$'\033[34m'
+C_L_CYAN=$'\033[36m'
+C_GRAY=$'\033[38;5;244m'
+T_RESET=$'\033[0m'
+T_BOLD=$'\033[1m'
+T_ULINE=$'\033[4m'
+T_REVERSE=$'\033[7m'
+T_CLEAR_LINE=$'\033[K'
+
+# Icons
+T_ERR_ICON="[${T_BOLD}${C_RED}✗${T_RESET}]"
+T_OK_ICON="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
+T_INFO_ICON="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
+T_WARN_ICON="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
+T_QST_ICON="[${T_BOLD}${C_L_CYAN}?${T_RESET}]"
+
+# Key Codes
+KEY_ENTER="ENTER"
+KEY_ESC=$'\033'
+
+# Logging
+printMsg() { printf '%b\n' "$1"; }
+printMsgNoNewline() { printf '%b' "$1"; }
+printErrMsg() { printMsg "${T_ERR_ICON}${T_BOLD}${C_L_RED} ${1} ${T_RESET}"; }
+printOkMsg() { printMsg "${T_OK_ICON} ${1}${T_RESET}"; }
+printInfoMsg() { printMsg "${T_INFO_ICON} ${1}${T_RESET}"; }
+printWarnMsg() { printMsg "${T_WARN_ICON} ${1}${T_RESET}"; }
+
+# Banner Utils
+strip_ansi_codes() {
+    local s="$1"; local esc=$'\033'
+    if [[ "$s" != *"$esc"* ]]; then echo -n "$s"; return; fi
+    local pattern="$esc\\[[0-9;]*[a-zA-Z]"
+    while [[ $s =~ $pattern ]]; do s="${s/${BASH_REMATCH[0]}/}"; done
+    echo -n "$s"
+}
+
+_truncate_string() {
+    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"; local trunc_char_len=${#trunc_char}
+    local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
+    if (( len <= max_len )); then echo -n "$input_str"; return; fi
+    local truncate_to_len=$(( max_len - trunc_char_len )); local new_str=""; local visible_count=0; local i=0; local in_escape=false
+    while (( i < ${#input_str} && visible_count < truncate_to_len )); do
+        local char="${input_str:i:1}"; new_str+="$char"
+        if [[ "$char" == $'\033' ]]; then in_escape=true; elif ! $in_escape; then (( visible_count++ )); fi
+        if $in_escape && [[ "$char" =~ [a-zA-Z] ]]; then in_escape=false; fi; ((i++))
+    done
+    echo -n "${new_str}${trunc_char}"
+}
+
+generate_banner_string() {
+    local text="$1"; local total_width=70; local prefix="┏"; local line
+    printf -v line '%*s' "$((total_width - 1))"; line="${line// /━}"; printf '%s' "${C_L_BLUE}${prefix}${line}${T_RESET}"; printf '\r'
+    local text_to_print; text_to_print=$(_truncate_string "$text" $((total_width - 3)))
+    printf '%s' "${C_L_BLUE}${prefix} ${text_to_print} ${T_RESET}"
+}
+
+printBanner() { printMsg "$(generate_banner_string "$1")"; }
+
+# Terminal Control
+clear_current_line() { printf '\033[2K\r' >/dev/tty; }
+clear_lines_up() {
+    local lines=${1:-1}; for ((i = 0; i < lines; i++)); do printf '\033[1A\033[2K'; done; printf '\r'
+} >/dev/tty
+
+# User Input
+read_single_char() {
+    local char; local seq; IFS= read -rsn1 char < /dev/tty
+    if [[ -z "$char" ]]; then echo "$KEY_ENTER"; return; fi
+    if [[ "$char" == "$KEY_ESC" ]]; then
+        if IFS= read -rsn1 -t 0.001 seq < /dev/tty; then
+            char+="$seq"
+            if [[ "$seq" == "[" || "$seq" == "O" ]]; then
+                while IFS= read -rsn1 -t 0.001 seq < /dev/tty; do char+="$seq"; if [[ "$seq" =~ [a-zA-Z~] ]]; then break; fi; done
+            fi
+        fi
+    fi
+    echo "$char"
+}
+
+prompt_to_continue() {
+    local msg="${1:-Press any key to continue...}"
+    printMsgNoNewline "${T_INFO_ICON} ${msg} " >/dev/tty
+    read_single_char >/dev/null
+    clear_current_line >/dev/tty
+}
+
+show_timed_message() {
+    local message="$1"; local duration="${2:-1.8}"; local message_lines; message_lines=$(echo -e "$message" | wc -l)
+    printMsg "$message" >/dev/tty; sleep "$duration"; clear_lines_up "$message_lines" >/dev/tty
+}
+
+prompt_yes_no() {
+    local question="$1"; local default_answer="${2:-}"; local has_error=false; local answer; local prompt_suffix
+    if [[ "$default_answer" == "y" ]]; then prompt_suffix="(Y/n)"; elif [[ "$default_answer" == "n" ]]; then prompt_suffix="(y/N)"; else prompt_suffix="(y/n)"; fi
+    local question_lines; question_lines=$(echo -e "$question" | wc -l)
+    _clear_all_prompt_content() { clear_current_line >/dev/tty; if (( question_lines > 1 )); then clear_lines_up $(( question_lines - 1 )); fi; if $has_error; then clear_lines_up 1; fi; }
+    printf '%b' "${T_QST_ICON} ${question} ${prompt_suffix} " >/dev/tty
+    while true; do
+        answer=$(read_single_char); if [[ "$answer" == "$KEY_ENTER" ]]; then answer="$default_answer"; fi
+        case "$answer" in
+            [Yy]|[Nn]) _clear_all_prompt_content; if [[ "$answer" =~ [Yy] ]]; then return 0; else return 1; fi ;;
+            "$KEY_ESC"|"q") _clear_all_prompt_content; show_timed_message " ${C_L_YELLOW}-- cancelled --${T_RESET}" 1; return 2 ;;
+            *) _clear_all_prompt_content; printErrMsg "Invalid input. Please enter 'y' or 'n'." >/dev/tty; has_error=true; printf '%b' "${T_QST_ICON} ${question} ${prompt_suffix} " >/dev/tty ;;
+        esac
+    done
+}
 
 # --- Global Variables ---
 OS=""
