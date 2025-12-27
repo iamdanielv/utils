@@ -64,7 +64,7 @@ print_usage() {
     printMsg "  ${C_L_BLUE}-b${T_RESET}            Display colors as solid blocks instead of numbers."
     printMsg "  ${C_L_BLUE}-c${T_RESET}            Output color codes in a copy-paste friendly format."
     printMsg "  ${C_L_BLUE}-C <color>${T_RESET}    Generate code for a specific color number (0-255)."
-    printMsg "  ${C_L_BLUE}-s <text>${T_RESET}     Sample text to use with -C (default: 'Sample Text')."
+    printMsg "  ${C_L_BLUE}-s <text>${T_RESET}     Sample text to use with -c or -C."
     printMsg "  ${C_L_BLUE}-g <mode>${T_RESET}   Display 'fg' (foreground) or 'bg' (background) colors. Default: fg."
     printMsg "  ${C_L_BLUE}-h${T_RESET}            Show this help message."
     printMsg "\n${T_ULINE}Examples:${T_RESET}"
@@ -167,11 +167,12 @@ main() {
     # Loop through all 256 colors
     for i in {0..255}; do
         if (( show_codes == 1 )); then
+            local display_text="${sample_text:-Sample}"
             if [[ "$mode" == "bg" ]]; then
                 local fg_color; fg_color=$(get_contrasting_fg_color "$i")
-                printf "BG_%03d=$'\\\\033[48;5;%dm' # \x1b[48;5;%dm\x1b[38;5;%dm Sample \x1b[0m\n" "$i" "$i" "$i" "$fg_color"
+                printf "BG_%03d=$'\\\\033[48;5;%dm' # \x1b[48;5;%dm\x1b[38;5;%dm %s \x1b[0m\n" "$i" "$i" "$i" "$fg_color" "$display_text"
             else
-                printf "C_%03d=$'\\\\033[38;5;%dm' # \x1b[38;5;%dm Sample \x1b[0m\n" "$i" "$i" "$i"
+                printf "C_%03d=$'\\\\033[38;5;%dm' # \x1b[38;5;%dm %s \x1b[0m\n" "$i" "$i" "$i" "$display_text"
             fi
             continue
         fi
