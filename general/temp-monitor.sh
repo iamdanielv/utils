@@ -9,10 +9,7 @@ set -o pipefail
 
 # Colors & Styles
 C_RED=$'\033[31m'
-C_GREEN=$'\033[32m'
 C_YELLOW=$'\033[33m'
-C_BLUE=$'\033[34m'
-C_CYAN=$'\033[36m'
 C_L_RED=$'\033[31;1m'
 C_L_GREEN=$'\033[32m'
 C_L_YELLOW=$'\033[33m'
