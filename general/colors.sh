@@ -59,10 +59,12 @@ print_usage() {
     printBanner "Color Palette Viewer"
     printMsg "A simple utility to display all 256 terminal colors."
     printMsg "\n${T_ULINE}Usage:${T_RESET}"
-    printMsg "  $(basename "$0") [-b] [-c] [-g <mode>] [-h]"
+    printMsg "  $(basename "$0") [-b] [-c] [-C <color>] [-s <text>] [-g <mode>] [-h]"
     printMsg "\n${T_ULINE}Options:${T_RESET}"
     printMsg "  ${C_L_BLUE}-b${T_RESET}            Display colors as solid blocks instead of numbers."
     printMsg "  ${C_L_BLUE}-c${T_RESET}            Output color codes in a copy-paste friendly format."
+    printMsg "  ${C_L_BLUE}-C <color>${T_RESET}    Generate code for a specific color number (0-255)."
+    printMsg "  ${C_L_BLUE}-s <text>${T_RESET}     Sample text to use with -C (default: 'Sample Text')."
     printMsg "  ${C_L_BLUE}-g <mode>${T_RESET}   Display 'fg' (foreground) or 'bg' (background) colors. Default: fg."
     printMsg "  ${C_L_BLUE}-h${T_RESET}            Show this help message."
     printMsg "\n${T_ULINE}Examples:${T_RESET}"
@@ -70,6 +72,8 @@ print_usage() {
     printMsg "  $(basename "$0") -g bg -b"
     printMsg "  ${C_GRAY}# List color codes for copying${T_RESET}"
     printMsg "  $(basename "$0") -c"
+    printMsg "  ${C_GRAY}# Generate code for color 129 with custom text${T_RESET}"
+    printMsg "  $(basename "$0") -C 129 -s 'Hello World'"
 }
 
 # Choose a legible foreground color (black or white) for a given background color index.
@@ -93,13 +97,17 @@ main() {
     local use_blocks=0
     local show_codes=0
     local mode="fg"
+    local specific_color=""
+    local sample_text=""
 
     # Process arguments using getopts
-    while getopts ":bg:ch" opt; do
+    while getopts ":bg:chC:s:" opt; do
         case ${opt} in
             b) use_blocks=1 ;;
             c) show_codes=1 ;;
             g) mode="$OPTARG" ;;
+            C) specific_color="$OPTARG" ;;
+            s) sample_text="$OPTARG" ;;
             h) print_usage; exit 0 ;;
             \?) printErrMsg "Invalid option: -$OPTARG" >&2; print_usage; exit 1 ;;
             :) printErrMsg "Option -$OPTARG requires an argument." >&2; print_usage; exit 1 ;;
@@ -110,6 +118,48 @@ main() {
         printErrMsg "Invalid mode for -g: '${mode}'. Must be 'fg' or 'bg'." >&2
         print_usage
         exit 1
+    fi
+
+    # Handle specific color code generation
+    if [[ -n "$specific_color" ]]; then
+        if ! [[ "$specific_color" =~ ^[0-9]+$ ]] || (( specific_color < 0 || specific_color > 255 )); then
+             printErrMsg "Color number must be between 0 and 255." >&2
+             exit 1
+        fi
+
+        local text="${sample_text:-Sample Text}"
+        local color_code=""
+        local var_prefix="C"
+
+        if [[ "$mode" == "bg" ]]; then
+            color_code="48;5;${specific_color}"
+            var_prefix="BG"
+        else
+            color_code="38;5;${specific_color}"
+            var_prefix="C"
+        fi
+
+        printMsg "${T_BOLD}Color:${T_RESET}"
+        if [[ "$mode" == "bg" ]]; then
+             local fg_color; fg_color=$(get_contrasting_fg_color "$specific_color")
+             printf "%s_%03d=$'\\\\033[%sm' # \x1b[%sm\x1b[38;5;%dm %s \x1b[0m\n" "$var_prefix" "$specific_color" "$color_code" "$color_code" "$fg_color" "$text"
+        else
+             printf "%s_%03d=$'\\\\033[%sm' # \x1b[%sm %s \x1b[0m\n" "$var_prefix" "$specific_color" "$color_code" "$color_code" "$text"
+        fi
+        echo
+
+        printMsg "${T_BOLD}Script:${T_RESET}"
+        printf 'echo -e "\\033[%sm%s\\033[0m"\n' "$color_code" "$text"
+        echo
+
+        printMsg "${T_BOLD}Sample Output:${T_RESET}"
+        if [[ "$mode" == "bg" ]]; then
+             local fg_color; fg_color=$(get_contrasting_fg_color "$specific_color")
+             printf "\x1b[%sm\x1b[38;5;%dm%s\x1b[0m\n" "$color_code" "$fg_color" "$text"
+        else
+             printf "\x1b[%sm%s\x1b[0m\n" "$color_code" "$text"
+        fi
+        exit 0
     fi
 
     local block_char="██"
