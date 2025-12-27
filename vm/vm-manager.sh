@@ -305,7 +305,7 @@ render_main_ui() {
     local count=${#VM_NAMES[@]}
     
     if [[ $count -eq 0 ]]; then
-        buffer+="\n  ${YELLOW}No VMs defined on this host${NC}\n\n"
+        buffer+="${CYAN}│${NC}  ${YELLOW}No VMs defined on this host${NC}\n"
     else
         for ((i=0; i<count; i++)); do
             local name="${VM_NAMES[$i]}"
