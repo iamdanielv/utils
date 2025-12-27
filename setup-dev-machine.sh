@@ -185,45 +185,50 @@ install_package() {
     fi
 }
 
-# Installs lazygit by downloading the latest binary from GitHub releases.
-install_lazygit() {
+# Installs tools from Jesse Duffield (lazygit, lazydocker) by downloading the latest binary from GitHub releases.
+# Usage: install_jesseduffield_tool "lazygit"
+install_jesseduffield_tool() {
+    local tool_name="$1"
+    local repo="jesseduffield/${tool_name}"
     
-    # Determine architecture for download URL
-    local arch
     if [[ "$(uname -m)" == "x86_64" ]]; then
         arch="x86_64"
     else
-        printErrMsg "Unsupported architecture for lazygit: $(uname -m). Only x86_64 is supported by this script."
+        printErrMsg "Unsupported architecture for ${tool_name}: $(uname -m). Only x86_64 is supported by this script."
         return 1
     fi
-    printBanner "Install/Update lazygit"
+    printBanner "Install/Update ${tool_name}"
 
     # Get latest version tag
     local latest_version
-    latest_version=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r '.tag_name')
+    latest_version=$(curl -s "https://api.github.com/repos/${repo}/releases/latest" | jq -r '.tag_name')
 
-    if [[ -z "$latest_version" ]]; then
-        printErrMsg "Could not determine latest lazygit version from GitHub API."
+    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
+        printErrMsg "Could not determine latest ${tool_name} version from GitHub API."
         return
     fi
 
-    printInfoMsg "Latest available lazygit version: ${C_L_GREEN}${latest_version}${T_RESET}"
+    printInfoMsg "Latest available ${tool_name} version: ${C_L_GREEN}${latest_version}${T_RESET}"
 
     local installed_version_string="Not installed"
-    if command -v lazygit &>/dev/null; then
-        installed_version_string=$(lazygit --version)
+    if command -v "$tool_name" &>/dev/null; then
+        if [[ "$tool_name" == "lazygit" ]]; then
+            installed_version_string=$($tool_name --version)
+        else
+            installed_version_string=$($tool_name --version | grep -o 'Version: [^,]*' | sed 's/Version: //')
+        fi
     fi
     printInfoMsg "Currently installed version:      ${C_L_YELLOW}${installed_version_string}${T_RESET}"
 
     if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
-        printInfoMsg "Lazygit installation skipped."
+        printInfoMsg "${tool_name} installation skipped."
         return
     fi
 
     # The version tag from GitHub includes 'v' (e.g., v0.40.2), but the tarball name does not.
     local version_number_only="${latest_version#v}"
-    local tarball_name="lazygit_${version_number_only}_Linux_${arch}.tar.gz"
-    local download_url="https://github.com/jesseduffield/lazygit/releases/download/${latest_version}/${tarball_name}"
+    local tarball_name="${tool_name}_${version_number_only}_Linux_${arch}.tar.gz"
+    local download_url="https://github.com/${repo}/releases/download/${latest_version}/${tarball_name}"
     local install_dir="${HOME}/.local/bin"
     mkdir -p "$install_dir"
 
@@ -231,69 +236,12 @@ install_lazygit() {
     # Ensure the temp directory is cleaned up on exit
     trap 'rm -rf "$temp_dir"' RETURN
 
-    printInfoMsg "Downloading lazygit ${latest_version}..."
-    printMsg "  ${C_L_BLUE}${download_url}${T_RESET}"
-
-    if curl -L -f --progress-bar "$download_url" -o "${temp_dir}/${tarball_name}"; then
-        printInfoMsg "Extracting binary..."
-        tar -xzf "${temp_dir}/${tarball_name}" -C "$temp_dir"
-        
-        printInfoMsg "Installing to ${install_dir}/lazygit..."
-        mv "${temp_dir}/lazygit" "${install_dir}/lazygit"
-        printOkMsg "Successfully installed lazygit ${latest_version}."
-    else
-        printErrMsg "Failed to download lazygit. Please try installing it manually."
-    fi
-}
-
-# Installs lazydocker by downloading the latest binary from GitHub releases.
-install_lazydocker() {
-    # Determine architecture for download URL
-    local arch
-    if [[ "$(uname -m)" == "x86_64" ]]; then
-        arch="x86_64"
-    else
-        printErrMsg "Unsupported architecture for lazydocker: $(uname -m). Only x86_64 is supported by this script."
-        return 1
-    fi
-    printBanner "Install/Update lazydocker"
-
-    # Get latest version tag
-    local latest_version
-    latest_version=$(curl -s "https://api.github.com/repos/jesseduffield/lazydocker/releases/latest" | jq -r '.tag_name')
-
-    if [[ -z "$latest_version" ]]; then
-        printErrMsg "Could not determine latest lazydocker version from GitHub API."
-        return
-    fi
-
-    printInfoMsg "Latest available lazydocker version: ${C_L_GREEN}${latest_version}${T_RESET}"
-
-    local installed_version_string="Not installed"
-    if command -v lazydocker &>/dev/null; then
-        installed_version_string=$(lazydocker --version | grep -o 'Version: [^,]*' | sed 's/Version: //')
-    fi
-    printInfoMsg "Currently installed version:         ${C_L_YELLOW}${installed_version_string}${T_RESET}"
-
-    if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
-        printInfoMsg "Lazydocker installation skipped."
-        return
-    fi
-
-    local version_number_only="${latest_version#v}"
-    local tarball_name="lazydocker_${version_number_only}_Linux_${arch}.tar.gz"
-    local download_url="https://github.com/jesseduffield/lazydocker/releases/download/${latest_version}/${tarball_name}"
-    local install_dir="${HOME}/.local/bin"
-    mkdir -p "$install_dir"
-
-    local temp_dir; temp_dir=$(mktemp -d)
-    trap 'rm -rf "$temp_dir"' RETURN
-
-    if run_with_spinner "Downloading lazydocker ${latest_version}..." curl -L -f "$download_url" -o "${temp_dir}/${tarball_name}"; then
+    if run_with_spinner "Downloading ${tool_name} ${latest_version}..." curl -L -f "$download_url" -o "${temp_dir}/${tarball_name}"; then
         run_with_spinner "Extracting binary..." tar -xzf "${temp_dir}/${tarball_name}" -C "$temp_dir"
-        run_with_spinner "Installing to ${install_dir}/lazydocker..." mv "${temp_dir}/lazydocker" "${install_dir}/lazydocker"
+        run_with_spinner "Installing to ${install_dir}/${tool_name}..." mv "${temp_dir}/${tool_name}" "${install_dir}/${tool_name}"
+        printOkMsg "Successfully installed ${tool_name} ${latest_version}."
     else
-        printErrMsg "Failed to download lazydocker. Please try installing it manually."
+        printErrMsg "Failed to download ${tool_name}. Please try installing it manually."
     fi
 }
 
@@ -424,10 +372,10 @@ install_core_tools() {
     # For parsing JSON in scripts
     install_package "jq"
 
-    # For 'lg' alias
-    install_lazygit
-    # For docker management
-    install_lazydocker
+    # For 'lg' alias (lazygit) and docker management (lazydocker)
+    install_jesseduffield_tool "lazygit"
+    install_jesseduffield_tool "lazydocker"
+
     # For Go development
     install_golang
 }
