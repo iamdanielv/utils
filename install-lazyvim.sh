@@ -123,11 +123,6 @@ prompt_yes_no() {
     done
 }
 
-# --- Global Variables ---
-OS=""
-ARCH=""
-PKG_MANAGER=""
-
 # --- Script Functions ---
 
 print_usage() {
@@ -147,6 +142,15 @@ print_usage() {
     printMsg "\nRun without arguments to start the installation."
 }
 
+# Helper to fetch the latest release version tag from a GitHub repository.
+# Usage: get_latest_release_version "user/repo"
+get_latest_release_version() {
+    local repo="$1"
+    curl -s -I "https://github.com/${repo}/releases/latest" \
+        | grep -i "location:" \
+        | sed 's|.*/v||' | tr -d '\r'
+}
+
 # Detects the operating system, architecture, and package manager.
 detect_system() {
     printInfoMsg "Detecting system specifications..."
@@ -155,22 +159,22 @@ detect_system() {
         printErrMsg "Unsupported operating system: $(uname -s). This script only supports Linux."
         exit 1
     fi
-    OS='linux'
+    local os='linux'
 
     # Architecture Detection
     if [[ "$(uname -m)" != "x86_64" ]]; then
         printErrMsg "Unsupported architecture: $(uname -m). This script only supports x86_64."
         exit 1
     fi
-    ARCH='x64'
+    local arch='x64'
 
     # Package Manager Detection
     if ! command -v apt-get &>/dev/null; then
         printErrMsg "Could not find 'apt'. This script only supports apt-based distributions (like Debian, Ubuntu)."
         exit 1
     fi
-    PKG_MANAGER="apt"
-    printOkMsg "System: ${OS}-${ARCH} with ${PKG_MANAGER}"
+    local pkg_manager="apt"
+    printOkMsg "System: ${os}-${arch} with ${pkg_manager}"
 }
 
 # Installs a package if it's not already installed.
@@ -284,9 +288,7 @@ install_neovim() {
 
     printInfoMsg "Checking for latest Neovim version..."
     local latest_version
-    latest_version=$(curl -s -I https://github.com/neovim/neovim/releases/latest \
-        | grep -i "location:" \
-        | sed 's|.*/v||' | tr -d '\r')
+    latest_version=$(get_latest_release_version "neovim/neovim")
 
     if [[ -z "$latest_version" ]]; then
         printErrMsg "Could not determine latest Neovim version from GitHub."
@@ -382,9 +384,7 @@ install_nerd_fonts() {
 
         printInfoMsg "Finding latest Nerd Fonts release..."
         local latest_nerd_font_version
-        latest_nerd_font_version=$(curl -s -I https://github.com/ryanoasis/nerd-fonts/releases/latest \
-            | grep -i "location:" \
-            | sed 's|.*/v||' | tr -d '\r')
+        latest_nerd_font_version=$(get_latest_release_version "ryanoasis/nerd-fonts")
 
         if [[ -z "$latest_nerd_font_version" ]]; then
             printErrMsg "Could not determine latest Nerd Fonts version from GitHub. Skipping font installs."
