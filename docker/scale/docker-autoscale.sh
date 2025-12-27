@@ -116,7 +116,7 @@ else
 fi
 
 # The compose command is handled above. We just need to check for the other dependencies.
-for cmd in docker bc; do
+for cmd in docker; do
     if ! command -v "$cmd" &> /dev/null; then
         log_msg "Error: Required command '$cmd' not found. Please install it."
         exit 1
