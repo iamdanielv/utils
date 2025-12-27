@@ -2,11 +2,6 @@
 
 # Generate one or more random hexadecimal strings.
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
-# The return value of a pipeline is the status of the last command to exit with a non-zero status.
-set -o pipefail
-
 # Colors & Styles
 C_RED=$'\033[31m'
 C_L_RED=$'\033[31;1m'
@@ -73,18 +68,6 @@ print_usage() {
     printMsg "  $(basename "$0") -n 1"
 }
 
-# Function to generate a random string of specified length using hexadecimal characters.
-generate_random_string() {
-    local length=$1
-    # We must run this in a subshell with pipefail disabled.
-    # `head` closes the pipe after reading, causing `tr` to receive a SIGPIPE signal.
-    # With `set -o pipefail` active, this non-zero exit from `tr` would cause the
-    # entire script to terminate due to `set -e`.
-    # By disabling pipefail locally, the pipeline's exit status is that of the last
-    # command (`head`), which is 0 on success.
-    (set +o pipefail; < /dev/urandom tr -dc 'a-f0-9' | head -c "$length")
-}
-
 main() {
     # Default values
     local NUM_STRINGS=3
@@ -122,11 +105,15 @@ main() {
         esac
     done
 
-    # Generate and print the random strings to stdout, one per line.
-    for ((i = 0; i < NUM_STRINGS; i++)); do
-        generate_random_string "$LENGTH"
-        echo # Add a newline after each string
-    done
+    # Calculate the total number of characters needed.
+    local total_chars=$((NUM_STRINGS * LENGTH))
+
+    # Generate all random characters in a single pipeline for efficiency.
+    # - Read from /dev/urandom
+    # - Filter for hexadecimal characters
+    # - Take the total number of characters needed
+    # - Fold the stream into lines of the desired length.
+    < /dev/urandom tr -dc 'a-f0-9' | head -c "$total_chars" | fold -w "$LENGTH"
 }
 
 # This block will only run when the script is executed directly, not when sourced.
