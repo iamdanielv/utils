@@ -10,21 +10,21 @@
 set -o pipefail
 
 # Colors & Styles
-C_RED=$'\033[31m'
-C_GREEN=$'\033[32m'
-C_YELLOW=$'\033[33m'
-C_BLUE=$'\033[34m'
-C_MAGENTA=$'\033[35m'
-C_CYAN=$'\033[36m'
-C_WHITE=$'\033[37m'
-C_GRAY=$'\033[38;5;244m'
-C_L_RED=$'\033[31;1m'
-C_L_GREEN=$'\033[32m'
-C_L_YELLOW=$'\033[33m'
-C_L_BLUE=$'\033[34m'
-C_L_MAGENTA=$'\033[35m'
-C_L_CYAN=$'\033[36m'
-C_L_WHITE=$'\033[37;1m'
+export C_RED=$'\033[31m'
+export C_GREEN=$'\033[32m'
+export C_YELLOW=$'\033[33m'
+export C_BLUE=$'\033[34m'
+export C_MAGENTA=$'\033[35m'
+export C_CYAN=$'\033[36m'
+export C_WHITE=$'\033[37m'
+export C_GRAY=$'\033[38;5;244m'
+export C_L_RED=$'\033[31;1m'
+export C_L_GREEN=$'\033[32m'
+export C_L_YELLOW=$'\033[33m'
+export C_L_BLUE=$'\033[34m'
+export C_L_MAGENTA=$'\033[35m'
+export C_L_CYAN=$'\033[36m'
+export C_L_WHITE=$'\033[37;1m'
 
 T_RESET=$'\033[0m'
 T_BOLD=$'\033[1m'
@@ -292,8 +292,13 @@ function parse_env_file() {
             local key="${BASH_REMATCH[1]}"
             local value="${BASH_REMATCH[2]}"
 
+            # Handle bash-specific $'' syntax for C-style escapes
+            if [[ "$value" =~ ^\$'((.*))'$ ]]; then
+                # The inner content is in BASH_REMATCH[1]. Let printf interpret it.
+                value=$(printf '%b' "${BASH_REMATCH[1]}")
+            
             # Best Practice: Unquote values for internal storage. Quotes are for file representation.
-            if [[ "$value" =~ ^\"(.*)\"$ ]]; then
+            elif [[ "$value" =~ ^\"(.*)\"$ ]]; then
                 value="${BASH_REMATCH[1]}"
             fi
 
@@ -344,7 +349,12 @@ function save_env_file() {
 
             # Best Practice: Add quotes only if the value contains spaces or is empty.
             local value="${ENV_VARS[$key]}"
-            if [[ "$value" == *[[:space:]]* || -z "$value" ]]; then
+            # If the value contains an escape character, format it for bash sourcing.
+            if [[ "$value" == *$'\033'* ]]; then
+                # Replace the raw ESC character with the literal string '\033'
+                local bash_formatted_value="${value//$'\033'/\\033}"
+                echo "$real_key=\$'$bash_formatted_value'" >> "$temp_file"
+            elif [[ "$value" == *[[:space:]]* || -z "$value" ]]; then
                 echo "$real_key=\"$value\"" >> "$temp_file"
             else
                 echo "$real_key=$value" >> "$temp_file"
@@ -501,7 +511,7 @@ _sanitize_and_truncate_value() {
     if [[ "$_val_ref" == *$'\n'* ]]; then _val_ref="${_val_ref//$'\n'/^J}"; fi
     if [[ "$_val_ref" == *$'\r'* ]]; then _val_ref="${_val_ref//$'\r'/^M}"; fi
     if [[ "$_val_ref" == *$'\t'* ]]; then _val_ref="${_val_ref//$'\t'/^I}"; fi
-    if [[ "$_val_ref" == *$'\033'* ]]; then _val_ref="${_val_ref//$'\033'/^[}"; fi
+    if [[ "$_val_ref" == *$'\033'* ]]; then _val_ref="${_val_ref//$'\033'/\\\\\\\\033}"; fi
 
     if (( ${#_val_ref} > max_len )); then
         _val_ref="${_val_ref:0:$((max_len - 1))}…"
