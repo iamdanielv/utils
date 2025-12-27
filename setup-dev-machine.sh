@@ -356,9 +356,8 @@ install_core_tools() {
     printInfoMsg "Updating package lists..."
     sudo apt-get update
 
-    # used to install multiple packages
-    install_package "curl" "curl"
-    install_package "git" "git"
+    install_package "curl"
+    install_package "git"
 
     # For 'ag' alias
     install_package "silversearcher-ag" "ag"
