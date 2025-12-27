@@ -9,13 +9,230 @@
 
 set -o pipefail
 
-# --- Source shared libraries ---
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-# shellcheck source=../src/lib/shared.lib.sh
-if ! source "${SCRIPT_DIR}/../src/lib/shared.lib.sh"; then
-    echo "Error: Could not source shared.lib.sh. Make sure it's in the '../src/lib' directory." >&2
-    exit 1
-fi
+# Colors & Styles
+C_RED=$'\033[31m'
+C_GREEN=$'\033[32m'
+C_YELLOW=$'\033[33m'
+C_BLUE=$'\033[34m'
+C_MAGENTA=$'\033[35m'
+C_CYAN=$'\033[36m'
+C_WHITE=$'\033[37m'
+C_GRAY=$'\033[38;5;244m'
+C_L_RED=$'\033[31;1m'
+C_L_GREEN=$'\033[32m'
+C_L_YELLOW=$'\033[33m'
+C_L_BLUE=$'\033[34m'
+C_L_MAGENTA=$'\033[35m'
+C_L_CYAN=$'\033[36m'
+C_L_WHITE=$'\033[37;1m'
+
+T_RESET=$'\033[0m'
+T_BOLD=$'\033[1m'
+T_ULINE=$'\033[4m'
+T_REVERSE=$'\033[7m'
+T_CLEAR_LINE=$'\033[K'
+T_CURSOR_HIDE=$'\033[?25l'
+T_CURSOR_SHOW=$'\033[?25h'
+T_FG_RESET=$'\033[39m'
+
+# Icons
+T_ERR_ICON="[${T_BOLD}${C_RED}✗${T_RESET}]"
+T_OK_ICON="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
+T_INFO_ICON="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
+T_WARN_ICON="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
+T_QST_ICON="[${T_BOLD}${C_L_CYAN}?${T_RESET}]"
+
+DIV="──────────────────────────────────────────────────────────────────────"
+
+# Key Codes
+KEY_ESC=$'\033'
+KEY_UP=$'\033[A'
+KEY_DOWN=$'\033[B'
+KEY_RIGHT=$'\033[C'
+KEY_LEFT=$'\033[D'
+KEY_ENTER="ENTER"
+KEY_BACKSPACE=$'\x7f'
+KEY_HOME=$'\033[H'
+KEY_END=$'\033[F'
+KEY_DELETE=$'\033[3~'
+KEY_PGUP=$'\033[5~'
+KEY_PGDN=$'\033[6~'
+
+# Logging
+printMsg() { printf '%b\n' "$1"; }
+printMsgNoNewline() { printf '%b' "$1"; }
+printErrMsg() { printMsg "${T_ERR_ICON}${T_BOLD}${C_L_RED} ${1} ${T_RESET}"; }
+printOkMsg() { printMsg "${T_OK_ICON} ${1}${T_RESET}"; }
+
+# Banner Utils
+strip_ansi_codes() {
+    local s="$1"; local esc=$'\033'
+    if [[ "$s" != *"$esc"* ]]; then echo -n "$s"; return; fi
+    local pattern="$esc\\[[0-9;]*[a-zA-Z]"
+    while [[ $s =~ $pattern ]]; do s="${s/${BASH_REMATCH[0]}/}"; done
+    echo -n "$s"
+}
+
+_truncate_string() {
+    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"; local trunc_char_len=${#trunc_char}
+    local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
+    if (( len <= max_len )); then echo -n "$input_str"; return; fi
+    local truncate_to_len=$(( max_len - trunc_char_len )); local new_str=""; local visible_count=0; local i=0; local in_escape=false
+    while (( i < ${#input_str} && visible_count < truncate_to_len )); do
+        local char="${input_str:i:1}"; new_str+="$char"
+        if [[ "$char" == $'\033' ]]; then in_escape=true; elif ! $in_escape; then (( visible_count++ )); fi
+        if $in_escape && [[ "$char" =~ [a-zA-Z] ]]; then in_escape=false; fi; ((i++))
+    done
+    echo -n "${new_str}${trunc_char}"
+}
+
+generate_banner_string() {
+    local text="$1"; local total_width=70; local prefix="┏"; local line
+    printf -v line '%*s' "$((total_width - 1))"; line="${line// /━}"; printf '%s' "${C_L_BLUE}${prefix}${line}${T_RESET}"; printf '\r'
+    local text_to_print; text_to_print=$(_truncate_string "$text" $((total_width - 3)))
+    printf '%s' "${C_L_BLUE}${prefix} ${text_to_print} ${T_RESET}"
+}
+
+_format_fixed_width_string() {
+    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"
+    local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
+    if (( len <= max_len )); then local padding_needed=$(( max_len - len )); printf "%s%*s" "$input_str" "$padding_needed" ""
+    else _truncate_string "$input_str" "$max_len" "$trunc_char"; fi
+}
+
+printBanner() { printMsg "$(generate_banner_string "$1")"; }
+
+# Terminal Control
+clear_screen() { printf '\033[H\033[J' >/dev/tty; }
+clear_current_line() { printf '\033[2K\r' >/dev/tty; }
+clear_lines_up() { local lines=${1:-1}; for ((i = 0; i < lines; i++)); do printf '\033[1A\033[2K'; done; printf '\r'; } >/dev/tty
+move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf '\033[1A'; done; fi; printf '\r'; } >/dev/tty
+
+# User Input
+read_single_char() {
+    local char; local seq; IFS= read -rsn1 char < /dev/tty
+    if [[ -z "$char" ]]; then echo "$KEY_ENTER"; return; fi
+    if [[ "$char" == "$KEY_ESC" ]]; then
+        if IFS= read -rsn1 -t 0.001 seq < /dev/tty; then char+="$seq"; if [[ "$seq" == "[" || "$seq" == "O" ]]; then while IFS= read -rsn1 -t 0.001 seq < /dev/tty; do char+="$seq"; if [[ "$seq" =~ [a-zA-Z~] ]]; then break; fi; done; fi; fi
+    fi
+    echo "$char"
+}
+
+show_timed_message() {
+    local message="$1"; local duration="${2:-1.8}"; local message_lines; message_lines=$(echo -e "$message" | wc -l)
+    printMsg "$message" >/dev/tty; sleep "$duration"; clear_lines_up "$message_lines" >/dev/tty
+}
+
+show_action_summary() {
+    local label="$1"; local value="$2"; local total_width=70; local icon_len; icon_len=$(strip_ansi_codes "${T_QST_ICON} " | wc -c)
+    local separator_len=2; local available_width=$(( total_width - icon_len - separator_len ))
+    local label_width=$(( available_width / 3 )); local value_width=$(( available_width - label_width ))
+    local truncated_label; truncated_label=$(_truncate_string "$label" "$label_width")
+    local truncated_value; truncated_value=$(_truncate_string "${C_L_GREEN}${value}${T_RESET}" "$value_width")
+    printMsg "${T_QST_ICON} ${truncated_label}: ${truncated_value}" >/dev/tty
+}
+
+prompt_yes_no() {
+    local question="$1"; local default_answer="${2:-}"; local has_error=false; local answer; local prompt_suffix
+    if [[ "$default_answer" == "y" ]]; then prompt_suffix="(Y/n)"; elif [[ "$default_answer" == "n" ]]; then prompt_suffix="(y/N)"; else prompt_suffix="(y/n)"; fi
+    local question_lines; question_lines=$(echo -e "$question" | wc -l)
+    _clear_all_prompt_content() { clear_current_line >/dev/tty; if (( question_lines > 1 )); then clear_lines_up $(( question_lines - 1 )); fi; if $has_error; then clear_lines_up 1; fi; }
+    printf '%b' "${T_QST_ICON} ${question} ${prompt_suffix} " >/dev/tty
+    while true; do
+        answer=$(read_single_char); if [[ "$answer" == "$KEY_ENTER" ]]; then answer="$default_answer"; fi
+        case "$answer" in
+            [Yy]|[Nn]) _clear_all_prompt_content; if [[ "$answer" =~ [Yy] ]]; then return 0; else return 1; fi ;;
+            "$KEY_ESC"|"q") _clear_all_prompt_content; show_timed_message " ${C_L_YELLOW}-- cancelled --${T_RESET}" 1; return 2 ;;
+            *) _clear_all_prompt_content; printErrMsg "Invalid input. Please enter 'y' or 'n'." >/dev/tty; has_error=true; printf '%b' "${T_QST_ICON} ${question} ${prompt_suffix} " >/dev/tty ;;
+        esac
+    done
+}
+
+prompt_for_input() {
+    local prompt_text="$1"; local -n var_ref="$2"; local default_val="${3:-}"; local allow_empty="${4:-false}"; local lines_to_replace="${5:-0}"
+    if (( lines_to_replace == 0 )); then clear_screen; fi
+    printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty
+    local input_str="$default_val"; local cursor_pos=${#input_str}; local view_start=0; local key
+    local icon_prefix_len; icon_prefix_len=$(strip_ansi_codes "${T_QST_ICON} " | wc -c); local padding; printf -v padding '%*s' "$icon_prefix_len" ""
+    local indented_prompt_text; indented_prompt_text=$(echo -e "$prompt_text" | sed "2,\$s/^/${padding}/")
+    printf '%b' "${T_QST_ICON} ${indented_prompt_text}" >/dev/tty; local input_prefix=": "; printMsgNoNewline "$input_prefix" >/dev/tty
+    local prompt_lines; prompt_lines=$(echo -e "${indented_prompt_text}" | wc -l)
+    if (( lines_to_replace > prompt_lines )); then local blank_lines_needed=$(( lines_to_replace - prompt_lines )); for ((i=0; i<blank_lines_needed; i++)); do printf '\n%s' "${T_CLEAR_LINE}"; done; move_cursor_up "$blank_lines_needed"; fi
+    local input_line_prefix_len; if (( prompt_lines > 1 )); then local last_line_prompt; last_line_prompt=$(echo -e "${indented_prompt_text}" | tail -n 1); input_line_prefix_len=$(strip_ansi_codes " ${last_line_prompt}${input_prefix}" | wc -c); else input_line_prefix_len=$(strip_ansi_codes "${T_QST_ICON} ${prompt_text}${input_prefix}" | wc -c); fi
+    _prompt_for_input_redraw() {
+        printf '\r\033[%sC' "$input_line_prefix_len" >/dev/tty; local term_width; term_width=$(tput cols); local available_width=$(( term_width - input_line_prefix_len )); if (( available_width < 1 )); then available_width=1; fi
+        if (( cursor_pos < view_start )); then view_start=$cursor_pos; fi; if (( cursor_pos >= view_start + available_width )); then view_start=$(( cursor_pos - available_width + 1 )); fi
+        local display_str="${input_str:$view_start:$available_width}"; local total_len=${#input_str}; local ellipsis="…"
+        if (( total_len > available_width )); then if (( view_start > 0 )); then display_str="${ellipsis}${display_str:1}"; fi; if (( view_start + available_width < total_len )); then display_str="${display_str:0:${#display_str}-1}${ellipsis}"; fi; fi
+        printMsgNoNewline "${C_L_CYAN}${display_str}${T_RESET}${T_CLEAR_LINE}" >/dev/tty; printf '\r\033[%sC' "$input_line_prefix_len" >/dev/tty
+        local display_cursor_pos=$(( cursor_pos - view_start )); if (( view_start > 0 )); then ((display_cursor_pos++)); fi; if (( display_cursor_pos > 0 )); then printf '\033[%sC' "$display_cursor_pos" >/dev/tty; fi
+    }
+    while true; do
+        _prompt_for_input_redraw; key=$(read_single_char)
+        case "$key" in
+            "$KEY_ENTER") if [[ -n "$input_str" || "$allow_empty" == "true" ]]; then var_ref="$input_str"; local lines_to_clear=$(( lines_to_replace > 0 ? lines_to_replace : prompt_lines )); clear_current_line >/dev/tty; clear_lines_up $(( lines_to_clear - 1 )) >/dev/tty; show_action_summary "$prompt_text" "$var_ref"; printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty; return 0; fi ;;
+            "$KEY_ESC") local lines_to_clear=$(( lines_to_replace > 0 ? lines_to_replace : prompt_lines )); clear_current_line >/dev/tty; clear_lines_up $(( lines_to_clear - 1 )) >/dev/tty; show_timed_message "${T_INFO_ICON} Input cancelled." 1; printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty; return 1 ;;
+            "$KEY_BACKSPACE") if (( cursor_pos > 0 )); then input_str="${input_str:0:cursor_pos-1}${input_str:cursor_pos}"; ((cursor_pos--)); fi ;;
+            "$KEY_DELETE") if (( cursor_pos < ${#input_str} )); then input_str="${input_str:0:cursor_pos}${input_str:cursor_pos+1}"; fi ;;
+            "$KEY_LEFT") if (( cursor_pos > 0 )); then ((cursor_pos--)); fi ;;
+            "$KEY_RIGHT") if (( cursor_pos < ${#input_str} )); then ((cursor_pos++)); fi ;;
+            "$KEY_HOME") cursor_pos=0 ;;
+            "$KEY_END") cursor_pos=${#input_str} ;;
+            *) if (( ${#key} == 1 )) && [[ "$key" =~ [[:print:]] ]]; then input_str="${input_str:0:cursor_pos}${key}${input_str:cursor_pos}"; ((cursor_pos++)); fi ;;
+        esac
+    done
+}
+
+_interactive_editor_loop() {
+    local mode="$1" banner_text="$2" draw_func="$3" field_handler_func="$4" change_checker_func="$5" reset_func="$6"
+    clear_screen; printBanner "$banner_text"; "$draw_func"
+    while true; do
+        local key; key=$(read_single_char); local redraw=false
+        case "$key" in
+            'c'|'C'|'d'|'D') clear_current_line; local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi; if prompt_yes_no "$question" "y"; then "$reset_func"; show_timed_message "${T_INFO_ICON} Changes discarded."; fi; redraw=true ;;
+            's'|'S') return 0 ;;
+            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else show_timed_message "${T_INFO_ICON} Operation cancelled."; redraw=true; fi; else clear_current_line; show_timed_message "${T_INFO_ICON} Edit cancelled. No changes were made."; return 1; fi ;;
+            *) if "$field_handler_func" "$key"; then redraw=true; fi ;;
+        esac
+        if [[ "$redraw" == "true" ]]; then clear_screen; printBanner "$banner_text"; "$draw_func"; fi
+    done
+}
+
+_apply_highlight() {
+    local content="$1"; local highlighted_content=""
+    while IFS= read -r line; do
+        local highlight_restore="${T_RESET}${T_REVERSE}${C_L_BLUE}"
+        local highlighted_line="${line//${T_RESET}/${highlight_restore}}"
+        highlighted_line="${highlighted_line//${T_FG_RESET}/${C_L_BLUE}}"
+        if [[ -n "$highlighted_content" ]]; then highlighted_content+=$'\n'; fi
+        highlighted_content+="$highlighted_line"
+    done <<< "$content"
+    printf "%s%s%s%s" "${T_REVERSE}${C_L_BLUE}" "$highlighted_content" "${T_CLEAR_LINE}" "${T_RESET}"
+}
+
+_get_menu_item_prefix() {
+    local is_current="$1" is_selected="$2" is_multi_select="$3"
+    local pointer=" "; if [[ "$is_current" == "true" ]]; then pointer="${T_BOLD}${C_L_MAGENTA}❯${T_FG_RESET}"; fi
+    local checkbox="   "; if [[ "$is_multi_select" == "true" ]]; then checkbox="[ ]"; if [[ "$is_selected" == "true" ]]; then checkbox="${T_BOLD}${C_GREEN}[✓]"; fi; fi
+    echo "${pointer}${checkbox}"
+}
+
+_draw_menu_item() {
+    local is_current="$1" is_selected="$2" is_multi_select="$3" option_text="$4"; local -n output_ref="$5"
+    local prefix; prefix=$(_get_menu_item_prefix "$is_current" "$is_selected" "$is_multi_select")
+    local item_output=""; if [[ -n "$option_text" ]]; then
+        local line_prefix=" "
+        if [[ "$is_current" == "true" ]]; then local highlighted_line; highlighted_line=$(_apply_highlight "${line_prefix}${option_text}${T_CLEAR_LINE}"); item_output+=$(printf "%s%s" "$prefix" "$highlighted_line")
+        else item_output+=$(printf "%s%s%s%s%s" "$prefix" "$line_prefix" "$option_text" "${T_CLEAR_LINE}" "${T_RESET}"); fi
+    fi
+    output_ref+=$item_output
+}
+
+
+script_exit_handler() { printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty; }
+trap 'script_exit_handler' EXIT
+script_interrupt_handler() { trap - INT; printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty; stty echo >/dev/tty; clear_screen; printMsg "${T_WARN_ICON} ${C_L_YELLOW}Operation cancelled by user.${T_RESET}"; exit 130; }
+trap 'script_interrupt_handler' INT
 
 # --- Script Globals ---
 declare -A ENV_VARS # Associative array to hold variable values
@@ -144,10 +361,6 @@ function save_env_file() {
     # Safely overwrite the original file
     if mv "$temp_file" "$file_to_save"; then
         local relative_path="$file_to_save"
-        # Attempt to find project root to create a friendlier relative path.
-        if _find_project_root --silent && [[ "$file_to_save" == "$_PROJECT_ROOT"* ]]; then
-            relative_path=".${file_to_save#$_PROJECT_ROOT}"
-        fi
 
         clear_current_line
         show_timed_message "${T_OK_ICON} Saved changes to ${C_L_BLUE}${relative_path}${T_RESET}" 1.5
@@ -420,9 +633,6 @@ function draw_footer() {
         printf " ${T_ERR_ICON} %s${T_CLEAR_LINE}" "${T_ERR}${ERROR_MESSAGE}${T_RESET}"
     else
         local relative_path="$FILE_PATH"
-        if _find_project_root --silent && [[ "$FILE_PATH" == "$_PROJECT_ROOT"* ]]; then
-            relative_path=".${FILE_PATH#$_PROJECT_ROOT}"
-        fi
         printf "  ${T_BOLD}${T_OK_ICON} Valid File: ${C_L_BLUE}%s${T_RESET}${T_CLEAR_LINE}" "${relative_path}"
     fi
 }
@@ -1067,9 +1277,6 @@ function interactive_manager() {
             # --- Double-buffer drawing ---
             local screen_buffer=""
             local relative_path="$FILE_PATH"
-            if _find_project_root --silent && [[ "$FILE_PATH" == "$_PROJECT_ROOT"* ]]; then
-                relative_path=".${FILE_PATH#$_PROJECT_ROOT}"
-            fi
             local banner_text="Editing: ${C_L_YELLOW}${relative_path}${C_BLUE}"
             screen_buffer+=$(generate_banner_string "$banner_text")
             screen_buffer+=$'\n'
@@ -1152,14 +1359,7 @@ main() {
 
     # Determine the target .env file if not set
     if [[ -z "$FILE_PATH" ]]; then
-        if [[ -f ".env" ]]; then
-            FILE_PATH=".env"
-        elif _find_project_root; then
-            FILE_PATH="${_PROJECT_ROOT}/.env"
-        else
-            # Default to current directory if project root cannot be determined
-            FILE_PATH=".env"
-        fi
+        FILE_PATH=".env"
     fi
 
     # Ensure the directory for the .env file exists
