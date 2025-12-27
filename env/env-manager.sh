@@ -358,12 +358,17 @@ function save_env_file() {
         return 0
     fi
 
+    # Create a backup of the existing file
+    if [[ -f "$file_to_save" ]]; then
+        cp "$file_to_save" "${file_to_save}.bak"
+    fi
+
     # Safely overwrite the original file
     if mv "$temp_file" "$file_to_save"; then
         local relative_path="$file_to_save"
 
         clear_current_line
-        show_timed_message "${T_OK_ICON} Saved changes to ${C_L_BLUE}${relative_path}${T_RESET}" 1.5
+        show_timed_message "${T_OK_ICON} Saved changes to ${C_L_BLUE}${relative_path}${T_RESET} (Backup created)" 1.5
         return 0
     else
         rm -f "$temp_file"
