@@ -1,7 +1,6 @@
 #!/bin/bash
 set -o pipefail
 
-# --- Embedded TUI Library ---
 # Colors
 C_RED=$'\033[31m'
 C_GREEN=$'\033[32m'

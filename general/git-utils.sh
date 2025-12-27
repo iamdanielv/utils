@@ -5,7 +5,6 @@ set -e
 # The return value of a pipeline is the status of the last command to exit with a non-zero status.
 set -o pipefail
 
-# --- Embedded TUI Library ---
 # Colors & Styles
 C_RED=$'\033[31m'
 C_GREEN=$'\033[32m'
