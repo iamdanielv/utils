@@ -308,7 +308,7 @@ show_vm_details() {
     fi
 
     local buffer=""
-    buffer+=$(printBanner "VM Details: ${BOLD}${YELLOW}$vm${NC} (${REVERSE}${state_color}${state_icon}${state}${REVERSE}${NC})" "$CYAN")
+    buffer+=$(printBanner "VM Details: ${BOLD}${YELLOW}$vm${NC} (${REVERSE}${state_color} ${state_icon} ${state} ${REVERSE}${NC})" "$CYAN")
     buffer+="\n"
     
     local line
@@ -518,7 +518,7 @@ render_main_ui() {
                 row_text_color="${NC}"
             fi
             
-            local state_display="${state_icon}${state}"
+            local state_display="${state_icon} ${state}"
             
             # Highlight selection
             if [[ $i -eq $SELECTED ]]; then
