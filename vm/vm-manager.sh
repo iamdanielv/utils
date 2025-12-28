@@ -23,6 +23,7 @@ ICON_PAUSED="⏸"
 ICON_UNKNOWN="?"
 
 clear_screen() { printf '\033[H\033[J' >/dev/tty; }
+move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf '\033[1A'; done; fi; printf '\r'; } >/dev/tty
 
 # Trap to restore cursor on exit
 trap 'echo -e "${CURSOR_SHOW}"; exit' EXIT INT TERM
