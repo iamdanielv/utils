@@ -1,32 +1,32 @@
 #!/bin/bash
 
 # Colors
-RED='\033[31m'
-GREEN='\033[32m'
-YELLOW='\033[33m'
-BLUE='\033[34m'
-CYAN='\033[36m'
-GRAY='\033[38;5;244m'
-BOLD='\033[1m'
-REVERSE='\033[7m'
-UNDERLINE='\033[4m'
-NO_UNDERLINE='\033[24m'
-NC='\033[0m' # No Color
-CURSOR_HIDE='\033[?25l'
-CURSOR_SHOW='\033[?25h'
-CLEAR_LINE='\033[K'
+readonly RED=$'\033[31m'
+readonly GREEN=$'\033[32m'
+readonly YELLOW=$'\033[33m'
+readonly BLUE=$'\033[34m'
+readonly CYAN=$'\033[36m'
+readonly GRAY=$'\033[38;5;244m'
+readonly BOLD=$'\033[1m'
+readonly REVERSE=$'\033[7m'
+readonly UNDERLINE=$'\033[4m'
+readonly NO_UNDERLINE=$'\033[24m'
+readonly NC=$'\033[0m' # No Color
+readonly CURSOR_HIDE=$'\033[?25l'
+readonly CURSOR_SHOW=$'\033[?25h'
+readonly CLEAR_LINE=$'\033[K'
 
 # Icons
-ICON_RUNNING="✔"
-ICON_STOPPED="✘"
-ICON_PAUSED="⏸"
-ICON_UNKNOWN="?"
+readonly ICON_RUNNING="✔"
+readonly ICON_STOPPED="✘"
+readonly ICON_PAUSED="⏸"
+readonly ICON_UNKNOWN="?"
 
 clear_screen() { printf '\033[H\033[J' >/dev/tty; }
 move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf '\033[1A'; done; fi; printf '\r'; } >/dev/tty
 
 # Trap to restore cursor on exit
-trap 'echo -e "${CURSOR_SHOW}"; exit' EXIT INT TERM
+trap 'printf "%b" "${CURSOR_SHOW}"; exit' EXIT INT TERM
 
 # Check dependencies
 if ! command -v virsh &> /dev/null; then
@@ -39,7 +39,7 @@ VM_NAMES=()
 VM_STATES=()
 declare -A VM_CPU_USAGE
 declare -A VM_MEM_USAGE
-declare -A PREV_CPU_TIME
+declare -A PREV_CPU_TIME=()
 declare -A VM_AUTOSTART
 LAST_TIMESTAMP=0
 SELECTED=0
@@ -56,16 +56,16 @@ fetch_vms() {
     VM_STATES=()
     
     # Capture current time in nanoseconds for CPU calc
-    local current_timestamp
+    local current_timestamp time_diff
     current_timestamp=$(date +%s%N)
-    local time_diff=$(( current_timestamp - LAST_TIMESTAMP ))
+    time_diff=$(( current_timestamp - LAST_TIMESTAMP ))
     
     # Fetch bulk stats (CPU time in ns, Memory in KiB)
     local stats_output
     stats_output=$(virsh domstats --cpu-total --balloon --state 2>/dev/null)
     
     local -A current_cpu_times
-    local -A current_mems
+    local -A current_mems=()
     local -A current_states_int
     local current_vm=""
     
@@ -86,14 +86,17 @@ fetch_vms() {
     local raw_names
     raw_names=$(virsh list --all --name | sort | sed '/^$/d')
     
-    local autostart_list
-    autostart_list=$(virsh list --all --autostart --name)
+    # Optimize autostart check: Load into map to avoid grep in loop
+    local -A autostart_map
+    while read -r name; do
+        [[ -n "$name" ]] && autostart_map["$name"]=1
+    done < <(virsh list --all --autostart --name)
     
     while IFS= read -r name; do
         if [[ -n "$name" ]]; then
             VM_NAMES+=("$name")
             # Get state
-            local state_int="${current_states_int[$name]}"
+            local state_int="${current_states_int[$name]-}"
             local state="unknown"
             case "$state_int" in
                 1) state="running" ;;
@@ -106,16 +109,16 @@ fetch_vms() {
             esac
             VM_STATES+=("$state")
             
-            if echo "$autostart_list" | grep -qFx "$name"; then
+            if [[ -n "${autostart_map[$name]-}" ]]; then
                 VM_AUTOSTART["$name"]="Yes"
             else
                 VM_AUTOSTART["$name"]="No"
             fi
             
             # Process Memory (KiB -> MiB/GiB)
-            local mem_kib="${current_mems[$name]}"
+            local mem_kib="${current_mems[$name]-}"
             if [[ -n "$mem_kib" && "$mem_kib" -gt 0 ]]; then
-                if (( mem_kib > 1048576 )); then
+                if (( mem_kib >= 1048576 )); then
                     local gib=$(( mem_kib / 1048576 ))
                     VM_MEM_USAGE["$name"]="${gib} GiB"
                 else
@@ -126,8 +129,8 @@ fetch_vms() {
             fi
             
             # Process CPU Usage
-            local cpu_time="${current_cpu_times[$name]}"
-            if [[ "$state" == "running" && -n "$cpu_time" && -n "${PREV_CPU_TIME[$name]}" && $time_diff -gt 0 ]]; then
+            local cpu_time="${current_cpu_times[$name]-}"
+            if [[ "$state" == "running" && -n "$cpu_time" && -n "${PREV_CPU_TIME[$name]-}" && $time_diff -gt 0 ]]; then
                 local cpu_diff=$(( cpu_time - PREV_CPU_TIME[$name] ))
                 # Usage % = (cpu_diff_ns / time_diff_ns) * 100. Multiply by 1000 for 1 decimal place.
                 local usage=$(( cpu_diff * 1000 / time_diff ))
@@ -149,8 +152,8 @@ fetch_vms() {
 # Helper to set state colors and icons
 set_state_visuals() {
     local state="$1"
-    STATE_COLOR="$NC"
-    STATE_ICON="$ICON_UNKNOWN"
+    STATE_COLOR="${NC}"
+    STATE_ICON="${ICON_UNKNOWN}"
     
     case "$state" in
         "running")
@@ -328,7 +331,6 @@ show_vm_details() {
     append_storage_info "$vm" buffer
 
     buffer+="\n${BLUE}Press any key to return...${NC}\n"
-    clear_screen
     printf "\033[H%b\033[J" "$buffer"
     read -rsn1
     clear_screen
@@ -460,6 +462,7 @@ handle_clone_vm() {
     MSG_TITLE="CLONE ${VM_NAMES[$SELECTED]}? (empty name to cancel)"
     MSG_COLOR="\033[38;5;216m"
     MSG_INPUT="true"
+    STATUS_MSG="" # Clear any previous status
     render_main_ui
     echo -ne "${CURSOR_SHOW}"
     read -e -p " Enter new name: " -i "$default_name" -r new_name
@@ -546,7 +549,7 @@ handle_vm_action() {
 printBanner() {
     local msg="$1"
     local color="${2:-$BLUE}"
-    local line="──────────────────────────────────────────────────────────────────────"
+    local line="────────────────────────────────────────────────────────────────────────"
     printf "${color}${line}${NC}\r${color}╭─${msg}${NC}"
 }
 
@@ -567,10 +570,10 @@ render_main_ui() {
     else
         for ((i=0; i<count; i++)); do
             local name="${VM_NAMES[$i]}"
-            local state="${VM_STATES[$i]}"
-            local cpu="${VM_CPU_USAGE[$name]}"
-            local mem="${VM_MEM_USAGE[$name]}"
-            local autostart="${VM_AUTOSTART[$name]}"
+            local state="${VM_STATES[$i]-unknown}"
+            local cpu="${VM_CPU_USAGE[$name]-}"
+            local mem="${VM_MEM_USAGE[$name]-}"
+            local autostart="${VM_AUTOSTART[$name]-}"
             local autostart_display=""
             
             if [[ "$autostart" == "Yes" ]]; then
@@ -591,6 +594,9 @@ render_main_ui() {
                 row_text_color="${NC}"
             fi
             
+            # Truncate name if too long (max 20 chars)
+            if (( ${#name} > 20 )); then name="${name:0:19}…"; fi
+            
             local state_display="${state_icon} ${state}"
             
             # Highlight selection
@@ -607,7 +613,7 @@ render_main_ui() {
         done
     fi
     
-    buffer+="${CYAN}╰─────────────────────────────────────────────────────────────────────${NC}\n"
+    buffer+="${CYAN}╰───────────────────────────────────────────────────────────────────────${NC}\n"
     buffer+=$(printBanner "Controls:" "$BLUE")
     buffer+="\n"
     buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown  [${BOLD}${CYAN}C${NC}]lone${CLEAR_LINE}\n"
@@ -619,7 +625,7 @@ render_main_ui() {
         buffer+=$(printBanner "$title" "$color")
         buffer+="\n"
         if [[ "$MSG_INPUT" == "true" ]]; then
-            buffer+="${color}╰${NC}"
+            buffer+="${color}╰${NC} "
         else
             local first_line=true
             while IFS= read -r line; do
@@ -640,6 +646,10 @@ render_main_ui() {
 # Main Loop
 echo -e "${CURSOR_HIDE}"
 clear_screen
+
+# Handle window resize
+trap 'clear_screen; render_main_ui' WINCH
+
 # Will render a skeleton UI before data is fetched
 render_main_ui
 fetch_vms
