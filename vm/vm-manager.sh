@@ -623,8 +623,8 @@ render_main_ui() {
     buffer+="${CYAN}╰───────────────────────────────────────────────────────────────────────${NC}\n"
     buffer+=$(printBanner "Controls:" "$BLUE")
     buffer+="\n"
-    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown  [${BOLD}${CYAN}C${NC}]lone${CLEAR_LINE}\n"
-    buffer+="${BLUE}╰${NC} [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo  [${BOLD}${RED}D${NC}]elete  [${BOLD}${RED}Q${NC}]uit  [${BOLD}${CYAN}?${NC}]Help${CLEAR_LINE}\n"
+    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑${NC}]Select ${BLUE}│${NC} [${BOLD}${CYAN}I${NC}]nfo ${BLUE}│${NC} [${BOLD}${CYAN}S${NC}]tart ${BLUE}│${NC} [${BOLD}${RED}X${NC}]Shutdown ${BLUE}│${NC} [${BOLD}${YELLOW}R${NC}]eboot      ${BLUE}│${NC} [${BOLD}${CYAN}?${NC}]Help${CLEAR_LINE}\n"
+    buffer+="${BLUE}╰${NC} [${BOLD}${CYAN}j/k${NC}]Select ${BLUE}│${NC} [${BOLD}${RED}F${NC}]orce Stop     ${BLUE}│${NC} [${BOLD}${CYAN}C${NC}]lone     ${BLUE}│${NC} [${BOLD}${RED}D${NC}]elete      ${BLUE}│${NC} [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
 
     if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
         local title="${MSG_TITLE:-Message:}"
