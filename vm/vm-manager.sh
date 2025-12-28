@@ -418,7 +418,9 @@ while true; do
             k|K) ((SELECTED--)) ;;
             j|J) ((SELECTED++)) ;;
             i|I)
-                if [[ -n "${VM_NAMES[$SELECTED]}" ]]; then
+                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
+                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
+                else
                     show_vm_details "${VM_NAMES[$SELECTED]}"
                 fi
                 ;;
@@ -447,40 +449,56 @@ while true; do
                     fi
                 fi ;;
             s|S)
-                STATUS_MSG="${GREEN}START${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                render_main_ui
-                read -rsn1 confirm
-                if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                    action="start"; cmd="start"
+                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
+                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
                 else
-                    STATUS_MSG="${YELLOW}Start cancelled${NC}"
+                    STATUS_MSG="${GREEN}START${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
+                    render_main_ui
+                    read -rsn1 confirm
+                    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+                        action="start"; cmd="start"
+                    else
+                        STATUS_MSG="${YELLOW}Start cancelled${NC}"
+                    fi
                 fi ;;
             x|X)
-                STATUS_MSG="${RED}SHUTDOWN${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                render_main_ui
-                read -rsn1 confirm
-                if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                    action="shutdown"; cmd="shutdown"
+                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
+                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
                 else
-                    STATUS_MSG="${YELLOW}Shutdown cancelled${NC}"
+                    STATUS_MSG="${RED}SHUTDOWN${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
+                    render_main_ui
+                    read -rsn1 confirm
+                    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+                        action="shutdown"; cmd="shutdown"
+                    else
+                        STATUS_MSG="${YELLOW}Shutdown cancelled${NC}"
+                    fi
                 fi ;;
             f|F)
-                STATUS_MSG="${RED}FORCE STOP${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                render_main_ui
-                read -rsn1 confirm
-                if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                    action="force stop"; cmd="destroy"
+                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
+                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
                 else
-                    STATUS_MSG="${YELLOW}Force stop cancelled${NC}"
+                    STATUS_MSG="${RED}FORCE STOP${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
+                    render_main_ui
+                    read -rsn1 confirm
+                    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+                        action="force stop"; cmd="destroy"
+                    else
+                        STATUS_MSG="${YELLOW}Force stop cancelled${NC}"
+                    fi
                 fi ;;
             r|R)
-                STATUS_MSG="${YELLOW}REBOOT${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                render_main_ui
-                read -rsn1 confirm
-                if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                    action="reboot"; cmd="reboot"
+                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
+                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
                 else
-                    STATUS_MSG="${YELLOW}Reboot cancelled${NC}"
+                    STATUS_MSG="${YELLOW}REBOOT${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
+                    render_main_ui
+                    read -rsn1 confirm
+                    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+                        action="reboot"; cmd="reboot"
+                    else
+                        STATUS_MSG="${YELLOW}Reboot cancelled${NC}"
+                    fi
                 fi ;;
         esac
 
