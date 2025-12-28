@@ -8,6 +8,7 @@ readonly BLUE=$'\033[34m'
 readonly CYAN=$'\033[36m'
 readonly GRAY=$'\033[38;5;244m'
 readonly ORANGE=$'\033[38;5;216m'
+readonly MAUVE=$'\033[38;5;99m'
 readonly BOLD=$'\033[1m'
 readonly REVERSE=$'\033[7m'
 readonly UNDERLINE=$'\033[4m'
@@ -440,7 +441,7 @@ run_with_spinner() {
     
     while kill -0 "$pid" 2>/dev/null; do
         local char="${spinner_chars:spinner_idx:1}"
-        local current_msg="${message} ${char}"
+        local current_msg="${message} ${MAUVE}${char}${NC}"
         printf "${CURSOR_UP}\r${color}╰${NC} ${BOLD}${current_msg}${NC}${CLEAR_LINE}\n"
         spinner_idx=$(( (spinner_idx + 1) % ${#spinner_chars} ))
         sleep 0.1
