@@ -423,7 +423,9 @@ while true; do
                 fi
                 ;;
             c|C)
-                if ! command -v virt-clone &> /dev/null; then
+                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
+                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
+                elif ! command -v virt-clone &> /dev/null; then
                     STATUS_MSG="${RED}Error: 'virt-clone' not found. Install 'virtinst'.${NC}"
                 else
                     STATUS_MSG="${CYAN}CLONE${NC} ${VM_NAMES[$SELECTED]}? Enter new name: "
