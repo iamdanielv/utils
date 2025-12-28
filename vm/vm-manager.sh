@@ -44,6 +44,9 @@ declare -A VM_AUTOSTART
 LAST_TIMESTAMP=0
 SELECTED=0
 STATUS_MSG=""
+MSG_TITLE=""
+MSG_COLOR=""
+MSG_INPUT=""
 
 # Function to fetch VM data
 fetch_vms() {
@@ -148,7 +151,7 @@ show_vm_details() {
     clear_screen
 
     # show loading message
-    printf "%b==VM Details: %bLoading...%b" "${CYAN}" "${YELLOW}" "${NC}"
+    printBanner "VM Details: ${BOLD}${YELLOW}Loading..." "${CYAN}"
     
     # Gather Info
     local dominfo
@@ -215,7 +218,8 @@ show_vm_details() {
     fi
 
     local buffer=""
-    buffer+="${CYAN}╭─VM Details: ${BOLD}${YELLOW}$vm${NC} (${REVERSE}${state_color}${state_icon}${state}${REVERSE}${NC})${CYAN}──────────────────────${NC}\n"
+    buffer+=$(printBanner "VM Details: ${BOLD}${YELLOW}$vm${NC} (${REVERSE}${state_color}${state_icon}${state}${REVERSE}${NC})" "$CYAN")
+    buffer+="\n"
     
     local line
     printf -v line "  CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
@@ -356,11 +360,15 @@ handle_clone_vm() {
         return
     fi
 
-    STATUS_MSG="${CYAN}CLONE${NC} ${VM_NAMES[$SELECTED]}? Enter new name: "
+    local default_name="${VM_NAMES[$SELECTED]}-c"
+    MSG_TITLE="CLONE ${VM_NAMES[$SELECTED]}? (empty name to cancel)"
+    MSG_COLOR="\033[38;5;216m"
+    MSG_INPUT="true"
     render_main_ui
-    echo -e "${CURSOR_SHOW}"
-    read -r new_name
+    echo -ne "${CURSOR_SHOW}"
+    read -e -p " Enter new name: " -i "$default_name" -r new_name
     echo -e "${CURSOR_HIDE}"
+    MSG_INPUT="false"
     if [[ -n "$new_name" ]]; then
         STATUS_MSG="Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)"
         render_main_ui
@@ -405,7 +413,7 @@ handle_delete_vm() {
     fi
 
     if output=$(virsh undefine "$vm" $remove_storage_flag 2>&1); then
-        STATUS_MSG="${GREEN}Deleted $vm.${NC}"
+        STATUS_MSG="${GREEN}Deleted $vm${NC}"
         fetch_vms
     else
         # Clean up error message for display
@@ -446,7 +454,8 @@ printBanner() {
 render_main_ui() {
     # Double buffering to prevent flicker
     local buffer=""
-    buffer+="${CYAN}╭─VM Manager────────────────────────────────────────────${NC}\n"
+    buffer+=$(printBanner "VM Manager" "$CYAN")
+    buffer+="\n"
     local header
     printf -v header "${CYAN}│${NC} ${BOLD}${UNDERLINE}%-20s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-3s${NO_UNDERLINE}${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
     buffer+="$header"
@@ -513,13 +522,22 @@ render_main_ui() {
         done
     fi
     
-    buffer+="${CYAN}╰───────────────────────────────────────────────────────${NC}\n"
-    buffer+="${BLUE}╭Controls:──────────────────────────────────────────────${NC}\n"
-    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↑/↓/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown  [${BOLD}${CYAN}C${NC}]lone${CLEAR_LINE}\n"
-    buffer+="${BLUE}╰${NC} [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo  [${BOLD}${RED}D${NC}]elete  [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
-    if [[ -n "$STATUS_MSG" ]]; then
-        buffer+="${YELLOW}╭Message:───────────────────────────────────────────────${NC}\n"
-        buffer+="${YELLOW}╰${NC} ${BOLD}${STATUS_MSG}${NC}${CLEAR_LINE}\n"
+    buffer+="${CYAN}╰─────────────────────────────────────────────────────────────────────${NC}\n"
+    buffer+=$(printBanner "Controls:" "$BLUE")
+    buffer+="\n"
+    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown  [${BOLD}${CYAN}C${NC}]lone${CLEAR_LINE}\n"
+    buffer+="${BLUE}╰${NC} [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo  [${BOLD}${RED}D${NC}]elete  [${BOLD}${RED}Q${NC}]uit  [${BOLD}${CYAN}?${NC}]Help${CLEAR_LINE}\n"
+
+    if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
+        local title="${MSG_TITLE:-Message:}"
+        local color="${MSG_COLOR:-$YELLOW}"
+        buffer+=$(printBanner "$title" "$color")
+        buffer+="\n"
+        if [[ "$MSG_INPUT" == "true" ]]; then
+            buffer+="${color}╰${NC}"
+        else
+            buffer+="${color}╰${NC} ${BOLD}${STATUS_MSG}${NC}${CLEAR_LINE}\n"
+        fi
     fi
     
     # Print buffer at home position and clear rest of screen
@@ -543,10 +561,16 @@ while true; do
     if ! read -rsn1 -t 2 key; then
         fetch_vms
         STATUS_MSG=""
+        MSG_TITLE=""
+        MSG_COLOR=""
+        MSG_INPUT=""
         continue
     fi
 
     STATUS_MSG=""
+    MSG_TITLE=""
+    MSG_COLOR=""
+    MSG_INPUT=""
     
     # Handle Escape sequences (Arrow keys)
     if [[ "$key" == $'\x1b' ]]; then
@@ -593,7 +617,7 @@ while true; do
             virsh "$cmd" "$vm" >/dev/null 2>&1
             sleep 1
             fetch_vms
-            STATUS_MSG="Command '$action' sent to $vm."
+            STATUS_MSG="Command '$action' sent to $vm"
             cmd="" # Reset command
         fi
     fi
