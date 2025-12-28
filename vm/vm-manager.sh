@@ -7,6 +7,7 @@ readonly YELLOW=$'\033[33m'
 readonly BLUE=$'\033[34m'
 readonly CYAN=$'\033[36m'
 readonly GRAY=$'\033[38;5;244m'
+readonly ORANGE=$'\033[38;5;216m'
 readonly BOLD=$'\033[1m'
 readonly REVERSE=$'\033[7m'
 readonly UNDERLINE=$'\033[4m'
@@ -15,6 +16,10 @@ readonly NC=$'\033[0m' # No Color
 readonly CURSOR_HIDE=$'\033[?25l'
 readonly CURSOR_SHOW=$'\033[?25h'
 readonly CLEAR_LINE=$'\033[K'
+readonly CURSOR_HOME=$'\033[H'
+readonly CLEAR_SCREEN_DOWN=$'\033[J'
+readonly CURSOR_UP=$'\033[1A'
+readonly KEY_ESC=$'\033'
 
 # Icons
 readonly ICON_RUNNING="✔"
@@ -22,8 +27,9 @@ readonly ICON_STOPPED="✘"
 readonly ICON_PAUSED="⏸"
 readonly ICON_UNKNOWN="?"
 
-clear_screen() { printf '\033[H\033[J' >/dev/tty; }
-move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf '\033[1A'; done; fi; printf '\r'; } >/dev/tty
+clear_screen() { printf "${CURSOR_HOME}${CLEAR_SCREEN_DOWN}" >/dev/tty; }
+move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf "${CURSOR_UP}"; done; fi; printf '\r'; } >/dev/tty
+render_buffer() { printf "${CURSOR_HOME}%b${CLEAR_SCREEN_DOWN}" "$1"; }
 
 # Trap to restore cursor on exit
 trap 'printf "%b" "${CURSOR_SHOW}"; exit' EXIT INT TERM
@@ -331,7 +337,7 @@ show_vm_details() {
     append_storage_info "$vm" buffer
 
     buffer+="\n${BLUE}Press any key to return...${NC}\n"
-    printf "\033[H%b\033[J" "$buffer"
+    render_buffer "$buffer"
     read -rsn1
     clear_screen
 }
@@ -343,31 +349,31 @@ show_help() {
     buffer+=$(printBanner "Help & Shortcuts" "$CYAN")
     buffer+="\n"
     
-    buffer+=$(printBanner "Navigation" "\033[38;5;216m")
+    buffer+=$(printBanner "Navigation" "$ORANGE")
     buffer+="\n"
     buffer+="  ${CYAN}↓${NC}/${CYAN}↑${NC} or ${CYAN}j${NC}/${CYAN}k${NC}  Select VM from the list\n"
     
-    buffer+=$(printBanner "Power Actions" "\033[38;5;216m")
+    buffer+=$(printBanner "Power Actions" "$ORANGE")
     buffer+="\n"
     buffer+="  ${CYAN}S${NC}           Start VM\n"
     buffer+="  ${CYAN}X${NC}           Shutdown (ACPI signal)\n"
     buffer+="  ${CYAN}F${NC}           Force Stop (Hard power off)\n"
     buffer+="  ${CYAN}R${NC}           Reboot\n"
     
-    buffer+=$(printBanner "Management" "\033[38;5;216m")
+    buffer+=$(printBanner "Management" "$ORANGE")
     buffer+="\n"
     buffer+="  ${CYAN}C${NC}           Clone VM\n"
     buffer+="  ${CYAN}D${NC}           Delete VM\n"
     buffer+="  ${CYAN}I${NC}           Show Details (IP, Disk, Network)\n"
     
-    buffer+=$(printBanner "Other" "\033[38;5;216m")
+    buffer+=$(printBanner "Other" "$ORANGE")
     buffer+="\n"
     buffer+="  ${CYAN}Q${NC}           Quit\n"
     buffer+="  ${CYAN}?${NC}/${CYAN}h${NC}         Show this help\n"
     
     buffer+="\n${BLUE}Press any key to return...${NC}\n"
     
-    printf "\033[H%b\033[J" "$buffer"
+    render_buffer "$buffer"
     read -rsn1
     clear_screen
 }
@@ -435,7 +441,7 @@ run_with_spinner() {
     while kill -0 "$pid" 2>/dev/null; do
         local char="${spinner_chars:spinner_idx:1}"
         local current_msg="${message} ${char}"
-        printf "\033[1A\r${color}╰${NC} ${BOLD}${current_msg}${NC}${CLEAR_LINE}\n"
+        printf "${CURSOR_UP}\r${color}╰${NC} ${BOLD}${current_msg}${NC}${CLEAR_LINE}\n"
         spinner_idx=$(( (spinner_idx + 1) % ${#spinner_chars} ))
         sleep 0.1
     done
@@ -460,7 +466,7 @@ handle_clone_vm() {
 
     local default_name="${VM_NAMES[$SELECTED]}-c"
     MSG_TITLE="CLONE ${VM_NAMES[$SELECTED]}? (empty name to cancel)"
-    MSG_COLOR="\033[38;5;216m"
+    MSG_COLOR="$ORANGE"
     MSG_INPUT="true"
     STATUS_MSG="" # Clear any previous status
     render_main_ui
@@ -494,7 +500,7 @@ handle_clone_vm() {
             set_error_status "Clone failed: " "$CMD_OUTPUT"
         fi
     else
-        STATUS_MSG="${YELLOW}Clone cancelled.${NC}"
+        STATUS_MSG="${YELLOW}Clone cancelled${NC}"
     fi
 }
 
@@ -504,7 +510,7 @@ handle_delete_vm() {
     local vm="${VM_NAMES[$SELECTED]}"
 
     if ! ask_confirmation "${RED}DELETE${NC} $vm?"; then
-        STATUS_MSG="${YELLOW}Delete cancelled.${NC}"
+        STATUS_MSG="${YELLOW}Delete cancelled${NC}"
         return
     fi
 
@@ -640,7 +646,7 @@ render_main_ui() {
     fi
     
     # Print buffer at home position and clear rest of screen
-    printf "\033[H%b\033[J" "$buffer"
+    render_buffer "$buffer"
 }
 
 # Main Loop
@@ -679,7 +685,7 @@ while true; do
     HAS_ERROR=false
     
     # Handle Escape sequences (Arrow keys)
-    if [[ "$key" == $'\x1b' ]]; then
+    if [[ "$key" == "$KEY_ESC" ]]; then
         read -rsn2 key
         case "$key" in
             '[A') # Up
