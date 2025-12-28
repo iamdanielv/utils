@@ -403,6 +403,13 @@ handle_vm_action() {
     fi
 }
 
+printBanner() {
+    local msg="$1"
+    local color="${2:-$BLUE}"
+    local line="──────────────────────────────────────────────────────────────────────"
+    printf "${color}${line}${NC}\r${color}╭─${msg}${NC}"
+}
+
 # Function to render the main UI
 render_main_ui() {
     # Double buffering to prevent flicker
