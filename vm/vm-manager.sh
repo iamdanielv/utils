@@ -244,7 +244,8 @@ show_vm_details() {
     local clean_net_info
     clean_net_info=$(echo "$net_info" | tail -n +3)
     if [[ -n "$clean_net_info" ]]; then
-        buffer+="${BOLD}Network Interfaces (${CYAN}Source: $net_source${NC}${BOLD}):${NC}\n"
+        buffer+=$(printBanner "Network Interfaces (${CYAN}Source: $net_source${NC})" "$BLUE")
+        buffer+="\n"
         while read -r iface mac proto addr; do
             [[ -z "$iface" ]] && continue
             local iface_disp="$iface"
@@ -255,11 +256,13 @@ show_vm_details() {
             buffer+="$line"
         done <<< "$clean_net_info"
     else
-        buffer+="${BOLD}Network Interfaces:${NC}\n"
+        buffer+=$(printBanner "Network Interfaces" "$BLUE")
+        buffer+="\n"
         buffer+="  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}\n"
     fi
 
-    buffer+="${BOLD}Storage:${NC}\n"
+    buffer+=$(printBanner "Storage" "$BLUE")
+    buffer+="\n"
     local blklist
     blklist=$(virsh domblklist "$vm" --details | tail -n +3)
     
