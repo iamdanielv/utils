@@ -366,7 +366,7 @@ render_main_ui() {
     
     buffer+="${CYAN}╰───────────────────────────────────────────────────────${NC}\n"
     buffer+="${BLUE}╭Controls:──────────────────────────────────────────────${NC}\n"
-    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↑/↓/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown${CLEAR_LINE}\n"
+    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↑/↓/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown  [${BOLD}${CYAN}C${NC}]lone${CLEAR_LINE}\n"
     buffer+="${BLUE}╰${NC} [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo       [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
     if [[ -n "$STATUS_MSG" ]]; then
         buffer+="${YELLOW}╭Message:───────────────────────────────────────────────${NC}\n"
@@ -422,6 +422,28 @@ while true; do
                     show_vm_details "${VM_NAMES[$SELECTED]}"
                 fi
                 ;;
+            c|C)
+                if ! command -v virt-clone &> /dev/null; then
+                    STATUS_MSG="${RED}Error: 'virt-clone' not found. Install 'virtinst'.${NC}"
+                else
+                    STATUS_MSG="${CYAN}CLONE${NC} ${VM_NAMES[$SELECTED]}? Enter new name: "
+                    render_main_ui
+                    echo -e "${CURSOR_SHOW}"
+                    read -r new_name
+                    echo -e "${CURSOR_HIDE}"
+                    if [[ -n "$new_name" ]]; then
+                        STATUS_MSG="Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)"
+                        render_main_ui
+                        if output=$(virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone 2>&1); then
+                            STATUS_MSG="${GREEN}Clone successful: $new_name${NC}"
+                            fetch_vms
+                        else
+                            STATUS_MSG="${RED}Clone failed.${NC}"
+                        fi
+                    else
+                        STATUS_MSG="${YELLOW}Clone cancelled.${NC}"
+                    fi
+                fi ;;
             s|S)
                 STATUS_MSG="${GREEN}START${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
                 render_main_ui
