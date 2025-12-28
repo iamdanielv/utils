@@ -308,7 +308,7 @@ show_vm_details() {
 # Check if a VM is selected
 require_vm_selected() {
     if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-        STATUS_MSG="${YELLOW}No VM selected.${NC}"
+        STATUS_MSG="${YELLOW}No VM selected${NC}"
         return 1
     fi
     return 0
@@ -339,6 +339,45 @@ handle_clone_vm() {
         fi
     else
         STATUS_MSG="${YELLOW}Clone cancelled.${NC}"
+    fi
+}
+
+# Function to handle Delete VM
+handle_delete_vm() {
+    require_vm_selected || return
+    local vm="${VM_NAMES[$SELECTED]}"
+
+    STATUS_MSG="${RED}DELETE${NC} $vm? (y/n)"
+    render_main_ui
+    read -rsn1 confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        STATUS_MSG="${YELLOW}Delete cancelled.${NC}"
+        return
+    fi
+
+    local remove_storage_flag=""
+    STATUS_MSG="Also remove storage volumes? (y/n)"
+    render_main_ui
+    read -rsn1 confirm_storage
+    if [[ "$confirm_storage" == "y" || "$confirm_storage" == "Y" ]]; then
+        remove_storage_flag="--remove-all-storage"
+    fi
+
+    STATUS_MSG="Deleting $vm..."
+    render_main_ui
+
+    # Ensure VM is stopped before undefining
+    if [[ "${VM_STATES[$SELECTED]}" == "running" || "${VM_STATES[$SELECTED]}" == "paused" ]]; then
+        virsh destroy "$vm" >/dev/null 2>&1
+    fi
+
+    if output=$(virsh undefine "$vm" $remove_storage_flag 2>&1); then
+        STATUS_MSG="${GREEN}Deleted $vm.${NC}"
+        fetch_vms
+    else
+        # Clean up error message for display
+        output=$(echo "$output" | tr '\n' ' ')
+        STATUS_MSG="${RED}Delete failed: $output${NC}"
     fi
 }
 
@@ -437,7 +476,7 @@ render_main_ui() {
     buffer+="${CYAN}╰───────────────────────────────────────────────────────${NC}\n"
     buffer+="${BLUE}╭Controls:──────────────────────────────────────────────${NC}\n"
     buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↑/↓/j/k${NC}]Select  [${BOLD}${CYAN}S${NC}]tart   [${BOLD}${RED}X${NC}]Shutdown  [${BOLD}${CYAN}C${NC}]lone${CLEAR_LINE}\n"
-    buffer+="${BLUE}╰${NC} [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo       [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
+    buffer+="${BLUE}╰${NC} [${BOLD}${RED}F${NC}]orce Stop     [${BOLD}${YELLOW}R${NC}]eboot  [${BOLD}${CYAN}I${NC}]nfo  [${BOLD}${RED}D${NC}]elete  [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
     if [[ -n "$STATUS_MSG" ]]; then
         buffer+="${YELLOW}╭Message:───────────────────────────────────────────────${NC}\n"
         buffer+="${YELLOW}╰${NC} ${BOLD}${STATUS_MSG}${NC}${CLEAR_LINE}\n"
@@ -493,6 +532,8 @@ while true; do
                 ;;
             c|C)
                 handle_clone_vm ;;
+            d|D)
+                handle_delete_vm ;;
             s|S)
                 handle_vm_action "$GREEN" "START" "start" "start" ;;
             x|X)
