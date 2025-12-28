@@ -47,6 +47,8 @@ STATUS_MSG=""
 MSG_TITLE=""
 MSG_COLOR=""
 MSG_INPUT=""
+CMD_OUTPUT=""
+HAS_ERROR=false
 
 # Function to fetch VM data
 fetch_vms() {
@@ -372,6 +374,7 @@ show_help() {
 require_vm_selected() {
     if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
         STATUS_MSG="${YELLOW}No VM selected${NC}"
+        HAS_ERROR=true
         return 1
     fi
     return 0
@@ -387,12 +390,69 @@ ask_confirmation() {
     [[ "$key" == "y" || "$key" == "Y" ]]
 }
 
+# Helper to format and set a wrapped error status message
+set_error_status() {
+    local prefix="$1"
+    local error_text="$2"
+    local terminal_width=70
+    # Width available for text inside the message box.
+    # ╰ (1) + space (1) = 2 chars for prefix on first line.
+    # Subsequent lines are indented by 2 spaces.
+    local wrap_width=$(( terminal_width - 2 ))
+
+    # Remove redundant "error: " if it exists at the start of the string
+    if [[ "$error_text" == "error: "* ]]; then
+        error_text="${error_text#error: }"
+    fi
+    # Capitalize the first letter of the cleaned error
+    error_text="$(tr '[:lower:]' '[:upper:]' <<< "${error_text:0:1}")${error_text:1}"
+
+    # Combine prefix and wrapped text, then fold it
+    STATUS_MSG=$(echo "${prefix}${error_text}" | fold -s -w "$wrap_width")
+    HAS_ERROR=true
+    MSG_COLOR="$RED"
+    MSG_TITLE="Error"
+}
+
+# Helper to run a command with a spinner
+run_with_spinner() {
+    local message="$1"
+    shift
+    local spinner_chars="⣾⣷⣯⣟⡿⢿⣻⣽"
+    local spinner_idx=0
+    local temp_out
+    temp_out=$(mktemp)
+    
+    "$@" > "$temp_out" 2>&1 &
+    local pid=$!
+    
+    STATUS_MSG="${message}  "
+    render_main_ui
+    local color="${MSG_COLOR:-$YELLOW}"
+    
+    while kill -0 "$pid" 2>/dev/null; do
+        local char="${spinner_chars:spinner_idx:1}"
+        local current_msg="${message} ${char}"
+        printf "\033[1A\r${color}╰${NC} ${BOLD}${current_msg}${NC}${CLEAR_LINE}\n"
+        spinner_idx=$(( (spinner_idx + 1) % ${#spinner_chars} ))
+        sleep 0.1
+    done
+    
+    wait "$pid"
+    local exit_code=$?
+    CMD_OUTPUT=$(<"$temp_out")
+    rm -f "$temp_out"
+    
+    return $exit_code
+}
+
 # Function to handle Clone VM
 handle_clone_vm() {
     require_vm_selected || return
 
     if ! command -v virt-clone &> /dev/null; then
         STATUS_MSG="${RED}Error: 'virt-clone' not found. Install 'virtinst'.${NC}"
+        HAS_ERROR=true
         return
     fi
 
@@ -406,13 +466,12 @@ handle_clone_vm() {
     echo -e "${CURSOR_HIDE}"
     MSG_INPUT="false"
     if [[ -n "$new_name" ]]; then
-        STATUS_MSG="Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)"
-        render_main_ui
-        if output=$(virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone 2>&1); then
+        if run_with_spinner "Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)" \
+            virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone; then
             STATUS_MSG="${GREEN}Clone successful: $new_name${NC}"
             fetch_vms
         else
-            STATUS_MSG="${RED}Clone failed.${NC}"
+            set_error_status "Clone failed: " "$CMD_OUTPUT"
         fi
     else
         STATUS_MSG="${YELLOW}Clone cancelled.${NC}"
@@ -434,21 +493,18 @@ handle_delete_vm() {
         remove_storage_flag="--remove-all-storage"
     fi
 
-    STATUS_MSG="Deleting $vm..."
-    render_main_ui
+    _perform_delete() {
+        if [[ "${VM_STATES[$SELECTED]}" == "running" || "${VM_STATES[$SELECTED]}" == "paused" ]]; then
+            virsh destroy "$vm" >/dev/null 2>&1 || true
+        fi
+        virsh undefine "$vm" $remove_storage_flag
+    }
 
-    # Ensure VM is stopped before undefining
-    if [[ "${VM_STATES[$SELECTED]}" == "running" || "${VM_STATES[$SELECTED]}" == "paused" ]]; then
-        virsh destroy "$vm" >/dev/null 2>&1
-    fi
-
-    if output=$(virsh undefine "$vm" $remove_storage_flag 2>&1); then
+    if run_with_spinner "Deleting $vm..." _perform_delete; then
         STATUS_MSG="${GREEN}Deleted $vm${NC}"
         fetch_vms
     else
-        # Clean up error message for display
-        output=$(echo "$output" | tr '\n' ' ')
-        STATUS_MSG="${RED}Delete failed: $output${NC}"
+        set_error_status "Delete failed: " "$CMD_OUTPUT"
     fi
 }
 
@@ -548,7 +604,15 @@ render_main_ui() {
         if [[ "$MSG_INPUT" == "true" ]]; then
             buffer+="${color}╰${NC}"
         else
-            buffer+="${color}╰${NC} ${BOLD}${STATUS_MSG}${NC}${CLEAR_LINE}\n"
+            local first_line=true
+            while IFS= read -r line; do
+                if [[ "$first_line" == "true" ]]; then
+                    buffer+="${color}╰${NC} ${BOLD}${line}${NC}${CLEAR_LINE}\n"
+                    first_line=false
+                else
+                    buffer+="  ${BOLD}${line}${NC}${CLEAR_LINE}\n"
+                fi
+            done <<< "$STATUS_MSG"
         fi
     fi
     
@@ -571,11 +635,13 @@ while true; do
 
     # Read input (1 char) with 2s timeout for auto-refresh
     if ! read -rsn1 -t 2 key; then
-        fetch_vms
-        STATUS_MSG=""
-        MSG_TITLE=""
-        MSG_COLOR=""
-        MSG_INPUT=""
+        if [[ "$HAS_ERROR" != "true" ]]; then
+            fetch_vms
+            STATUS_MSG=""
+            MSG_TITLE=""
+            MSG_COLOR=""
+            MSG_INPUT=""
+        fi
         continue
     fi
 
@@ -583,6 +649,7 @@ while true; do
     MSG_TITLE=""
     MSG_COLOR=""
     MSG_INPUT=""
+    HAS_ERROR=false
     
     # Handle Escape sequences (Arrow keys)
     if [[ "$key" == $'\x1b' ]]; then
@@ -624,12 +691,12 @@ while true; do
 
         if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
             vm="${VM_NAMES[$SELECTED]}"
-            STATUS_MSG="Performing $action on $vm..."
-            render_main_ui
-            virsh "$cmd" "$vm" >/dev/null 2>&1
-            sleep 1
-            fetch_vms
-            STATUS_MSG="Command '$action' sent to $vm"
+            if run_with_spinner "Performing $action on $vm..." virsh "$cmd" "$vm"; then
+                fetch_vms
+                STATUS_MSG="Command '$action' sent to $vm"
+            else
+                set_error_status "Error: " "$CMD_OUTPUT"
+            fi
             cmd="" # Reset command
         fi
     fi
