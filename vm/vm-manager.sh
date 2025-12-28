@@ -358,6 +358,16 @@ require_vm_selected() {
     return 0
 }
 
+# Helper for yes/no confirmation
+ask_confirmation() {
+    local prompt="$1"
+    STATUS_MSG="${prompt} (y/n)"
+    render_main_ui
+    local key
+    read -rsn1 key
+    [[ "$key" == "y" || "$key" == "Y" ]]
+}
+
 # Function to handle Clone VM
 handle_clone_vm() {
     require_vm_selected || return
@@ -395,19 +405,13 @@ handle_delete_vm() {
     require_vm_selected || return
     local vm="${VM_NAMES[$SELECTED]}"
 
-    STATUS_MSG="${RED}DELETE${NC} $vm? (y/n)"
-    render_main_ui
-    read -rsn1 confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    if ! ask_confirmation "${RED}DELETE${NC} $vm?"; then
         STATUS_MSG="${YELLOW}Delete cancelled.${NC}"
         return
     fi
 
     local remove_storage_flag=""
-    STATUS_MSG="Also remove storage volumes? (y/n)"
-    render_main_ui
-    read -rsn1 confirm_storage
-    if [[ "$confirm_storage" == "y" || "$confirm_storage" == "Y" ]]; then
+    if ask_confirmation "Also remove storage volumes?"; then
         remove_storage_flag="--remove-all-storage"
     fi
 
@@ -438,10 +442,7 @@ handle_vm_action() {
 
     require_vm_selected || return
 
-    STATUS_MSG="${color}${display_name}${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-    render_main_ui
-    read -rsn1 confirm
-    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+    if ask_confirmation "${color}${display_name}${NC} ${VM_NAMES[$SELECTED]}?"; then
         action="$action_name"
         cmd="$virsh_cmd"
     else
