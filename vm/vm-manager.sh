@@ -20,7 +20,10 @@ readonly CLEAR_LINE=$'\033[K'
 readonly CURSOR_HOME=$'\033[H'
 readonly CLEAR_SCREEN_DOWN=$'\033[J'
 readonly CURSOR_UP=$'\033[1A'
+readonly CURSOR_DOWN=$'\033[1B'
+readonly CURSOR_LEFT=$'\033[1D'
 readonly KEY_ESC=$'\033'
+readonly CONNECTED_BAR=$"${BLUE}${CURSOR_UP}┬${CURSOR_DOWN}${CURSOR_LEFT}│${NC}"
 
 # Icons
 readonly ICON_RUNNING="✔"
@@ -622,7 +625,7 @@ render_main_ui() {
     buffer+="${CYAN}╰───────────────────────────────────────────────────────────────────────${NC}\n"
     buffer+=$(printBanner "Controls:" "$BLUE")
     buffer+="\n"
-    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑${NC}]Select ${BLUE}│${NC} [${BOLD}${CYAN}S${NC}]tart/Stop ${BLUE}│${NC} [${BOLD}${YELLOW}R${NC}]eboot ${BLUE}│${NC} [${BOLD}${RED}F${NC}]orce Stop       ${BLUE}│${NC} [${BOLD}${CYAN}?${NC}]Help${CLEAR_LINE}\n"
+    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑${NC}]Select ${CONNECTED_BAR} [${BOLD}${CYAN}S${NC}]tart/Stop ${CONNECTED_BAR} [${BOLD}${YELLOW}R${NC}]eboot ${CONNECTED_BAR} [${BOLD}${RED}F${NC}]orce Stop       ${CONNECTED_BAR} [${BOLD}${CYAN}?${NC}]Help${CLEAR_LINE}\n"
     buffer+="${BLUE}╰${NC} [${BOLD}${CYAN}j/k${NC}]Select ${BLUE}│${NC} [${BOLD}${YELLOW}I${NC}]nfo       ${BLUE}│${NC} [${BOLD}${CYAN}C${NC}]lone  ${BLUE}│${NC} [${BOLD}${RED}D${NC}]elete           ${BLUE}│${NC} [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
 
     if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
