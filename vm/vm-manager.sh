@@ -356,21 +356,20 @@ show_help() {
     
     buffer+=$(printBanner "Power Actions" "$ORANGE")
     buffer+="\n"
-    buffer+="  ${CYAN}S${NC}           Start VM\n"
-    buffer+="  ${CYAN}X${NC}           Shutdown (ACPI signal)\n"
-    buffer+="  ${CYAN}F${NC}           Force Stop (Hard power off)\n"
-    buffer+="  ${CYAN}R${NC}           Reboot\n"
+    buffer+="  ${GREEN}S${NC}           Start/Shutdown/Resume VM (Toggle)\n"
+    buffer+="  ${YELLOW}R${NC}           Reboot\n"
+    buffer+="  ${RED}F${NC}           Force Stop (Hard power off)\n"
     
     buffer+=$(printBanner "Management" "$ORANGE")
     buffer+="\n"
+    buffer+="  ${YELLOW}I${NC}           Show Details (IP, Disk, Network)\n"
     buffer+="  ${CYAN}C${NC}           Clone VM\n"
-    buffer+="  ${CYAN}D${NC}           Delete VM\n"
-    buffer+="  ${CYAN}I${NC}           Show Details (IP, Disk, Network)\n"
+    buffer+="  ${RED}D${NC}           Delete VM\n"
     
     buffer+=$(printBanner "Other" "$ORANGE")
     buffer+="\n"
-    buffer+="  ${CYAN}Q${NC}           Quit\n"
     buffer+="  ${CYAN}?${NC}/${CYAN}h${NC}         Show this help\n"
+    buffer+="  ${RED}Q${NC}           Quit\n"
     
     buffer+="\n${BLUE}Press any key to return...${NC}\n"
     
@@ -623,8 +622,8 @@ render_main_ui() {
     buffer+="${CYAN}╰───────────────────────────────────────────────────────────────────────${NC}\n"
     buffer+=$(printBanner "Controls:" "$BLUE")
     buffer+="\n"
-    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑${NC}]Select ${BLUE}│${NC} [${BOLD}${CYAN}I${NC}]nfo ${BLUE}│${NC} [${BOLD}${CYAN}S${NC}]tart ${BLUE}│${NC} [${BOLD}${RED}X${NC}]Shutdown ${BLUE}│${NC} [${BOLD}${YELLOW}R${NC}]eboot      ${BLUE}│${NC} [${BOLD}${CYAN}?${NC}]Help${CLEAR_LINE}\n"
-    buffer+="${BLUE}╰${NC} [${BOLD}${CYAN}j/k${NC}]Select ${BLUE}│${NC} [${BOLD}${RED}F${NC}]orce Stop     ${BLUE}│${NC} [${BOLD}${CYAN}C${NC}]lone     ${BLUE}│${NC} [${BOLD}${RED}D${NC}]elete      ${BLUE}│${NC} [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
+    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑${NC}]Select ${BLUE}│${NC} [${BOLD}${CYAN}S${NC}]tart/Stop ${BLUE}│${NC} [${BOLD}${YELLOW}R${NC}]eboot ${BLUE}│${NC} [${BOLD}${RED}F${NC}]orce Stop       ${BLUE}│${NC} [${BOLD}${CYAN}?${NC}]Help${CLEAR_LINE}\n"
+    buffer+="${BLUE}╰${NC} [${BOLD}${CYAN}j/k${NC}]Select ${BLUE}│${NC} [${BOLD}${YELLOW}I${NC}]nfo       ${BLUE}│${NC} [${BOLD}${CYAN}C${NC}]lone  ${BLUE}│${NC} [${BOLD}${RED}D${NC}]elete           ${BLUE}│${NC} [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
 
     if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
         local title="${MSG_TITLE:-Message:}"
@@ -714,9 +713,20 @@ while true; do
             d|D)
                 handle_delete_vm ;;
             s|S)
-                handle_vm_action "$GREEN" "START" "start" "start" ;;
-            x|X)
-                handle_vm_action "$RED" "SHUTDOWN" "shutdown" "shutdown" ;;
+                if require_vm_selected; then
+                    case "${VM_STATES[$SELECTED]}" in
+                        "running")
+                            handle_vm_action "$RED" "SHUTDOWN" "shutdown" "shutdown" ;;
+                        "shut off")
+                            handle_vm_action "$GREEN" "START" "start" "start" ;;
+                        "paused")
+                            handle_vm_action "$GREEN" "RESUME" "resume" "resume" ;;
+                        *)
+                            STATUS_MSG="${YELLOW}Action unavailable for state: ${VM_STATES[$SELECTED]}${NC}"
+                            HAS_ERROR=true
+                            ;;
+                    esac
+                fi ;;
             f|F)
                 handle_vm_action "$RED" "FORCE STOP" "force stop" "destroy" ;;
             r|R)
