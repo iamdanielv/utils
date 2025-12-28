@@ -293,6 +293,30 @@ show_vm_details() {
     clear_screen
 }
 
+# Function to handle VM actions (Start, Stop, etc.)
+handle_vm_action() {
+    local color="$1"
+    local display_name="$2"
+    local action_name="$3"
+    local virsh_cmd="$4"
+
+    if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
+        STATUS_MSG="${YELLOW}No VM selected.${NC}"
+        return
+    fi
+
+    STATUS_MSG="${color}${display_name}${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
+    render_main_ui
+    read -rsn1 confirm
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+        action="$action_name"
+        cmd="$virsh_cmd"
+    else
+        local cancel_name="${display_name,,}"
+        STATUS_MSG="${YELLOW}${cancel_name^} cancelled${NC}"
+    fi
+}
+
 # Function to render the main UI
 render_main_ui() {
     # Double buffering to prevent flicker
@@ -449,57 +473,13 @@ while true; do
                     fi
                 fi ;;
             s|S)
-                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
-                else
-                    STATUS_MSG="${GREEN}START${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                    render_main_ui
-                    read -rsn1 confirm
-                    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                        action="start"; cmd="start"
-                    else
-                        STATUS_MSG="${YELLOW}Start cancelled${NC}"
-                    fi
-                fi ;;
+                handle_vm_action "$GREEN" "START" "start" "start" ;;
             x|X)
-                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
-                else
-                    STATUS_MSG="${RED}SHUTDOWN${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                    render_main_ui
-                    read -rsn1 confirm
-                    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                        action="shutdown"; cmd="shutdown"
-                    else
-                        STATUS_MSG="${YELLOW}Shutdown cancelled${NC}"
-                    fi
-                fi ;;
+                handle_vm_action "$RED" "SHUTDOWN" "shutdown" "shutdown" ;;
             f|F)
-                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
-                else
-                    STATUS_MSG="${RED}FORCE STOP${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                    render_main_ui
-                    read -rsn1 confirm
-                    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                        action="force stop"; cmd="destroy"
-                    else
-                        STATUS_MSG="${YELLOW}Force stop cancelled${NC}"
-                    fi
-                fi ;;
+                handle_vm_action "$RED" "FORCE STOP" "force stop" "destroy" ;;
             r|R)
-                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
-                else
-                    STATUS_MSG="${YELLOW}REBOOT${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
-                    render_main_ui
-                    read -rsn1 confirm
-                    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-                        action="reboot"; cmd="reboot"
-                    else
-                        STATUS_MSG="${YELLOW}Reboot cancelled${NC}"
-                    fi
-                fi ;;
+                handle_vm_action "$YELLOW" "REBOOT" "reboot" "reboot" ;;
         esac
 
         if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
