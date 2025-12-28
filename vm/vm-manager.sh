@@ -317,21 +317,25 @@ show_help() {
     buffer+=$(printBanner "Help & Shortcuts" "$CYAN")
     buffer+="\n"
     
-    buffer+="${BOLD}Navigation:${NC}\n"
-    buffer+="  ${CYAN}↓${NC}/${CYAN}↑${NC} or ${CYAN}j${NC}/${CYAN}k${NC}   Select VM from the list\n"
+    buffer+=$(printBanner "Navigation" "\033[38;5;216m")
+    buffer+="\n"
+    buffer+="  ${CYAN}↓${NC}/${CYAN}↑${NC} or ${CYAN}j${NC}/${CYAN}k${NC}  Select VM from the list\n"
     
-    buffer+="\n${BOLD}Power Actions:${NC}\n"
+    buffer+=$(printBanner "Power Actions" "\033[38;5;216m")
+    buffer+="\n"
     buffer+="  ${CYAN}S${NC}           Start VM\n"
     buffer+="  ${CYAN}X${NC}           Shutdown (ACPI signal)\n"
     buffer+="  ${CYAN}F${NC}           Force Stop (Hard power off)\n"
     buffer+="  ${CYAN}R${NC}           Reboot\n"
     
-    buffer+="\n${BOLD}Management:${NC}\n"
+    buffer+=$(printBanner "Management" "\033[38;5;216m")
+    buffer+="\n"
     buffer+="  ${CYAN}C${NC}           Clone VM\n"
     buffer+="  ${CYAN}D${NC}           Delete VM\n"
     buffer+="  ${CYAN}I${NC}           Show Details (IP, Disk, Network)\n"
     
-    buffer+="\n${BOLD}Other:${NC}\n"
+    buffer+=$(printBanner "Other" "\033[38;5;216m")
+    buffer+="\n"
     buffer+="  ${CYAN}Q${NC}           Quit\n"
     buffer+="  ${CYAN}?${NC}/${CYAN}h${NC}         Show this help\n"
     
