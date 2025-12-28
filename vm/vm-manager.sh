@@ -473,6 +473,16 @@ handle_clone_vm() {
             return
         fi
 
+        # Check if name already exists
+        for existing_vm in "${VM_NAMES[@]}"; do
+            if [[ "$existing_vm" == "$new_name" ]]; then
+                STATUS_MSG="${RED}Error: VM '$new_name' already exists.${NC}"
+                HAS_ERROR=true
+                return
+            fi
+        done
+
+
         if run_with_spinner "Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)" \
             virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone; then
             STATUS_MSG="${GREEN}Clone successful: $new_name${NC}"
