@@ -144,6 +144,112 @@ fetch_vms() {
     LAST_TIMESTAMP="$current_timestamp"
 }
 
+# Helper to set state colors and icons
+set_state_visuals() {
+    local state="$1"
+    STATE_COLOR="$NC"
+    STATE_ICON="$ICON_UNKNOWN"
+    
+    case "$state" in
+        "running")
+            STATE_COLOR="$GREEN"
+            STATE_ICON="$ICON_RUNNING"
+            ;;
+        "shut off")
+            STATE_COLOR="$RED"
+            STATE_ICON="$ICON_STOPPED"
+            ;;
+        "paused")
+            STATE_COLOR="$YELLOW"
+            STATE_ICON="$ICON_PAUSED"
+            ;;
+    esac
+}
+
+append_network_info() {
+    local vm="$1"
+    local -n buf="$2"
+    
+    local net_info
+    local net_source="Agent"
+    # Try agent first, then lease
+    net_info=$(virsh domifaddr "$vm" --source agent 2>/dev/null)
+    if [[ -z "$net_info" ]]; then
+        net_info=$(virsh domifaddr "$vm" --source lease 2>/dev/null)
+        net_source="Lease"
+    fi
+    
+    local clean_net_info
+    clean_net_info=$(echo "$net_info" | tail -n +3)
+    if [[ -n "$clean_net_info" ]]; then
+        buf+=$(printBanner "Network Interfaces (${CYAN}Source: $net_source${NC})" "$BLUE")
+        buf+="\n"
+        while read -r iface mac proto addr; do
+            [[ -z "$iface" ]] && continue
+            local iface_disp="$iface"
+            local mac_disp="$mac"
+            [[ "$iface" == "-" ]] && iface_disp=""
+            [[ "$mac" == "-" ]] && mac_disp=""
+            printf -v line "  ${CYAN}%-10s${NC} ${BLUE}%-17s${NC} ${YELLOW}%-4s${NC} ${GREEN}%s${NC}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
+            buf+="$line"
+        done <<< "$clean_net_info"
+    else
+        buf+=$(printBanner "Network Interfaces" "$BLUE")
+        buf+="\n"
+        buf+="  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}\n"
+    fi
+}
+
+append_storage_info() {
+    local vm="$1"
+    local -n buf="$2"
+
+    buf+=$(printBanner "Storage" "$BLUE")
+    buf+="\n"
+    local blklist
+    blklist=$(virsh domblklist "$vm" --details | tail -n +3)
+    
+    if [[ -z "$blklist" ]]; then
+        buf+="  No storage devices found.\n"
+    else
+        while read -r type device target source; do
+            [[ -z "$target" ]] && continue
+            
+            if [[ "$source" == "-" && "$device" == "cdrom" ]]; then
+                buf+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC}) - ${CYAN}(Empty)${NC}\n"
+                continue
+            fi
+
+            buf+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC}) - Type: ${CYAN}${type}${NC}\n"
+            
+            if [[ "$source" == "-" ]]; then
+                source="(unknown or passthrough)"
+            fi
+            buf+="    Host path: ${CYAN}$source${NC}\n"
+            
+            local blk_info
+            blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
+            
+            if [[ -n "$blk_info" ]]; then
+                local cap
+                cap=$(echo "$blk_info" | grep "Capacity:" | awk '{print $2}')
+                local alloc
+                alloc=$(echo "$blk_info" | grep "Allocation:" | awk '{print $2}')
+                
+                if [[ -n "$cap" && -n "$alloc" ]]; then
+                    local usage_str
+                    usage_str=$(awk -v c="$cap" -v a="$alloc" 'BEGIN { printf "%.0f/%.0f GiB", a/1073741824, c/1073741824 }')
+                    buf+="    Capacity: $usage_str\n"
+                else
+                    buf+="    (No info available)\n"
+                fi
+            else
+                buf+="    (No info available)\n"
+            fi
+        done <<< "$blklist"
+    fi
+}
+
 # Function to show VM details
 show_vm_details() {
     local vm="$1"
@@ -175,25 +281,9 @@ show_vm_details() {
         mem_display="Unknown"
     fi
 
-    local state_color="$NC"
-    local state_icon=""
-    case "$state" in
-        "running")
-            state_color="$GREEN"
-            state_icon="$ICON_RUNNING"
-            ;;
-        "shut off")
-            state_color="$RED"
-            state_icon="$ICON_STOPPED"
-            ;;
-        "paused")
-            state_color="$YELLOW"
-            state_icon="$ICON_PAUSED"
-            ;;
-        *)
-            state_icon="$ICON_UNKNOWN"
-            ;;
-    esac
+    set_state_visuals "$state"
+    local state_color="$STATE_COLOR"
+    local state_icon="$STATE_ICON"
 
     local agent_status="Not Detected"
     local agent_color="$RED"
@@ -232,79 +322,8 @@ show_vm_details() {
         buffer+="$line"
     fi
 
-    local net_info
-    local net_source="Agent"
-    # Try agent first, then lease
-    net_info=$(virsh domifaddr "$vm" --source agent 2>/dev/null)
-    if [[ -z "$net_info" ]]; then
-        net_info=$(virsh domifaddr "$vm" --source lease 2>/dev/null)
-        net_source="Lease"
-    fi
-    
-    local clean_net_info
-    clean_net_info=$(echo "$net_info" | tail -n +3)
-    if [[ -n "$clean_net_info" ]]; then
-        buffer+=$(printBanner "Network Interfaces (${CYAN}Source: $net_source${NC})" "$BLUE")
-        buffer+="\n"
-        while read -r iface mac proto addr; do
-            [[ -z "$iface" ]] && continue
-            local iface_disp="$iface"
-            local mac_disp="$mac"
-            [[ "$iface" == "-" ]] && iface_disp=""
-            [[ "$mac" == "-" ]] && mac_disp=""
-            printf -v line "  ${CYAN}%-10s${NC} ${BLUE}%-17s${NC} ${YELLOW}%-4s${NC} ${GREEN}%s${NC}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
-            buffer+="$line"
-        done <<< "$clean_net_info"
-    else
-        buffer+=$(printBanner "Network Interfaces" "$BLUE")
-        buffer+="\n"
-        buffer+="  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}\n"
-    fi
-
-    buffer+=$(printBanner "Storage" "$BLUE")
-    buffer+="\n"
-    local blklist
-    blklist=$(virsh domblklist "$vm" --details | tail -n +3)
-    
-    if [[ -z "$blklist" ]]; then
-        buffer+="  No storage devices found.\n"
-    else
-        while read -r type device target source; do
-            [[ -z "$target" ]] && continue
-            
-            if [[ "$source" == "-" && "$device" == "cdrom" ]]; then
-                buffer+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC}) - ${CYAN}(Empty)${NC}\n"
-                continue
-            fi
-
-            buffer+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC}) - Type: ${CYAN}${type}${NC}\n"
-            
-            if [[ "$source" == "-" ]]; then
-                source="(unknown or passthrough)"
-            fi
-            buffer+="    Host path: ${CYAN}$source${NC}\n"
-            
-            local blk_info
-            blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
-            
-            if [[ -n "$blk_info" ]]; then
-                local cap
-                cap=$(echo "$blk_info" | grep "Capacity:" | awk '{print $2}')
-                local alloc
-                alloc=$(echo "$blk_info" | grep "Allocation:" | awk '{print $2}')
-                
-                if [[ -n "$cap" && -n "$alloc" ]]; then
-                    local usage_str
-                    usage_str=$(awk -v c="$cap" -v a="$alloc" 'BEGIN { printf "%.0f/%.0f GiB", a/1073741824, c/1073741824 }')
-                    buffer+="    Capacity: $usage_str\n"
-                else
-                    buffer+="    (No info available)\n"
-                fi
-            else
-                buffer+="    (No info available)\n"
-            fi
-        done <<< "$blklist"
-    fi
+    append_network_info "$vm" buffer
+    append_storage_info "$vm" buffer
 
     buffer+="\n${BLUE}Press any key to return...${NC}\n"
     clear_screen
@@ -488,31 +507,16 @@ render_main_ui() {
             fi
 
             local line_color="$NC"
-            local state_color="$NC"
             local row_text_color="$GRAY"
             local cursor="${CYAN}│${NC} "
-            local state_icon=" "
             
-            # Determine State Color
-            case "$state" in
-                "running")
-                    state_color="$GREEN"
-                    state_icon="$ICON_RUNNING"
-                    row_text_color="${NC}"
-                    ;;
-                "shut off")
-                    state_color="$RED"
-                    state_icon="$ICON_STOPPED"
-                    ;;
-                "paused")
-                    state_color="$YELLOW"
-                    state_icon="$ICON_PAUSED"
-                    ;;
-                *)
-                    state_color="$NC"
-                    state_icon="$ICON_UNKNOWN"
-                    ;;
-            esac
+            set_state_visuals "$state"
+            local state_color="$STATE_COLOR"
+            local state_icon="$STATE_ICON"
+            
+            if [[ "$state" == "running" ]]; then
+                row_text_color="${NC}"
+            fi
             
             local state_display="${state_icon}${state}"
             
