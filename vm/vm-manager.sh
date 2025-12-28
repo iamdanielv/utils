@@ -56,10 +56,11 @@ fetch_vms() {
     
     # Fetch bulk stats (CPU time in ns, Memory in KiB)
     local stats_output
-    stats_output=$(virsh domstats --cpu-total --balloon 2>/dev/null)
+    stats_output=$(virsh domstats --cpu-total --balloon --state 2>/dev/null)
     
     local -A current_cpu_times
     local -A current_mems
+    local -A current_states_int
     local current_vm=""
     
     # Parse domstats output
@@ -70,6 +71,8 @@ fetch_vms() {
             current_cpu_times["$current_vm"]="${BASH_REMATCH[1]}"
         elif [[ "$line" =~ balloon\.current=([0-9]+) ]]; then
             current_mems["$current_vm"]="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ state\.state=([0-9]+) ]]; then
+            current_states_int["$current_vm"]="${BASH_REMATCH[1]}"
         fi
     done <<< "$stats_output"
     
@@ -84,8 +87,17 @@ fetch_vms() {
         if [[ -n "$name" ]]; then
             VM_NAMES+=("$name")
             # Get state
-            local state
-            state=$(virsh domstate "$name" 2>/dev/null | tr -d '\n')
+            local state_int="${current_states_int[$name]}"
+            local state="unknown"
+            case "$state_int" in
+                1) state="running" ;;
+                2) state="blocked" ;;
+                3) state="paused" ;;
+                4) state="shutdown" ;;
+                5) state="shut off" ;;
+                6) state="crashed" ;;
+                7) state="pmsuspended" ;;
+            esac
             VM_STATES+=("$state")
             
             if echo "$autostart_list" | grep -qFx "$name"; then
@@ -293,6 +305,43 @@ show_vm_details() {
     clear_screen
 }
 
+# Check if a VM is selected
+require_vm_selected() {
+    if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
+        STATUS_MSG="${YELLOW}No VM selected.${NC}"
+        return 1
+    fi
+    return 0
+}
+
+# Function to handle Clone VM
+handle_clone_vm() {
+    require_vm_selected || return
+
+    if ! command -v virt-clone &> /dev/null; then
+        STATUS_MSG="${RED}Error: 'virt-clone' not found. Install 'virtinst'.${NC}"
+        return
+    fi
+
+    STATUS_MSG="${CYAN}CLONE${NC} ${VM_NAMES[$SELECTED]}? Enter new name: "
+    render_main_ui
+    echo -e "${CURSOR_SHOW}"
+    read -r new_name
+    echo -e "${CURSOR_HIDE}"
+    if [[ -n "$new_name" ]]; then
+        STATUS_MSG="Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)"
+        render_main_ui
+        if output=$(virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone 2>&1); then
+            STATUS_MSG="${GREEN}Clone successful: $new_name${NC}"
+            fetch_vms
+        else
+            STATUS_MSG="${RED}Clone failed.${NC}"
+        fi
+    else
+        STATUS_MSG="${YELLOW}Clone cancelled.${NC}"
+    fi
+}
+
 # Function to handle VM actions (Start, Stop, etc.)
 handle_vm_action() {
     local color="$1"
@@ -300,10 +349,7 @@ handle_vm_action() {
     local action_name="$3"
     local virsh_cmd="$4"
 
-    if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-        STATUS_MSG="${YELLOW}No VM selected.${NC}"
-        return
-    fi
+    require_vm_selected || return
 
     STATUS_MSG="${color}${display_name}${NC} ${VM_NAMES[$SELECTED]}? (y/n)"
     render_main_ui
@@ -437,41 +483,16 @@ while true; do
     else
         # Handle regular keys
         cmd=""
+        action=""
         case "$key" in
             q|Q) clear_screen; exit 0 ;;
             k|K) ((SELECTED--)) ;;
             j|J) ((SELECTED++)) ;;
             i|I)
-                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
-                else
-                    show_vm_details "${VM_NAMES[$SELECTED]}"
-                fi
+                require_vm_selected && show_vm_details "${VM_NAMES[$SELECTED]}"
                 ;;
             c|C)
-                if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-                    STATUS_MSG="${YELLOW}No VM selected.${NC}"
-                elif ! command -v virt-clone &> /dev/null; then
-                    STATUS_MSG="${RED}Error: 'virt-clone' not found. Install 'virtinst'.${NC}"
-                else
-                    STATUS_MSG="${CYAN}CLONE${NC} ${VM_NAMES[$SELECTED]}? Enter new name: "
-                    render_main_ui
-                    echo -e "${CURSOR_SHOW}"
-                    read -r new_name
-                    echo -e "${CURSOR_HIDE}"
-                    if [[ -n "$new_name" ]]; then
-                        STATUS_MSG="Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)"
-                        render_main_ui
-                        if output=$(virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone 2>&1); then
-                            STATUS_MSG="${GREEN}Clone successful: $new_name${NC}"
-                            fetch_vms
-                        else
-                            STATUS_MSG="${RED}Clone failed.${NC}"
-                        fi
-                    else
-                        STATUS_MSG="${YELLOW}Clone cancelled.${NC}"
-                    fi
-                fi ;;
+                handle_clone_vm ;;
             s|S)
                 handle_vm_action "$GREEN" "START" "start" "start" ;;
             x|X)
