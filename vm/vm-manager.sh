@@ -466,6 +466,13 @@ handle_clone_vm() {
     echo -e "${CURSOR_HIDE}"
     MSG_INPUT="false"
     if [[ -n "$new_name" ]]; then
+        # Validate VM name: alphanumeric, dot, underscore, hyphen only
+        if [[ ! "$new_name" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+            STATUS_MSG="${RED}Error: Invalid name. Use only a-z, 0-9, ., _, - (no spaces).${NC}"
+            HAS_ERROR=true
+            return
+        fi
+
         if run_with_spinner "Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)" \
             virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone; then
             STATUS_MSG="${GREEN}Clone successful: $new_name${NC}"
