@@ -162,28 +162,66 @@ prompt_yes_no() {
 
 prompt_for_input() {
     local prompt_text="$1"; local -n var_ref="$2"; local default_val="${3:-}"; local allow_empty="${4:-false}"; local lines_to_replace="${5:-0}"
-    if (( lines_to_replace == 0 )); then clear_screen; fi
+    
+    if (( lines_to_replace == 0 )); then 
+        clear_screen
+    elif (( lines_to_replace > 0 )); then
+        clear_lines_up "$lines_to_replace"
+    fi
+
     printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty
+    
+    local buffer=""
+    buffer+=$(printBanner "Input" "${C_CYAN}")
+    buffer+="\n"
+    buffer+="${C_CYAN}╰${T_RESET} ${T_BOLD}${prompt_text}${T_RESET}: "
+    printMsgNoNewline "$buffer" >/dev/tty
+
+    # Calculate prefix length for cursor positioning: "╰ " (2) + prompt + ": " (2)
+    local prefix_len=$(( 2 + ${#prompt_text} + 2 ))
+    
     local input_str="$default_val"; local cursor_pos=${#input_str}; local view_start=0; local key
-    local icon_prefix_len; icon_prefix_len=$(strip_ansi_codes "${ICON_QST} " | wc -c); local padding; printf -v padding '%*s' "$icon_prefix_len" ""
-    local indented_prompt_text; indented_prompt_text=$(echo -e "$prompt_text" | sed "2,\$s/^/${padding}/")
-    printf '%b' "${ICON_QST} ${indented_prompt_text}" >/dev/tty; local input_prefix=": "; printMsgNoNewline "$input_prefix" >/dev/tty
-    local prompt_lines; prompt_lines=$(echo -e "${indented_prompt_text}" | wc -l)
-    if (( lines_to_replace > prompt_lines )); then local blank_lines_needed=$(( lines_to_replace - prompt_lines )); for ((i=0; i<blank_lines_needed; i++)); do printf '\n%s' "${T_CLEAR_LINE}"; done; move_cursor_up "$blank_lines_needed"; fi
-    local input_line_prefix_len; if (( prompt_lines > 1 )); then local last_line_prompt; last_line_prompt=$(echo -e "${indented_prompt_text}" | tail -n 1); input_line_prefix_len=$(strip_ansi_codes " ${last_line_prompt}${input_prefix}" | wc -c); else input_line_prefix_len=$(strip_ansi_codes "${ICON_QST} ${prompt_text}${input_prefix}" | wc -c); fi
+
     _prompt_for_input_redraw() {
-        printf '\r\033[%sC' "$input_line_prefix_len" >/dev/tty; local term_width; term_width=$(tput cols); local available_width=$(( term_width - input_line_prefix_len )); if (( available_width < 1 )); then available_width=1; fi
-        if (( cursor_pos < view_start )); then view_start=$cursor_pos; fi; if (( cursor_pos >= view_start + available_width )); then view_start=$(( cursor_pos - available_width + 1 )); fi
+        printf '\r\033[%sC' "$prefix_len" >/dev/tty
+        local term_width; term_width=$(tput cols)
+        local available_width=$(( term_width - prefix_len ))
+        if (( available_width < 1 )); then available_width=1; fi
+        
+        if (( cursor_pos < view_start )); then view_start=$cursor_pos; fi
+        if (( cursor_pos >= view_start + available_width )); then view_start=$(( cursor_pos - available_width + 1 )); fi
+        
         local display_str="${input_str:$view_start:$available_width}"; local total_len=${#input_str}; local ellipsis="…"
-        if (( total_len > available_width )); then if (( view_start > 0 )); then display_str="${ellipsis}${display_str:1}"; fi; if (( view_start + available_width < total_len )); then display_str="${display_str:0:${#display_str}-1}${ellipsis}"; fi; fi
-        printMsgNoNewline "${C_CYAN}${display_str}${T_RESET}${T_CLEAR_LINE}" >/dev/tty; printf '\r\033[%sC' "$input_line_prefix_len" >/dev/tty
-        local display_cursor_pos=$(( cursor_pos - view_start )); if (( view_start > 0 )); then ((display_cursor_pos++)); fi; if (( display_cursor_pos > 0 )); then printf '\033[%sC' "$display_cursor_pos" >/dev/tty; fi
+        if (( total_len > available_width )); then 
+            if (( view_start > 0 )); then display_str="${ellipsis}${display_str:1}"; fi
+            if (( view_start + available_width < total_len )); then display_str="${display_str:0:${#display_str}-1}${ellipsis}"; fi
+        fi
+        
+        printMsgNoNewline "${C_CYAN}${display_str}${T_RESET}${T_CLEAR_LINE}" >/dev/tty
+        printf '\r\033[%sC' "$prefix_len" >/dev/tty
+        
+        local display_cursor_pos=$(( cursor_pos - view_start ))
+        if (( view_start > 0 )); then ((display_cursor_pos++)); fi
+        if (( display_cursor_pos > 0 )); then printf '\033[%sC' "$display_cursor_pos" >/dev/tty; fi
     }
     while true; do
         _prompt_for_input_redraw; key=$(read_single_char)
         case "$key" in
-            "$KEY_ENTER") if [[ -n "$input_str" || "$allow_empty" == "true" ]]; then var_ref="$input_str"; local lines_to_clear=$(( lines_to_replace > 0 ? lines_to_replace : prompt_lines )); clear_current_line >/dev/tty; clear_lines_up $(( lines_to_clear - 1 )) >/dev/tty; show_action_summary "$prompt_text" "$var_ref"; printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty; return 0; fi ;;
-            "$KEY_ESC") local lines_to_clear=$(( lines_to_replace > 0 ? lines_to_replace : prompt_lines )); clear_current_line >/dev/tty; clear_lines_up $(( lines_to_clear - 1 )) >/dev/tty; show_timed_message "${ICON_INFO} Input cancelled." 1; printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty; return 1 ;;
+            "$KEY_ENTER") 
+                if [[ -n "$input_str" || "$allow_empty" == "true" ]]; then 
+                    var_ref="$input_str"
+                    clear_current_line >/dev/tty; clear_lines_up 1 >/dev/tty
+                    show_action_summary "$prompt_text" "$var_ref"
+                    printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
+                    return 0
+                fi 
+                ;;
+            "$KEY_ESC") 
+                clear_current_line >/dev/tty; clear_lines_up 1 >/dev/tty
+                show_timed_message " ${ICON_INFO} Input cancelled." 1
+                printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
+                return 1 
+                ;;
             "$KEY_BACKSPACE") if (( cursor_pos > 0 )); then input_str="${input_str:0:cursor_pos-1}${input_str:cursor_pos}"; ((cursor_pos--)); fi ;;
             "$KEY_DELETE") if (( cursor_pos < ${#input_str} )); then input_str="${input_str:0:cursor_pos}${input_str:cursor_pos+1}"; fi ;;
             "$KEY_LEFT") if (( cursor_pos > 0 )); then ((cursor_pos--)); fi ;;
@@ -201,9 +239,9 @@ _interactive_editor_loop() {
     while true; do
         local key; key=$(read_single_char); local redraw=false
         case "$key" in
-            'c'|'C'|'d'|'D') clear_current_line; local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi; if prompt_yes_no "$question" "y"; then "$reset_func"; show_timed_message "${ICON_INFO} Changes discarded."; fi; redraw=true ;;
+            'c'|'C'|'d'|'D') clear_current_line; clear_lines_up 1; local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi; clear_lines_up 1; if prompt_yes_no "$question" "y"; then "$reset_func"; clear_current_line; clear_lines_up 1; show_timed_message " ${ICON_INFO} Changes discarded"; fi; redraw=true ;;
             's'|'S') return 0 ;;
-            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else show_timed_message "${ICON_INFO} Operation cancelled."; redraw=true; fi; else clear_current_line; show_timed_message "${ICON_INFO} Edit cancelled. No changes were made."; return 1; fi ;;
+            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then clear_current_line; clear_lines_up 2; if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else redraw=true; fi; else clear_current_line; clear_lines_up 2; show_timed_message " ${ICON_INFO} Edit cancelled. No changes were made."; return 1; fi ;;
             *) if "$field_handler_func" "$key"; then redraw=true; fi ;;
         esac
         if [[ "$redraw" == "true" ]]; then clear_screen; printBanner "$banner_text"; echo; "$draw_func"; fi
@@ -748,17 +786,17 @@ function edit_variable() {
         local key_pressed="$1"
         case "$key_pressed" in
             1)
-                if ! prompt_for_input "New Name" pending_key "$pending_key" "false" 4; then return 0; fi
+                if ! prompt_for_input "New Name" pending_key "$pending_key" "false" 2; then return 0; fi
                 if ! [[ "$pending_key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
                     show_timed_message "${ICON_ERR} Invalid variable name. Must be alphanumeric and start with a letter or underscore." 3
                     pending_key="${key:-$original_key}" # Revert
                 fi
                 return 0 ;;
             2)
-                prompt_for_input "New Value" pending_value "$pending_value" "true" 4
+                prompt_for_input "New Value" pending_value "$pending_value" "true" 2
                 return 0 ;;
             3)
-                prompt_for_input "New Comment" pending_comment "$pending_comment" "true" 4
+                prompt_for_input "New Comment" pending_comment "$pending_comment" "true" 2
                 return 0 ;;
             *) return 1 ;; # Not handled
         esac
