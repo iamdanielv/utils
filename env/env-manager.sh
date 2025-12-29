@@ -96,13 +96,6 @@ _truncate_string() {
     echo -n "${new_str}${trunc_char}"
 }
 
-generate_banner_string() {
-    local text="$1"; local total_width=70; local prefix="┏"; local line
-    printf -v line '%*s' "$((total_width - 1))"; line="${line// /━}"; printf '%s' "${C_L_BLUE}${prefix}${line}${T_RESET}"; printf '\r'
-    local text_to_print; text_to_print=$(_truncate_string "$text" $((total_width - 3)))
-    printf '%s' "${C_L_BLUE}${prefix} ${text_to_print} ${T_RESET}"
-}
-
 _format_fixed_width_string() {
     local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"
     local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
@@ -110,7 +103,12 @@ _format_fixed_width_string() {
     else _truncate_string "$input_str" "$max_len" "$trunc_char"; fi
 }
 
-printBanner() { printMsg "$(generate_banner_string "$1")"; }
+printBanner() {
+    local msg="$1"
+    local color="${2:-$C_BLUE}"
+    local line="────────────────────────────────────────────────────────────────────────"
+    printf "${color}${line}${T_RESET}\r${color}╭─${msg}${T_RESET}"
+}
 
 # Terminal Control
 clear_screen() { printf '\033[H\033[J' >/dev/tty; }
@@ -195,7 +193,7 @@ prompt_for_input() {
 
 _interactive_editor_loop() {
     local mode="$1" banner_text="$2" draw_func="$3" field_handler_func="$4" change_checker_func="$5" reset_func="$6"
-    clear_screen; printBanner "$banner_text"; "$draw_func"
+    clear_screen; printBanner "$banner_text"; echo; "$draw_func"
     while true; do
         local key; key=$(read_single_char); local redraw=false
         case "$key" in
@@ -204,7 +202,7 @@ _interactive_editor_loop() {
             'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else show_timed_message "${ICON_INFO} Operation cancelled."; redraw=true; fi; else clear_current_line; show_timed_message "${ICON_INFO} Edit cancelled. No changes were made."; return 1; fi ;;
             *) if "$field_handler_func" "$key"; then redraw=true; fi ;;
         esac
-        if [[ "$redraw" == "true" ]]; then clear_screen; printBanner "$banner_text"; "$draw_func"; fi
+        if [[ "$redraw" == "true" ]]; then clear_screen; printBanner "$banner_text"; echo; "$draw_func"; fi
     done
 }
 
@@ -418,6 +416,7 @@ _has_pending_changes() {
 
 function show_help() {
     printBanner "Interactive .env Manager"
+    echo
     printMsg "A TUI for managing environment variables in a .env file."
     printMsg "Supports adding, editing, and deleting variables and their comments."
 
@@ -975,7 +974,7 @@ function system_env_manager() {
 
         # Draw
         local screen_buffer=""
-        screen_buffer+=$(generate_banner_string "System Environment Variables")
+        screen_buffer+=$(printBanner "System Environment Variables")
         screen_buffer+=$'\n'
         screen_buffer+=$(printf "${C_BLUE}┗━━ ${T_FG_RESET}${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-43s${T_RESET}" "VARIABLE" "VALUE")
         screen_buffer+=$'\n'
@@ -1303,7 +1302,7 @@ function interactive_manager() {
             local screen_buffer=""
             local relative_path="$FILE_PATH"
             local banner_text="Editing: ${C_YELLOW}${relative_path}${C_BLUE}"
-            screen_buffer+=$(generate_banner_string "$banner_text")
+            screen_buffer+=$(printBanner "$banner_text")
             screen_buffer+=$'\n'
             screen_buffer+=$(_header_func)
             screen_buffer+=$'\n'
