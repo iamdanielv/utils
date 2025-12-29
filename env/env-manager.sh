@@ -194,7 +194,7 @@ prompt_for_input() {
 
 _interactive_editor_loop() {
     local mode="$1" banner_text="$2" draw_func="$3" field_handler_func="$4" change_checker_func="$5" reset_func="$6"
-    clear_screen; printBanner "$banner_text"; echo; "$draw_func"
+    clear_screen; printBanner "$banner_text" "${C_CYAN}"; echo; "$draw_func"
     while true; do
         local key; key=$(read_single_char); local redraw=false
         case "$key" in
@@ -450,7 +450,7 @@ _draw_variable_editor() {
     local value_display; value_display=$(_get_combined_display "value" "$current_value" "$pending_value")
     local comment_display; comment_display=$(_get_combined_display "comment" "$current_comment" "$pending_comment")
 
-    printf "${C_BLUE}┗━━${T_RESET} ${C_WHITE}${T_BOLD}${T_ULINE}Choose an option to configure:${T_RESET}\n"
+    printf "${C_CYAN}│${T_RESET} ${C_WHITE}${T_BOLD}${T_ULINE}Choose an option to configure:${T_RESET}\n"
     _print_menu_item "1" "Name" "$name_display"
     _print_menu_item "2" "Value" "$value_display"
     _print_menu_item "3" "Comment" "$comment_display"
@@ -644,7 +644,7 @@ function draw_var_list() {
 
 # Draws the header for the variable list.
 function draw_header() {
-    printf "${C_BLUE}┗━━ ${T_FG_RESET}${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-43s${T_RESET}" "VARIABLE" "VALUE"
+    printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-45s${T_RESET}" "VARIABLE" "VALUE"
 }
 
 # Draws the footer with keybindings and error messages.
@@ -747,7 +747,7 @@ function edit_variable() {
         pending_comment="$original_comment"
     }
 
-    local banner_text="Variable Editor: ${C_YELLOW}${key}${C_BLUE}"
+    local banner_text="Variable Editor: ${C_YELLOW}${key}"
     if _interactive_editor_loop "$mode" "$banner_text" _editor_draw_func _editor_field_handler _editor_change_checker _editor_reset_func; then
         # Calculate final storage key to handle duplicates
         local final_storage_key="$pending_key"
@@ -973,11 +973,10 @@ function system_env_manager() {
         if (( list_offset > max_offset )); then list_offset=$max_offset; fi
         if (( num_options < viewport_height )); then list_offset=0; fi
 
-        # Draw
         local screen_buffer=""
-        screen_buffer+=$(printBanner "System Environment Variables")
+        screen_buffer+=$(printBanner "${C_YELLOW}System Environment Variables" "${C_CYAN}")
         screen_buffer+=$'\n'
-        screen_buffer+=$(printf "${C_BLUE}┗━━ ${T_FG_RESET}${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-43s${T_RESET}" "VARIABLE" "VALUE")
+        screen_buffer+=$(printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-43s${T_RESET}" "VARIABLE" "VALUE")
         screen_buffer+=$'\n'
         screen_buffer+=$(draw_sys_env_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
         screen_buffer+=$'\n'
@@ -1302,8 +1301,8 @@ function interactive_manager() {
             # --- Double-buffer drawing ---
             local screen_buffer=""
             local relative_path="$FILE_PATH"
-            local banner_text="Editing: ${C_YELLOW}${relative_path}${C_BLUE}"
-            screen_buffer+=$(printBanner "$banner_text")
+            local banner_text="Editing: ${C_YELLOW}${relative_path}"
+            screen_buffer+=$(printBanner "$banner_text" "${C_CYAN}")
             screen_buffer+=$'\n'
             screen_buffer+=$(_header_func)
             screen_buffer+=$'\n'
