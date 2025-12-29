@@ -115,6 +115,7 @@ clear_screen() { printf '\033[H\033[J' >/dev/tty; }
 clear_current_line() { printf '\033[2K\r' >/dev/tty; }
 clear_lines_up() { local lines=${1:-1}; for ((i = 0; i < lines; i++)); do printf '\033[1A\033[2K'; done; printf '\r'; } >/dev/tty
 move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf '\033[1A'; done; fi; printf '\r'; } >/dev/tty
+render_buffer() { printf "${T_CURSOR_HOME}%b${T_CLEAR_SCREEN_DOWN}" "$1"; }
 
 # User Input
 read_single_char() {
@@ -1313,7 +1314,7 @@ function interactive_manager() {
             if [[ -n "$search_query" ]]; then
                  screen_buffer+=$(printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
             fi
-            printf '\033[H%b\033[J' "$screen_buffer"
+            render_buffer "$screen_buffer"
 
             # --- Handle Input ---
             local key; key=$(read_single_char)
