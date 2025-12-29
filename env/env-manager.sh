@@ -578,11 +578,28 @@ function draw_var_list() {
         for (( i=start_index; i<=end_index; i++ )); do
             local key="${DISPLAY_ORDER[i]}"
             local is_current="false"; if (( i == current_option_ref )); then is_current="true"; fi
-            local line_output=""
+            
+            local cursor="${C_CYAN}│${T_RESET} "
+            local line_bg="${T_RESET}"
+            if [[ "$is_current" == "true" ]]; then
+                cursor="${C_CYAN}│❱${T_RESET}"
+                line_bg="${T_BOLD}${C_BLUE}${T_REVERSE}"
+            fi
+
+            local item_output=""
 
             if [[ "$key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
-                local display_text="${ENV_VARS[$key]:-${C_GRAY}(Blank Line)${T_RESET}}"
-                line_output=$(_format_fixed_width_string "${C_GRAY}${display_text}${T_RESET}" 70)
+                local raw_text="${ENV_VARS[$key]}"
+                if [[ "$key" =~ ^BLANK_LINE_ ]]; then raw_text=""; fi
+                local display_text="${raw_text:-(Blank Line)}"
+                local display_text_trunc; display_text_trunc=$(_truncate_string "$display_text" 68)
+                
+                local text_color="${C_GRAY}"
+                if [[ "$is_current" == "true" ]]; then text_color=""; fi
+                
+                local padded_text
+                printf -v padded_text "%-68s" "$display_text_trunc"
+                item_output="${cursor}${line_bg}${text_color}${padded_text}${T_RESET}${T_CLEAR_LINE}"
             else
                 local display_key="${key%%__DUPLICATE_KEY_*}"
                 local value="${ENV_VARS[$key]}"
@@ -597,34 +614,44 @@ function draw_var_list() {
                     _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
                 fi
 
-                local max_len=$(( 43 - preview_visible_len ))
+                local max_len=$(( 45 - preview_visible_len ))
                 local value_display_sanitized
                 value_display_sanitized="$value"
                 _sanitize_and_truncate_value value_display_sanitized "$max_len"
                 local final_display="${value_display_sanitized}${color_preview}"
                 
-                # Line 1: Key and Value
                 local visible_len=$(( ${#value_display_sanitized} + preview_visible_len ))
-                local padding_needed=$(( 43 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
-                line_output=$(printf "${C_L_BLUE}%-21s${T_FG_RESET} ${C_L_CYAN}%s%*s${T_FG_RESET}" "${display_key}" "$final_display" "$padding_needed" "")
+                local padding_needed=$(( 45 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
+                local val_padding=""; printf -v val_padding "%*s" "$padding_needed" ""
 
-                # Line 2: Comment (if it exists)
-                if [[ -n "$comment" ]]; then
-                    local comment_line; comment_line=$(_format_fixed_width_string "└ ${comment}" 66)
-                    line_output+=$'\n'$(printf "    ${C_GRAY}%s${T_RESET}" "$comment_line")
+                if [[ "$is_current" == "true" ]]; then
+                    local line_str
+                    printf -v line_str "%-22s %s%s" "${display_key}" "${final_display}" "${val_padding}"
+                    item_output="${cursor}${line_bg}${line_str}${T_RESET}${T_CLEAR_LINE}"
+                    if [[ -n "$comment" ]]; then
+                        local comment_trunc; comment_trunc=$(_truncate_string "$comment" 62)
+                        local comment_line; printf -v comment_line "└ %-66s" "$comment_trunc"
+                        item_output+=$'\n'
+                        item_output+="${C_CYAN}│${T_RESET} ${T_REVERSE}${C_GRAY}${comment_line}${T_RESET}${T_CLEAR_LINE}"
+                    fi
+                else
+                    local key_padded; printf -v key_padded "%-22s" "${display_key}"
+                    item_output="${cursor}${key_padded}${T_RESET} ${C_CYAN}${final_display}${T_RESET}${val_padding}${T_CLEAR_LINE}"
+                    if [[ -n "$comment" ]]; then
+                        local comment_trunc; comment_trunc=$(_truncate_string "$comment" 62)
+                        item_output+=$'\n'
+                        item_output+="${C_CYAN}│${T_RESET} ${C_GRAY}└ ${comment_trunc}${T_RESET}${T_CLEAR_LINE}"
+                    fi
                 fi
             fi
 
-            local item_content=""
-            _draw_menu_item "$is_current" "false" "false" "$line_output" item_content
-            # Add a newline before the next item, but not for the very first one.
             if [[ ${#list_content} -gt 0 ]]; then
                 list_content+=$'\n'
             fi
-            list_content+="${item_content}"
+            list_content+="${item_output}"
         done
     else
-        list_content+=$(printf "  %s" "${C_GRAY}(No variables found. Press 'A' to add one.)${T_CLEAR_LINE}${T_RESET}")
+        list_content+=$(printf "${C_CYAN}│${T_RESET}  %s" "${C_GRAY}(No variables found. Press 'A' to add one.)${T_CLEAR_LINE}${T_RESET}")
     fi
 
     # Fill remaining viewport with blank lines
@@ -636,7 +663,7 @@ function draw_var_list() {
     if (( ${#DISPLAY_ORDER[@]} <= 0 )); then list_draw_height=1; fi
     local lines_to_fill=$(( viewport_height - list_draw_height ))
     if (( lines_to_fill > 0 )); then
-        for ((j=0; j<lines_to_fill; j++)); do list_content+=$(printf '\n%s' "${T_CLEAR_LINE}"); done
+        for ((j=0; j<lines_to_fill; j++)); do list_content+=$(printf '\n%s%s' "${C_CYAN}│${T_RESET}" "${T_CLEAR_LINE}"); done
     fi
 
     printf "%b" "$list_content"
