@@ -142,17 +142,20 @@ show_action_summary() {
 }
 
 prompt_yes_no() {
-    local question="$1"; local default_answer="${2:-}"; local has_error=false; local answer; local prompt_suffix
+    local question="$1"; local default_answer="${2:-}"; local answer; local prompt_suffix
     if [[ "$default_answer" == "y" ]]; then prompt_suffix="(Y/n)"; elif [[ "$default_answer" == "n" ]]; then prompt_suffix="(y/N)"; else prompt_suffix="(y/n)"; fi
-    local question_lines; question_lines=$(echo -e "$question" | wc -l)
-    _clear_all_prompt_content() { clear_current_line >/dev/tty; if (( question_lines > 1 )); then clear_lines_up $(( question_lines - 1 )); fi; if $has_error; then clear_lines_up 1; fi; }
-    printf '%b' "${ICON_QST} ${question} ${prompt_suffix} " >/dev/tty
+
+    local buffer=""
+    buffer+=$(printBanner "Confirmation" "${C_YELLOW}")
+    buffer+="\n"
+    buffer+="${C_YELLOW}╰${T_RESET} ${T_BOLD}${question} ${prompt_suffix}${T_RESET}"
+    printMsgNoNewline "$buffer" >/dev/tty
+
     while true; do
         answer=$(read_single_char); if [[ "$answer" == "$KEY_ENTER" ]]; then answer="$default_answer"; fi
         case "$answer" in
-            [Yy]|[Nn]) _clear_all_prompt_content; if [[ "$answer" =~ [Yy] ]]; then return 0; else return 1; fi ;;
-            "$KEY_ESC"|"q") _clear_all_prompt_content; show_timed_message " ${C_YELLOW}-- cancelled --${T_RESET}" 1; return 2 ;;
-            *) _clear_all_prompt_content; printErrMsg "Invalid input. Please enter 'y' or 'n'." >/dev/tty; has_error=true; printf '%b' "${ICON_QST} ${question} ${prompt_suffix} " >/dev/tty ;;
+            [Yy]|[Nn]) if [[ "$answer" =~ [Yy] ]]; then return 0; else return 1; fi ;;
+            "$KEY_ESC"|"q") return 2 ;;
         esac
     done
 }
