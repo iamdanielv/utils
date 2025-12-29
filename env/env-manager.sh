@@ -46,11 +46,11 @@ readonly T_CURSOR_LEFT=$'\033[1D'
 readonly T_CURSOR_RIGHT=$'\033[1C'
 
 # Icons
-T_ERR_ICON="[${T_BOLD}${C_RED}✗${T_RESET}]"
-T_OK_ICON="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
-T_INFO_ICON="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
-T_WARN_ICON="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
-T_QST_ICON="[${T_BOLD}${C_L_CYAN}?${T_RESET}]"
+readonly ICON_ERR="[${T_BOLD}${C_RED}✗${T_RESET}]"
+readonly ICON_OK="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
+readonly ICON_INFO="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
+readonly ICON_WARN="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
+readonly ICON_QST="[${T_BOLD}${C_CYAN}?${T_RESET}]"
 
 DIV="──────────────────────────────────────────────────────────────────────"
 
@@ -71,8 +71,8 @@ KEY_PGDN=$'\033[6~'
 # Logging
 printMsg() { printf '%b\n' "$1"; }
 printMsgNoNewline() { printf '%b' "$1"; }
-printErrMsg() { printMsg "${T_ERR_ICON}${T_BOLD}${C_L_RED} ${1} ${T_RESET}"; }
-printOkMsg() { printMsg "${T_OK_ICON} ${1}${T_RESET}"; }
+printErrMsg() { printMsg "${ICON_ERR}${T_BOLD}${C_RED} ${1} ${T_RESET}"; }
+printOkMsg() { printMsg "${ICON_OK} ${1}${T_RESET}"; }
 
 # Banner Utils
 strip_ansi_codes() {
@@ -134,12 +134,12 @@ show_timed_message() {
 }
 
 show_action_summary() {
-    local label="$1"; local value="$2"; local total_width=70; local icon_len; icon_len=$(strip_ansi_codes "${T_QST_ICON} " | wc -c)
+    local label="$1"; local value="$2"; local total_width=70; local icon_len; icon_len=$(strip_ansi_codes "${ICON_QST} " | wc -c)
     local separator_len=2; local available_width=$(( total_width - icon_len - separator_len ))
     local label_width=$(( available_width / 3 )); local value_width=$(( available_width - label_width ))
     local truncated_label; truncated_label=$(_truncate_string "$label" "$label_width")
-    local truncated_value; truncated_value=$(_truncate_string "${C_L_GREEN}${value}${T_RESET}" "$value_width")
-    printMsg "${T_QST_ICON} ${truncated_label}: ${truncated_value}" >/dev/tty
+    local truncated_value; truncated_value=$(_truncate_string "${C_GREEN}${value}${T_RESET}" "$value_width")
+    printMsg "${ICON_QST} ${truncated_label}: ${truncated_value}" >/dev/tty
 }
 
 prompt_yes_no() {
@@ -147,13 +147,13 @@ prompt_yes_no() {
     if [[ "$default_answer" == "y" ]]; then prompt_suffix="(Y/n)"; elif [[ "$default_answer" == "n" ]]; then prompt_suffix="(y/N)"; else prompt_suffix="(y/n)"; fi
     local question_lines; question_lines=$(echo -e "$question" | wc -l)
     _clear_all_prompt_content() { clear_current_line >/dev/tty; if (( question_lines > 1 )); then clear_lines_up $(( question_lines - 1 )); fi; if $has_error; then clear_lines_up 1; fi; }
-    printf '%b' "${T_QST_ICON} ${question} ${prompt_suffix} " >/dev/tty
+    printf '%b' "${ICON_QST} ${question} ${prompt_suffix} " >/dev/tty
     while true; do
         answer=$(read_single_char); if [[ "$answer" == "$KEY_ENTER" ]]; then answer="$default_answer"; fi
         case "$answer" in
             [Yy]|[Nn]) _clear_all_prompt_content; if [[ "$answer" =~ [Yy] ]]; then return 0; else return 1; fi ;;
-            "$KEY_ESC"|"q") _clear_all_prompt_content; show_timed_message " ${C_L_YELLOW}-- cancelled --${T_RESET}" 1; return 2 ;;
-            *) _clear_all_prompt_content; printErrMsg "Invalid input. Please enter 'y' or 'n'." >/dev/tty; has_error=true; printf '%b' "${T_QST_ICON} ${question} ${prompt_suffix} " >/dev/tty ;;
+            "$KEY_ESC"|"q") _clear_all_prompt_content; show_timed_message " ${C_YELLOW}-- cancelled --${T_RESET}" 1; return 2 ;;
+            *) _clear_all_prompt_content; printErrMsg "Invalid input. Please enter 'y' or 'n'." >/dev/tty; has_error=true; printf '%b' "${ICON_QST} ${question} ${prompt_suffix} " >/dev/tty ;;
         esac
     done
 }
@@ -163,25 +163,25 @@ prompt_for_input() {
     if (( lines_to_replace == 0 )); then clear_screen; fi
     printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty
     local input_str="$default_val"; local cursor_pos=${#input_str}; local view_start=0; local key
-    local icon_prefix_len; icon_prefix_len=$(strip_ansi_codes "${T_QST_ICON} " | wc -c); local padding; printf -v padding '%*s' "$icon_prefix_len" ""
+    local icon_prefix_len; icon_prefix_len=$(strip_ansi_codes "${ICON_QST} " | wc -c); local padding; printf -v padding '%*s' "$icon_prefix_len" ""
     local indented_prompt_text; indented_prompt_text=$(echo -e "$prompt_text" | sed "2,\$s/^/${padding}/")
-    printf '%b' "${T_QST_ICON} ${indented_prompt_text}" >/dev/tty; local input_prefix=": "; printMsgNoNewline "$input_prefix" >/dev/tty
+    printf '%b' "${ICON_QST} ${indented_prompt_text}" >/dev/tty; local input_prefix=": "; printMsgNoNewline "$input_prefix" >/dev/tty
     local prompt_lines; prompt_lines=$(echo -e "${indented_prompt_text}" | wc -l)
     if (( lines_to_replace > prompt_lines )); then local blank_lines_needed=$(( lines_to_replace - prompt_lines )); for ((i=0; i<blank_lines_needed; i++)); do printf '\n%s' "${T_CLEAR_LINE}"; done; move_cursor_up "$blank_lines_needed"; fi
-    local input_line_prefix_len; if (( prompt_lines > 1 )); then local last_line_prompt; last_line_prompt=$(echo -e "${indented_prompt_text}" | tail -n 1); input_line_prefix_len=$(strip_ansi_codes " ${last_line_prompt}${input_prefix}" | wc -c); else input_line_prefix_len=$(strip_ansi_codes "${T_QST_ICON} ${prompt_text}${input_prefix}" | wc -c); fi
+    local input_line_prefix_len; if (( prompt_lines > 1 )); then local last_line_prompt; last_line_prompt=$(echo -e "${indented_prompt_text}" | tail -n 1); input_line_prefix_len=$(strip_ansi_codes " ${last_line_prompt}${input_prefix}" | wc -c); else input_line_prefix_len=$(strip_ansi_codes "${ICON_QST} ${prompt_text}${input_prefix}" | wc -c); fi
     _prompt_for_input_redraw() {
         printf '\r\033[%sC' "$input_line_prefix_len" >/dev/tty; local term_width; term_width=$(tput cols); local available_width=$(( term_width - input_line_prefix_len )); if (( available_width < 1 )); then available_width=1; fi
         if (( cursor_pos < view_start )); then view_start=$cursor_pos; fi; if (( cursor_pos >= view_start + available_width )); then view_start=$(( cursor_pos - available_width + 1 )); fi
         local display_str="${input_str:$view_start:$available_width}"; local total_len=${#input_str}; local ellipsis="…"
         if (( total_len > available_width )); then if (( view_start > 0 )); then display_str="${ellipsis}${display_str:1}"; fi; if (( view_start + available_width < total_len )); then display_str="${display_str:0:${#display_str}-1}${ellipsis}"; fi; fi
-        printMsgNoNewline "${C_L_CYAN}${display_str}${T_RESET}${T_CLEAR_LINE}" >/dev/tty; printf '\r\033[%sC' "$input_line_prefix_len" >/dev/tty
+        printMsgNoNewline "${C_CYAN}${display_str}${T_RESET}${T_CLEAR_LINE}" >/dev/tty; printf '\r\033[%sC' "$input_line_prefix_len" >/dev/tty
         local display_cursor_pos=$(( cursor_pos - view_start )); if (( view_start > 0 )); then ((display_cursor_pos++)); fi; if (( display_cursor_pos > 0 )); then printf '\033[%sC' "$display_cursor_pos" >/dev/tty; fi
     }
     while true; do
         _prompt_for_input_redraw; key=$(read_single_char)
         case "$key" in
             "$KEY_ENTER") if [[ -n "$input_str" || "$allow_empty" == "true" ]]; then var_ref="$input_str"; local lines_to_clear=$(( lines_to_replace > 0 ? lines_to_replace : prompt_lines )); clear_current_line >/dev/tty; clear_lines_up $(( lines_to_clear - 1 )) >/dev/tty; show_action_summary "$prompt_text" "$var_ref"; printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty; return 0; fi ;;
-            "$KEY_ESC") local lines_to_clear=$(( lines_to_replace > 0 ? lines_to_replace : prompt_lines )); clear_current_line >/dev/tty; clear_lines_up $(( lines_to_clear - 1 )) >/dev/tty; show_timed_message "${T_INFO_ICON} Input cancelled." 1; printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty; return 1 ;;
+            "$KEY_ESC") local lines_to_clear=$(( lines_to_replace > 0 ? lines_to_replace : prompt_lines )); clear_current_line >/dev/tty; clear_lines_up $(( lines_to_clear - 1 )) >/dev/tty; show_timed_message "${ICON_INFO} Input cancelled." 1; printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty; return 1 ;;
             "$KEY_BACKSPACE") if (( cursor_pos > 0 )); then input_str="${input_str:0:cursor_pos-1}${input_str:cursor_pos}"; ((cursor_pos--)); fi ;;
             "$KEY_DELETE") if (( cursor_pos < ${#input_str} )); then input_str="${input_str:0:cursor_pos}${input_str:cursor_pos+1}"; fi ;;
             "$KEY_LEFT") if (( cursor_pos > 0 )); then ((cursor_pos--)); fi ;;
@@ -199,9 +199,9 @@ _interactive_editor_loop() {
     while true; do
         local key; key=$(read_single_char); local redraw=false
         case "$key" in
-            'c'|'C'|'d'|'D') clear_current_line; local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi; if prompt_yes_no "$question" "y"; then "$reset_func"; show_timed_message "${T_INFO_ICON} Changes discarded."; fi; redraw=true ;;
+            'c'|'C'|'d'|'D') clear_current_line; local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi; if prompt_yes_no "$question" "y"; then "$reset_func"; show_timed_message "${ICON_INFO} Changes discarded."; fi; redraw=true ;;
             's'|'S') return 0 ;;
-            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else show_timed_message "${T_INFO_ICON} Operation cancelled."; redraw=true; fi; else clear_current_line; show_timed_message "${T_INFO_ICON} Edit cancelled. No changes were made."; return 1; fi ;;
+            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else show_timed_message "${ICON_INFO} Operation cancelled."; redraw=true; fi; else clear_current_line; show_timed_message "${ICON_INFO} Edit cancelled. No changes were made."; return 1; fi ;;
             *) if "$field_handler_func" "$key"; then redraw=true; fi ;;
         esac
         if [[ "$redraw" == "true" ]]; then clear_screen; printBanner "$banner_text"; "$draw_func"; fi
@@ -241,7 +241,7 @@ _draw_menu_item() {
 
 script_exit_handler() { printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty; }
 trap 'script_exit_handler' EXIT
-script_interrupt_handler() { trap - INT; printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty; stty echo >/dev/tty; clear_screen; printMsg "${T_WARN_ICON} ${C_L_YELLOW}Operation cancelled by user.${T_RESET}"; exit 130; }
+script_interrupt_handler() { trap - INT; printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty; stty echo >/dev/tty; clear_screen; printMsg "${ICON_WARN} ${C_YELLOW}Operation cancelled by user.${T_RESET}"; exit 130; }
 trap 'script_interrupt_handler' INT
 
 # --- Script Globals ---
@@ -388,11 +388,11 @@ function save_env_file() {
         local relative_path="$file_to_save"
 
         clear_current_line
-        show_timed_message "${T_OK_ICON} Saved changes to ${C_L_BLUE}${relative_path}${T_RESET} (Backup created)" 1.5
+        show_timed_message "${ICON_OK} Saved changes to ${C_BLUE}${relative_path}${T_RESET} (Backup created)" 1.5
         return 0
     else
         rm -f "$temp_file"
-        show_timed_message "${T_ERR_ICON} Failed to save changes to ${C_L_BLUE}${relative_path}${T_RESET}" 2.5
+        show_timed_message "${ICON_ERR} Failed to save changes to ${C_BLUE}${relative_path}${T_RESET}" 2.5
         return 1
     fi
 }
@@ -649,16 +649,16 @@ function draw_header() {
 
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
-    local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_BLUE}(E)dit${C_WHITE} | ${C_L_GREEN}(A)dd${C_WHITE} | ${C_L_RED}(D)elete${C_WHITE} | ${C_L_YELLOW}(C)lone${C_WHITE}"
-    local help_exit=" ${C_L_MAGENTA}(O)pen${C_WHITE} | ${C_L_GREEN}(I)mport${C_WHITE} | ${C_L_GREEN}(S)ave${C_WHITE} | ${C_L_YELLOW}(V)alues${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit${C_WHITE}"
+    local help_nav=" ${C_CYAN}↑↓${C_WHITE} Move | ${C_BLUE}(E)dit${C_WHITE} | ${C_GREEN}(A)dd${C_WHITE} | ${C_RED}(D)elete${C_WHITE} | ${C_YELLOW}(C)lone${C_WHITE}"
+    local help_exit=" ${C_MAGENTA}(O)pen${C_WHITE} | ${C_GREEN}(I)mport${C_WHITE} | ${C_GREEN}(S)ave${C_WHITE} | ${C_YELLOW}(V)alues${C_WHITE} | ${C_MAGENTA}(/) Filter${C_WHITE} | ${C_YELLOW}(Q)uit${C_WHITE}"
     printf " %s${T_CLEAR_LINE}\n" "$help_nav"
     printf " %s${T_CLEAR_LINE}\n" "$help_exit"
 
     if [[ -n "$ERROR_MESSAGE" ]]; then
-        printf " ${T_ERR_ICON} %s${T_CLEAR_LINE}" "${T_ERR}${ERROR_MESSAGE}${T_RESET}"
+        printf " ${ICON_ERR} %s${T_CLEAR_LINE}" "${ERROR_MESSAGE}${T_RESET}"
     else
         local relative_path="$FILE_PATH"
-        printf "  ${T_BOLD}${T_OK_ICON} Valid File: ${C_L_BLUE}%s${T_RESET}${T_CLEAR_LINE}" "${relative_path}"
+        printf "  ${T_BOLD}${ICON_OK} Valid File: ${C_BLUE}%s${T_RESET}${T_CLEAR_LINE}" "${relative_path}"
     fi
 }
 
@@ -680,7 +680,7 @@ function edit_variable() {
         # Disallow editing of comments/blank lines
         if [[ "$original_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
             clear_lines_up 2
-            show_timed_message "${T_WARN_ICON} Cannot edit blank lines or comments." 1.5
+            show_timed_message "${ICON_WARN} Cannot edit blank lines or comments." 1.5
             return 2 # Signal no change
         fi
         local display_name="${original_key%%__DUPLICATE_KEY_*}"
@@ -718,7 +718,7 @@ function edit_variable() {
             1)
                 if ! prompt_for_input "New Name" pending_key "$pending_key" "false" 4; then return 0; fi
                 if ! [[ "$pending_key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-                    show_timed_message "${T_ERR_ICON} Invalid variable name. Must be alphanumeric and start with a letter or underscore." 3
+                    show_timed_message "${ICON_ERR} Invalid variable name. Must be alphanumeric and start with a letter or underscore." 3
                     pending_key="${key:-$original_key}" # Revert
                 fi
                 return 0 ;;
@@ -747,7 +747,7 @@ function edit_variable() {
         pending_comment="$original_comment"
     }
 
-    local banner_text="Variable Editor: ${C_L_YELLOW}${key}${C_BLUE}"
+    local banner_text="Variable Editor: ${C_YELLOW}${key}${C_BLUE}"
     if _interactive_editor_loop "$mode" "$banner_text" _editor_draw_func _editor_field_handler _editor_change_checker _editor_reset_func; then
         # Calculate final storage key to handle duplicates
         local final_storage_key="$pending_key"
@@ -788,13 +788,13 @@ function delete_variable() {
 
     if [[ "$key_to_delete" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
         clear_lines_up 2
-        show_timed_message "${T_WARN_ICON} Cannot delete blank lines or comments this way." 1.5
+        show_timed_message "${ICON_WARN} Cannot delete blank lines or comments this way." 1.5
         return 2 # No refresh needed
     fi
     
     clear_current_line
     clear_lines_up 1
-    if prompt_yes_no "Delete variable '${C_L_RED}${key_to_delete}${T_RESET}'?" "n"; then
+    if prompt_yes_no "Delete variable '${C_RED}${key_to_delete}${T_RESET}'?" "n"; then
         # Remove from all state arrays
         unset "ENV_VARS[$key_to_delete]"
         unset "ENV_COMMENTS[$key_to_delete]"
@@ -817,7 +817,7 @@ function delete_variable() {
 _launch_editor_for_file() {
     local editor="${EDITOR:-nvim}"
     if ! command -v "${editor}" &>/dev/null; then
-        show_timed_message "${T_ERR_ICON} Editor '${editor}' not found. Set the EDITOR environment variable." 3
+        show_timed_message "${ICON_ERR} Editor '${editor}' not found. Set the EDITOR environment variable." 3
         return 1
     fi
 
@@ -983,8 +983,8 @@ function system_env_manager() {
         screen_buffer+=$'\n'
         screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
         
-        local help_nav=" ${C_L_CYAN}↑↓${C_WHITE} Move | ${C_L_GREEN}(I) Toggle${C_WHITE} | ${C_L_YELLOW}(V)alues${C_WHITE} | ${C_L_MAGENTA}(/) Filter${C_WHITE} | ${C_L_YELLOW}(Q)uit/Back${C_WHITE}"
-        local info_line=" ${T_INFO_ICON} ${C_L_GREEN}*${C_GRAY} indicates variable exists in .env"
+        local help_nav=" ${C_CYAN}↑↓${C_WHITE} Move | ${C_GREEN}(I) Toggle${C_WHITE} | ${C_YELLOW}(V)alues${C_WHITE} | ${C_MAGENTA}(/) Filter${C_WHITE} | ${C_YELLOW}(Q)uit/Back${C_WHITE}"
+        local info_line=" ${ICON_INFO} ${C_GREEN}*${C_GRAY} indicates variable exists in .env"
         if [[ -n "$status_msg" ]]; then
             info_line=" $status_msg"
             status_msg=""
@@ -992,7 +992,7 @@ function system_env_manager() {
         screen_buffer+=$(printf " %s${T_CLEAR_LINE}\n%s${T_CLEAR_LINE}" "$help_nav" "$info_line")
 
         if [[ -n "$search_query" ]]; then
-             screen_buffer+=$(printf "\n ${T_INFO_ICON} Filter: ${C_L_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
+             screen_buffer+=$(printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
         fi
         
         printf '\033[H%b' "$screen_buffer"
@@ -1036,7 +1036,7 @@ function system_env_manager() {
                 if [[ -n "${ENV_VARS[$selected_key]+x}" ]]; then
                     # Variable exists, this is a destructive action (removal). Ask for confirmation.
                     clear_current_line
-                    prompt_yes_no "'${C_L_BLUE}${selected_key}${T_RESET}' already exists. Remove it from .env?" "y"
+                    prompt_yes_no "'${C_BLUE}${selected_key}${T_RESET}' already exists. Remove it from .env?" "y"
                     local prompt_ret=$?
 
                     if [[ $prompt_ret -eq 0 ]]; then # Yes, remove it
@@ -1051,9 +1051,9 @@ function system_env_manager() {
                         ENV_ORDER=("${new_order[@]}")
                         DISPLAY_ORDER=("${new_display[@]}")
 
-                        status_msg="${T_OK_ICON} Removed '${C_L_BLUE}${selected_key}${T_RESET}'"
+                        status_msg="${ICON_OK} Removed '${C_BLUE}${selected_key}${T_RESET}'"
                     elif [[ $prompt_ret -eq 1 ]]; then # No
-                        status_msg="${T_INFO_ICON} Action cancelled for '${C_L_BLUE}${selected_key}${T_RESET}'."
+                        status_msg="${ICON_INFO} Action cancelled for '${C_BLUE}${selected_key}${T_RESET}'."
                     fi
                     # On cancel (ret=2), prompt_yes_no shows a timed message, so we do nothing.
                 else
@@ -1063,7 +1063,7 @@ function system_env_manager() {
 
                     ENV_ORDER+=("$selected_key")
                     DISPLAY_ORDER+=("$selected_key")
-                    status_msg="${T_OK_ICON} Imported '${C_L_BLUE}${selected_key}${T_RESET}'"
+                    status_msg="${ICON_OK} Imported '${C_BLUE}${selected_key}${T_RESET}'"
                 fi
                 ;;
             'v'|'V')
@@ -1140,7 +1140,7 @@ function interactive_manager() {
             's'|'S')
                 if ! _has_pending_changes; then
                     clear_lines_up 2
-                    show_timed_message " ${T_INFO_ICON} No changes to save." 1.5
+                    show_timed_message " ${ICON_INFO} No changes to save." 1.5
                     handler_result_ref="redraw"
                 else
                     clear_lines_up 2
@@ -1225,7 +1225,7 @@ function interactive_manager() {
                     local selected_key="${DISPLAY_ORDER[current_option_ref]}"
                     if [[ "$selected_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
                         clear_lines_up 2
-                        show_timed_message "${T_WARN_ICON} Cannot clone blank lines or comments." 1.5
+                        show_timed_message "${ICON_WARN} Cannot clone blank lines or comments." 1.5
                         handler_result_ref="redraw"
                     else
                         # Prepare data for clone
@@ -1302,7 +1302,7 @@ function interactive_manager() {
             # --- Double-buffer drawing ---
             local screen_buffer=""
             local relative_path="$FILE_PATH"
-            local banner_text="Editing: ${C_L_YELLOW}${relative_path}${C_BLUE}"
+            local banner_text="Editing: ${C_YELLOW}${relative_path}${C_BLUE}"
             screen_buffer+=$(generate_banner_string "$banner_text")
             screen_buffer+=$'\n'
             screen_buffer+=$(_header_func)
@@ -1312,7 +1312,7 @@ function interactive_manager() {
             screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
             screen_buffer+=$(_footer_func)
             if [[ -n "$search_query" ]]; then
-                 screen_buffer+=$(printf "\n ${T_INFO_ICON} Filter: ${C_L_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
+                 screen_buffer+=$(printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
             fi
             printf '\033[H%b\033[J' "$screen_buffer"
 
