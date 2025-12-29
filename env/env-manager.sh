@@ -172,13 +172,13 @@ prompt_for_input() {
     printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty
     
     local buffer=""
-    buffer+=$(printBanner "Input" "${C_CYAN}")
+    buffer+=$(printBanner "Input - ${prompt_text}" "${C_CYAN}")
     buffer+="\n"
-    buffer+="${C_CYAN}╰${T_RESET} ${T_BOLD}${prompt_text}${T_RESET}: "
+    buffer+="${C_CYAN}╰❱${T_RESET} "
     printMsgNoNewline "$buffer" >/dev/tty
 
-    # Calculate prefix length for cursor positioning: "╰ " (2) + prompt + ": " (2)
-    local prefix_len=$(( 2 + ${#prompt_text} + 2 ))
+    # Calculate prefix length for cursor positioning: "╰❱ " (3 chars)
+    local prefix_len=3
     
     local input_str="$default_val"; local cursor_pos=${#input_str}; local view_start=0; local key
 
@@ -197,7 +197,7 @@ prompt_for_input() {
             if (( view_start + available_width < total_len )); then display_str="${display_str:0:${#display_str}-1}${ellipsis}"; fi
         fi
         
-        printMsgNoNewline "${C_CYAN}${display_str}${T_RESET}${T_CLEAR_LINE}" >/dev/tty
+        printMsgNoNewline "${display_str}${T_CLEAR_LINE}" >/dev/tty
         printf '\r\033[%sC' "$prefix_len" >/dev/tty
         
         local display_cursor_pos=$(( cursor_pos - view_start ))
@@ -786,7 +786,7 @@ function edit_variable() {
         local key_pressed="$1"
         case "$key_pressed" in
             1)
-                if ! prompt_for_input "New Name" pending_key "$pending_key" "false" 2; then return 0; fi
+                if ! prompt_for_input "${C_YELLOW}New Name " pending_key "$pending_key" "false" 2; then return 0; fi
                 if ! [[ "$pending_key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
                     show_timed_message "${ICON_ERR} Invalid variable name. Must be alphanumeric and start with a letter or underscore." 3
                     pending_key="${key:-$original_key}" # Revert
