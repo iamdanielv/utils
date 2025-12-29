@@ -863,7 +863,7 @@ function delete_variable() {
     fi
     
     clear_current_line
-    clear_lines_up 1
+    clear_lines_up 3
     if prompt_yes_no "Delete variable '${C_RED}${key_to_delete}${T_RESET}'?" "n"; then
         # Remove from all state arrays
         unset "ENV_VARS[$key_to_delete]"
@@ -1196,7 +1196,7 @@ function interactive_manager() {
             'q'|'Q'|"$KEY_ESC")
                 if _has_pending_changes; then
                     clear_current_line
-                    clear_lines_up 1
+                    clear_lines_up 3
                     if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then
                         handler_result_ref="exit"
                     else
@@ -1208,11 +1208,13 @@ function interactive_manager() {
                 ;;
             's'|'S')
                 if ! _has_pending_changes; then
-                    clear_lines_up 2
+                    clear_current_line
+                    clear_lines_up 3
                     show_timed_message " ${ICON_INFO} No changes to save." 1.5
                     handler_result_ref="redraw"
                 else
-                    clear_lines_up 2
+                    clear_current_line
+                    clear_lines_up 3
                     if prompt_yes_no "Are you sure you want to save these changes?" "y"; then
                         save_env_file "$FILE_PATH"
                         handler_result_ref="refresh_data" # Re-parse file after saving
@@ -1257,7 +1259,7 @@ function interactive_manager() {
                 local proceed=true
                 if _has_pending_changes; then
                     clear_current_line
-                    clear_lines_up 2
+                    clear_lines_up 3
                     prompt_yes_no "You have unsaved changes. Save before opening editor?" "y"
                     local ret=$?
                     if [[ $ret -eq 0 ]]; then
@@ -1293,7 +1295,8 @@ function interactive_manager() {
                 if [[ ${num_options_ref} -gt 0 ]]; then
                     local selected_key="${DISPLAY_ORDER[current_option_ref]}"
                     if [[ "$selected_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
-                        clear_lines_up 2
+                        clear_current_line
+                        clear_lines_up 3
                         show_timed_message "${ICON_WARN} Cannot clone blank lines or comments." 1.5
                         handler_result_ref="redraw"
                     else
