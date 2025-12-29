@@ -676,16 +676,18 @@ function draw_header() {
 
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
-    local help_nav=" ${C_CYAN}↑↓${C_WHITE} Move | ${C_BLUE}(E)dit${C_WHITE} | ${C_GREEN}(A)dd${C_WHITE} | ${C_RED}(D)elete${C_WHITE} | ${C_YELLOW}(C)lone${C_WHITE}"
-    local help_exit=" ${C_MAGENTA}(O)pen${C_WHITE} | ${C_GREEN}(I)mport${C_WHITE} | ${C_GREEN}(S)ave${C_WHITE} | ${C_YELLOW}(V)alues${C_WHITE} | ${C_MAGENTA}(/) Filter${C_WHITE} | ${C_YELLOW}(Q)uit${C_WHITE}"
-    printf " %s${T_CLEAR_LINE}\n" "$help_nav"
-    printf " %s${T_CLEAR_LINE}\n" "$help_exit"
+    printf "${C_CYAN}├─${C_BLUE}Controls:┬──────────┬────────┬──────────┬───────────┬─────────────────${T_RESET}\n"
+
+    local sep="${C_BLUE}│${C_GRAY}"
+    
+    printf "${C_BLUE}│${C_GRAY} [${T_BOLD}${C_CYAN}↑↓${C_GRAY}]Move ${sep} [${T_BOLD}${C_BLUE}E${C_GRAY}]dit   ${sep} [${T_BOLD}${C_GREEN}A${C_GRAY}]dd  ${sep} [${T_BOLD}${C_RED}D${C_GRAY}]elete ${sep} [${T_BOLD}${C_YELLOW}C${C_GRAY}]lone   ${sep} [${T_BOLD}${C_MAGENTA}O${C_GRAY}]pen ${T_CLEAR_LINE}\n"
+    printf "${C_BLUE}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_GREEN}S${C_GRAY}]ave ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}\n"
 
     if [[ -n "$ERROR_MESSAGE" ]]; then
-        printf " ${ICON_ERR} %s${T_CLEAR_LINE}" "${ERROR_MESSAGE}${T_RESET}"
+        printf "${C_RED}${T_RESET} ${ICON_ERR} ${ERROR_MESSAGE}${T_CLEAR_LINE}"
     else
         local relative_path="$FILE_PATH"
-        printf "  ${T_BOLD}${ICON_OK} Valid File: ${C_BLUE}%s${T_RESET}${T_CLEAR_LINE}" "${relative_path}"
+        printf "${C_BLUE}${T_RESET} ${T_BOLD}${ICON_OK} Valid File: ${C_BLUE}%s${T_RESET}${T_CLEAR_LINE}" "${relative_path}"
     fi
 }
 
@@ -1333,9 +1335,8 @@ function interactive_manager() {
             screen_buffer+=$'\n'
             screen_buffer+=$(_header_func)
             screen_buffer+=$'\n'
-            # The div after the header is removed since the header is underlined.
             screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
-            screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
+            screen_buffer+=$'\n'
             screen_buffer+=$(_footer_func)
             if [[ -n "$search_query" ]]; then
                  screen_buffer+=$(printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
