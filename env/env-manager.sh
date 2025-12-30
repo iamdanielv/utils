@@ -1073,20 +1073,15 @@ function draw_sys_env_list() {
             local item_output=""
             if [[ "$is_current" == "true" ]]; then
                 local display_key_str="${status_char} ${key_display}"
-                local key_len=${#display_key_str}
-                local pad_len=$(( 22 - key_len )); if (( pad_len < 0 )); then pad_len=0; fi
-                local key_padding=""; printf -v key_padding "%*s" "$pad_len" ""
-                local line_str="${display_key_str}${key_padding} ${final_display_padded}"
+                local key_padded; key_padded=$(_format_fixed_width_string "$display_key_str" 22)
+                local line_str="${key_padded} ${final_display_padded}"
                 line_str="${line_str//${T_RESET}/${T_RESET}${line_bg}}"
                 item_output="${cursor}${line_bg}${line_str}${T_RESET}${T_CLEAR_LINE}"
             else
                 local status_display="${status_char}"
                 if [[ "$status_char" == "✓" ]]; then status_display="${C_YELLOW}✓${T_RESET}"; fi
                 
-                local key_len=${#key_display}
-                local pad_len=$(( 20 - key_len )); if (( pad_len < 0 )); then pad_len=0; fi
-                local key_padding=""; printf -v key_padding "%*s" "$pad_len" ""
-                local key_padded="${key_display}${key_padding}"
+                local key_padded; key_padded=$(_format_fixed_width_string "$key_display" 20)
                 item_output="${cursor}${status_display} ${C_L_CYAN}${key_padded}${T_RESET} ${C_L_WHITE}${final_display_padded}${T_RESET}${T_CLEAR_LINE}"
             fi
 
