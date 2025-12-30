@@ -977,7 +977,6 @@ _launch_editor_for_file() {
 
     # Suspend TUI drawing by hiding cursor and clearing screen
     printMsgNoNewline "${T_CURSOR_SHOW}"
-    #clear
 
     # Run the editor (blocking)
     "${editor}" "${FILE_PATH}"
@@ -1339,11 +1338,6 @@ function interactive_manager() {
     # --- TUI Helper Functions ---
     _header_func() { draw_header; }
     _footer_func() { draw_footer "$search_query"; }
-    _refresh_func() {
-        # This is a dummy refresh function for the generic TUI loop.
-        # Data is managed locally in this script.
-        :
-    }
     _viewport_calc_func() {
         # Calculate available height for the list
         local term_height; term_height=$(tput lines)
@@ -1529,7 +1523,6 @@ function interactive_manager() {
     # This is a simplified version of _interactive_list_view from tui.lib.sh
     # to better handle local state management.
     printMsgNoNewline "${T_CURSOR_HIDE}"
-    # The global EXIT trap in tui.lib.sh will handle showing the cursor.
     local viewport_height
 
     _im_apply_filter # Initial population of DISPLAY_ORDER
