@@ -1097,7 +1097,6 @@ function system_env_manager() {
         local header_height=1
         local divider_height=1
         local footer_height=2
-        if [[ -n "$search_query" ]]; then footer_height=3; fi
         local extra=$(( banner_height + header_height + divider_height + footer_height ))
         local available=$(( term_height - extra ))
         if (( available < 1 )); then available=1; fi
@@ -1107,15 +1106,24 @@ function system_env_manager() {
     _sys_draw_footer() {
         local status_text="$1"
         local filter_text="$2"
-        local help_nav=" ${C_CYAN}↑↓${C_WHITE} Move | ${C_GREEN}(I) Toggle${C_WHITE} | ${C_YELLOW}(V)alues${C_WHITE} | ${C_MAGENTA}(/) Filter${C_WHITE} | ${C_YELLOW}(Q)uit/Back${C_WHITE}"
-        local info_line=" ${ICON_INFO} ${C_GREEN}*${C_GRAY} indicates variable exists in .env"
-        if [[ -n "$status_text" ]]; then
-            info_line=" $status_text"
-        fi
-        printf " %s${T_CLEAR_LINE}\n%s${T_CLEAR_LINE}" "$help_nav" "$info_line"
+
         if [[ -n "$filter_text" ]]; then
-             printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$filter_text"
+            local dash_fill="────────────────────────────────────────────────────────────────────────"
+            local constructed="${C_CYAN}├─Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} ${dash_fill}"
+            local header_line; header_line=$(_truncate_string "$constructed" 72 "─")
+            printf "%s${T_RESET}${T_CLEAR_LINE}\n" "$header_line"
+        else
+            printf "${C_CYAN}├─Controls:┬──────────┬──────────┬───────────┬─────────────────┬────────${T_RESET}${T_CLEAR_LINE}\n"
         fi
+
+        local sep="${C_CYAN}│${C_GRAY}"
+        printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↑↓${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep}                 ${sep}${T_CLEAR_LINE}\n"
+
+        local info_msg="${C_GREEN}✓${C_GRAY} exists in .env"
+        if [[ -n "$status_text" ]]; then
+            info_msg="$status_text"
+        fi
+        printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} %-67s ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}" "$info_msg"
     }
 
     printMsgNoNewline "${T_CURSOR_HIDE}"
@@ -1142,7 +1150,6 @@ function system_env_manager() {
         screen_buffer+=$'\n'
         screen_buffer+=$(draw_sys_env_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
         screen_buffer+=$'\n'
-        screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
         screen_buffer+=$(_sys_draw_footer "$status_msg" "$search_query")
         status_msg=""
         
@@ -1166,12 +1173,11 @@ function system_env_manager() {
                 # To create an inline prompt, we manually clear the footer area
                 # and then call prompt_for_input, telling it how many lines to occupy
                 # so it doesn't clear the whole screen.
-                local footer_height=2
-                if [[ -n "$search_query" ]]; then footer_height=3; fi
-                clear_lines_up "$((footer_height - 1))"
+                clear_current_line
+                clear_lines_up 1
                 
                 local new_query="$search_query"
-                if prompt_for_input "${C_MAGENTA}Filter variables" new_query "$search_query" "true" "1"; then
+                if prompt_for_input "${C_MAGENTA}Filter by Name or value " new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
                     _apply_filter
                     current_option=0
@@ -1414,7 +1420,7 @@ function interactive_manager() {
                 clear_lines_up "$((footer_height - 1))"
                 
                 local new_query="$search_query"
-                if prompt_for_input "${C_MAGENTA}Filter by " new_query "$search_query" "true" "1"; then
+                if prompt_for_input "${C_MAGENTA}Filter by Name or value " new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
                     handler_result_ref="refresh_data"
                     
