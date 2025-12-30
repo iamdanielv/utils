@@ -21,10 +21,6 @@ declare -rx C_GRAY=$'\033[38;5;244m'
 declare -rx C_ORANGE=$'\033[38;5;216m'
 declare -rx C_MAUVE=$'\033[38;5;99m'
 
-# Legacy/Compat colors (keep for now)
-readonly C_L_RED=$'\033[31;1m'
-readonly C_L_GREEN=$'\033[32m'
-readonly C_L_YELLOW=$'\033[33m'
 readonly C_L_BLUE=$'\033[34m'
 readonly C_L_MAGENTA=$'\033[35m'
 readonly C_L_CYAN=$'\033[36m'
