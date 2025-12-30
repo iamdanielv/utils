@@ -632,15 +632,19 @@ handle_vm_action() {
     fi
 }
 
+# Draw header for VM list
+draw_header() {
+    printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-20s${T_RESET} ${T_BOLD}${T_ULINE}%-10s${T_RESET} ${T_BOLD}${T_ULINE}%-8s${T_RESET} ${T_BOLD}${T_ULINE}%-8s${T_RESET} ${T_BOLD}${T_ULINE}%-3s${T_RESET}" "NAME" "STATE" "CPU" "MEM" "A/S"
+}
+
 # Function to render the main UI
 render_main_ui() {
     # Double buffering to prevent flicker
     local buffer=""
     buffer+=$(printBanner "VM Manager" "$C_CYAN")
     buffer+="\n"
-    local header
-    printf -v header "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-20s${T_NO_ULINE} ${T_ULINE}%-10s${T_NO_ULINE} ${T_ULINE}%-8s${T_NO_ULINE} ${T_ULINE}%-8s${T_NO_ULINE} ${T_ULINE}%-3s${T_NO_ULINE}${T_RESET}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
-    buffer+="$header"
+    buffer+=$(draw_header)
+    buffer+="\n"
         
     local count=${#VM_NAMES[@]}
     
