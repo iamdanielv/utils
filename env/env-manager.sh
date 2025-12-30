@@ -1143,11 +1143,8 @@ function system_env_manager() {
 
     _sys_viewport_calc() {
         local term_height; term_height=$(tput lines)
-        local banner_height=1
-        local header_height=1
-        local divider_height=1
-        local footer_height=2
-        local extra=$(( banner_height + header_height + divider_height + footer_height ))
+        # banner(1) + header(1) + spacer(1) + footer(3) = 6
+        local extra=6
         local available=$(( term_height - extra ))
         if (( available < 1 )); then available=1; fi
         echo "$available"
@@ -1354,9 +1351,11 @@ function interactive_manager() {
     _viewport_calc_func() {
         # Calculate available height for the list
         local term_height; term_height=$(tput lines)
-        # banner(1) + header(1) + list(...) + div(1) + footer(3) + filter_status(1 if active)
+        # banner(1) + header(1) + spacer(1) + footer(3) = 6
         local extra=6
-        echo $(( term_height - extra ))
+        local available=$(( term_height - extra ))
+        if (( available < 1 )); then available=1; fi
+        echo "$available"
     }
 
     # --- Key Handler ---
