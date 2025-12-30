@@ -38,6 +38,8 @@ readonly T_CLEAR_LINE=$'\033[K'
 readonly T_CURSOR_HIDE=$'\033[?25l'
 readonly T_CURSOR_SHOW=$'\033[?25h'
 readonly T_FG_RESET=$'\033[39m'
+readonly T_NO_REVERSE=$'\033[27m'
+readonly T_CLEAR_WHOLE_LINE=$'\033[2K'
 readonly T_CURSOR_HOME=$'\033[H'
 readonly T_CLEAR_SCREEN_DOWN=$'\033[J'
 readonly T_CURSOR_UP=$'\033[1A'
@@ -111,10 +113,10 @@ printBanner() {
 }
 
 # Terminal Control
-clear_screen() { printf '\033[H\033[J' >/dev/tty; }
-clear_current_line() { printf '\033[2K\r' >/dev/tty; }
-clear_lines_up() { local lines=${1:-1}; for ((i = 0; i < lines; i++)); do printf '\033[1A\033[2K'; done; printf '\r'; } >/dev/tty
-move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf '\033[1A'; done; fi; printf '\r'; } >/dev/tty
+clear_screen() { printf "${T_CURSOR_HOME}${T_CLEAR_SCREEN_DOWN}" >/dev/tty; }
+clear_current_line() { printf "${T_CLEAR_WHOLE_LINE}\r" >/dev/tty; }
+clear_lines_up() { local lines=${1:-1}; for ((i = 0; i < lines; i++)); do printf "${T_CURSOR_UP}${T_CLEAR_WHOLE_LINE}"; done; printf '\r'; } >/dev/tty
+move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf "${T_CURSOR_UP}"; done; fi; printf '\r'; } >/dev/tty
 render_buffer() { printf "${T_CURSOR_HOME}%b${T_CLEAR_SCREEN_DOWN}" "$1"; }
 
 # User Input
@@ -638,7 +640,7 @@ _get_color_preview_string() {
         if [[ "$is_bg_color" == "true" && "$is_current" != "true" ]]; then
             display_code="${value}${T_REVERSE}"
         elif [[ "$is_bg_color" == "false" && "$is_current" == "true" ]]; then
-            display_code="\033[27m${value}" # ANSI "Not Reversed"
+            display_code="${T_NO_REVERSE}${value}" # ANSI "Not Reversed"
         fi
         color_preview_ref=$(printf "   %s██%s" "$display_code" "$T_RESET")
         preview_len_ref=5 # Visible length of "   ██"
@@ -1122,7 +1124,7 @@ function system_env_manager() {
                 local footer_height=2
                 if [[ -n "$search_query" ]]; then footer_height=3; fi
                 move_cursor_up "$((footer_height - 1))"
-                printf '\033[J' >/dev/tty # Clear from cursor to end of screen
+                printf "${T_CLEAR_SCREEN_DOWN}" >/dev/tty # Clear from cursor to end of screen
 
                 local new_query="$search_query"
                 if prompt_for_input "Filter variables" new_query "$search_query" "true" "1"; then
@@ -1366,7 +1368,7 @@ function interactive_manager() {
                 local footer_height=3
                 if [[ -n "$search_query" ]]; then footer_height=4; fi
                 move_cursor_up "$((footer_height - 1))"
-                printf '\033[J' >/dev/tty # Clear from cursor to end of screen
+                printf "${T_CLEAR_SCREEN_DOWN}" >/dev/tty # Clear from cursor to end of screen
 
                 local new_query="$search_query"
                 if prompt_for_input "Filter variables" new_query "$search_query" "true" "1"; then
