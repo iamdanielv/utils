@@ -75,7 +75,7 @@ printBanner() {
     local color="${2:-$C_BLUE}"
     local start_char="${3:-╭}"
     local line="────────────────────────────────────────────────────────────────────────"
-    printf "${color}${line}${T_RESET}\r${color}${start_char}─${msg}${T_RESET}"
+    printf "${color}${line}${T_RESET}${T_CLEAR_LINE}\r${color}${start_char}─${msg}${T_RESET}"
 }
 
 printBannerMiddle() {
