@@ -1257,6 +1257,13 @@ function system_env_manager() {
             "$KEY_HOME") if (( num_options > 0 )); then current_option=0; fi ;;
             "$KEY_END") if (( num_options > 0 )); then current_option=$(( num_options - 1 )); fi ;;
             'q'|'Q'|"$KEY_ESC"|"$KEY_LEFT")
+                if [[ "$key" == "$KEY_ESC" && -n "$search_query" ]]; then
+                    search_query=""
+                    _sem_apply_filter
+                    current_option=0
+                    list_offset=0
+                    continue
+                fi
                 break
                 ;;
             '/')
@@ -1361,7 +1368,10 @@ function interactive_manager() {
 
         case "$key" in
             'q'|'Q'|"$KEY_ESC")
-                if _has_pending_changes; then
+                if [[ "$key" == "$KEY_ESC" && -n "$search_query" ]]; then
+                    search_query=""
+                    handler_result_ref="refresh_data"
+                elif _has_pending_changes; then
                     clear_current_line
                     clear_lines_up 2
                     if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then
