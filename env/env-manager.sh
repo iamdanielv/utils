@@ -969,6 +969,7 @@ _launch_editor_for_file() {
 
     # Run the editor (blocking)
     "${editor}" "${FILE_PATH}"
+    printMsgNoNewline "${T_CURSOR_HIDE}"
     return 0
 }
 
