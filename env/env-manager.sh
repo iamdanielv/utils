@@ -1108,6 +1108,27 @@ function draw_sys_env_list() {
     printf "%b" "$list_content"
 }
 
+function filter_items() {
+    local -n source_ref=$1
+    local -n vars_ref=$2
+    local -n dest_ref=$3
+    local query="$4"
+
+    dest_ref=()
+    if [[ -z "$query" ]]; then
+        dest_ref=("${source_ref[@]}")
+        return
+    fi
+
+    for key in "${source_ref[@]}"; do
+        if [[ "$key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then continue; fi
+        local val="${vars_ref[$key]}"
+        if [[ "${key,,}" == *"${query,,}"* ]] || [[ "${val,,}" == *"${query,,}"* ]]; then
+            dest_ref+=("$key")
+        fi
+    done
+}
+
 # Manages the system environment variable view.
 function system_env_manager() {
     load_system_env
@@ -1116,18 +1137,8 @@ function system_env_manager() {
     local search_query=""
     local status_msg=""
 
-    _apply_filter() {
-        if [[ -z "$search_query" ]]; then
-            SYS_ENV_DISPLAY_ORDER=("${SYS_ENV_ORDER[@]}")
-        else
-            SYS_ENV_DISPLAY_ORDER=()
-            for key in "${SYS_ENV_ORDER[@]}"; do
-                local val="${SYS_ENV_VARS[$key]}"
-                if [[ "${key,,}" == *"${search_query,,}"* ]] || [[ "${val,,}" == *"${search_query,,}"* ]]; then
-                    SYS_ENV_DISPLAY_ORDER+=("$key")
-                fi
-            done
-        fi
+    _sem_apply_filter() {
+        filter_items SYS_ENV_ORDER SYS_ENV_VARS SYS_ENV_DISPLAY_ORDER "$search_query"
     }
 
     _sys_viewport_calc() {
@@ -1258,7 +1269,7 @@ function system_env_manager() {
                 local new_query="$search_query"
                 if prompt_for_input "${C_MAGENTA}Filter by Name or value " new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
-                    _apply_filter
+                    _sem_apply_filter
                     current_option=0
                     list_offset=0
                 fi
@@ -1321,21 +1332,8 @@ function interactive_manager() {
     local list_offset=0
     local search_query=""
 
-    _apply_filter() {
-        DISPLAY_ORDER=()
-        if [[ -z "$search_query" ]]; then
-            # No filter, show all items from ENV_ORDER
-            DISPLAY_ORDER=("${ENV_ORDER[@]}")
-        else
-            # Filter is active, only show matching variables
-            for key in "${ENV_ORDER[@]}"; do
-                if [[ "$key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then continue; fi
-                local val="${ENV_VARS[$key]}"
-                if [[ "${key,,}" == *"${search_query,,}"* ]] || [[ "${val,,}" == *"${search_query,,}"* ]]; then
-                    DISPLAY_ORDER+=("$key")
-                fi
-            done
-        fi
+    _im_apply_filter() {
+        filter_items ENV_ORDER ENV_VARS DISPLAY_ORDER "$search_query"
     }
 
     # --- TUI Helper Functions ---
@@ -1529,7 +1527,7 @@ function interactive_manager() {
     # The global EXIT trap in tui.lib.sh will handle showing the cursor.
     local viewport_height
 
-    _apply_filter # Initial population of DISPLAY_ORDER
+    _im_apply_filter # Initial population of DISPLAY_ORDER
 
     local _tui_resized=0
     trap '_tui_resized=1' WINCH
@@ -1616,7 +1614,7 @@ function interactive_manager() {
                     parse_env_file "$FILE_PATH"
                 fi
                 # For any data change (add, edit, delete, save, filter), we rebuild the display list.
-                _apply_filter
+                _im_apply_filter
                 # After filtering, the list size may change, so reset cursor.
                 if (( current_option >= ${#DISPLAY_ORDER[@]} )); then current_option=$(( ${#DISPLAY_ORDER[@]} - 1 )); fi
                 if (( current_option < 0 )); then current_option=0; fi
