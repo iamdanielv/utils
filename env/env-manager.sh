@@ -293,43 +293,12 @@ _interactive_editor_loop() {
         case "$key" in
             'c'|'C'|'d'|'D') clear_current_line; clear_lines_up 1; local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi; clear_lines_up 1; if prompt_yes_no "$question" "y"; then "$reset_func"; clear_current_line; clear_lines_up 1; show_timed_message "${ICON_INFO} Changes discarded"; fi; redraw=true ;;
             's'|'S') return 0 ;;
-            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then clear_current_line; clear_lines_up 2; if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else redraw=true; fi; else clear_current_line; clear_lines_up 2; show_timed_message "${ICON_INFO} Edit cancelled. No changes were made."; return 1; fi ;;
+            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then clear_current_line; clear_lines_up 2; if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else redraw=true; fi; else clear_current_line; clear_lines_up 2; show_timed_message "${ICON_INFO} Edit cancelled, no changes were made"; return 1; fi ;;
             *) if "$field_handler_func" "$key"; then redraw=true; fi ;;
         esac
         if [[ "$redraw" == "true" ]]; then clear_screen; printBanner "$banner_text"; echo; "$draw_func"; fi
     done
 }
-
-_apply_highlight() {
-    local content="$1"; local highlighted_content=""
-    while IFS= read -r line; do
-        local highlight_restore="${T_RESET}${T_REVERSE}${C_L_BLUE}"
-        local highlighted_line="${line//${T_RESET}/${highlight_restore}}"
-        highlighted_line="${highlighted_line//${T_FG_RESET}/${C_L_BLUE}}"
-        if [[ -n "$highlighted_content" ]]; then highlighted_content+=$'\n'; fi
-        highlighted_content+="$highlighted_line"
-    done <<< "$content"
-    printf "%s%s%s%s" "${T_REVERSE}${C_L_BLUE}" "$highlighted_content" "${T_CLEAR_LINE}" "${T_RESET}"
-}
-
-_get_menu_item_prefix() {
-    local is_current="$1" is_selected="$2" is_multi_select="$3"
-    local pointer=" "; if [[ "$is_current" == "true" ]]; then pointer="${T_BOLD}${C_L_MAGENTA}❯${T_FG_RESET}"; fi
-    local checkbox="   "; if [[ "$is_multi_select" == "true" ]]; then checkbox="[ ]"; if [[ "$is_selected" == "true" ]]; then checkbox="${T_BOLD}${C_GREEN}[✓]"; fi; fi
-    echo "${pointer}${checkbox}"
-}
-
-_draw_menu_item() {
-    local is_current="$1" is_selected="$2" is_multi_select="$3" option_text="$4"; local -n output_ref="$5"
-    local prefix; prefix=$(_get_menu_item_prefix "$is_current" "$is_selected" "$is_multi_select")
-    local item_output=""; if [[ -n "$option_text" ]]; then
-        local line_prefix=" "
-        if [[ "$is_current" == "true" ]]; then local highlighted_line; highlighted_line=$(_apply_highlight "${line_prefix}${option_text}${T_CLEAR_LINE}"); item_output+=$(printf "%s%s" "$prefix" "$highlighted_line")
-        else item_output+=$(printf "%s%s%s%s%s" "$prefix" "$line_prefix" "$option_text" "${T_CLEAR_LINE}" "${T_RESET}"); fi
-    fi
-    output_ref+=$item_output
-}
-
 
 script_exit_handler() { printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty; }
 trap 'script_exit_handler' EXIT
@@ -868,7 +837,7 @@ function edit_variable() {
         # Disallow editing of comments/blank lines
         if [[ "$original_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
             clear_lines_up 2
-            show_timed_message "${ICON_WARN} Cannot edit blank lines or comments." 1.5
+            show_timed_message "${ICON_WARN} Cannot edit blank lines or comments" 1.5
             return 2 # Signal no change
         fi
         local display_name="${original_key%%__DUPLICATE_KEY_*}"
@@ -906,7 +875,7 @@ function edit_variable() {
             1)
                 if ! prompt_for_input "${C_YELLOW}New Name " pending_key "$pending_key" "false" 2; then return 0; fi
                 if ! [[ "$pending_key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-                    show_timed_message "${ICON_ERR} Invalid variable name. Must be alphanumeric and start with a letter or underscore." 3
+                    show_timed_message "${ICON_ERR} Invalid variable name. Must be alphanumeric and start with a letter or underscore" 3
                     pending_key="${key:-$original_key}" # Revert
                 fi
                 return 0 ;;
@@ -983,7 +952,7 @@ function delete_variable() {
 
     if [[ "$key_to_delete" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
         clear_lines_up 2
-        show_timed_message "${ICON_WARN} Cannot delete blank lines or comments this way." 1.5
+        show_timed_message "${ICON_WARN} Cannot delete blank lines or comments this way" 1.5
         return 2 # No refresh needed
     fi
     
@@ -1357,7 +1326,7 @@ function interactive_manager() {
                 if ! _has_pending_changes; then
                     clear_current_line
                     clear_lines_up 2
-                    show_timed_message "${ICON_INFO} No changes to save." 1.5
+                    show_timed_message "${ICON_INFO} No changes to save" 1.5
                     handler_result_ref="redraw"
                 else
                     clear_current_line
@@ -1444,7 +1413,7 @@ function interactive_manager() {
                     if [[ "$selected_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
                         clear_current_line
                         clear_lines_up 2
-                        show_timed_message "${ICON_WARN} Cannot clone blank lines or comments." 1.5
+                        show_timed_message "${ICON_WARN} Cannot clone blank lines or comments" 1.5
                         handler_result_ref="redraw"
                     else
                         # Prepare data for clone
@@ -1635,7 +1604,7 @@ main() {
         if prompt_yes_no "Directory '${file_dir}' does not exist. Create it?" "y"; then
             mkdir -p "$file_dir"
         else
-            printInfoMsg "Operation cancelled."
+            printInfoMsg "Operation cancelled"
             exit 1
         fi
     fi
@@ -1649,7 +1618,7 @@ main() {
     # Launch the interactive TUI
     interactive_manager
 
-    printOkMsg "Exited .env manager."
+    printOkMsg "Exited .env manager"
 }
 
 main "$@"
