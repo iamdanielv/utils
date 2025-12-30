@@ -488,45 +488,62 @@ _has_pending_changes() {
 
 # --- TUI Components ---
 
-function show_help() {
+# (Private) Renders a standardized help screen with the given title and body content.
+_render_help_screen() {
+    local title="$1"
+    local body="$2"
+
     clear_screen
     local buffer=""
-    buffer+=$(printBanner "Help & Shortcuts" "${C_CYAN}")
+    buffer+=$(printBanner "$title" "${C_CYAN}")
     buffer+="\n"
-    
-    local border="${C_CYAN}│${T_RESET}"
-
-    buffer+=$(printBannerMiddle "Navigation" "${C_ORANGE}")
-    buffer+="\n"
-    buffer+="${border}   ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
-    buffer+="${border}   ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
-    buffer+="${border}   ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end\n"
-
-    buffer+=$(printBannerMiddle "Variable Actions" "${C_ORANGE}")
-    buffer+="\n"
-    buffer+="${border}   ${C_BLUE}E${T_RESET}              Edit selected variable\n"
-    buffer+="${border}   ${C_GREEN}A${T_RESET}              Add new variable\n"
-    buffer+="${border}   ${C_RED}D${T_RESET}              Delete selected variable\n"
-    buffer+="${border}   ${C_YELLOW}C${T_RESET}              Clone selected variable\n"
-
-    buffer+=$(printBannerMiddle "File & View" "${C_ORANGE}")
-    buffer+="\n"
-    buffer+="${border}   ${C_GREEN}S${T_RESET}              Save changes to .env file\n"
-    buffer+="${border}   ${C_MAGENTA}O${T_RESET}              Open file in external editor (\$EDITOR)\n"
-    buffer+="${border}   ${C_GREEN}I${T_RESET}              Import from system environment\n"
-    buffer+="${border}   ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
-    buffer+="${border}   ${C_MAGENTA}/${T_RESET}              Filter variables\n"
-
-    buffer+=$(printBannerMiddle "General" "${C_ORANGE}")
-    buffer+="\n"
-    buffer+="${border}   ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
-    buffer+="${border}   ${C_RED}Q${T_RESET}              Quit\n"
-
+    buffer+="$body"
     buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
 
     render_buffer "$buffer"
     read_single_char >/dev/null
     clear_screen
+}
+
+# (Private) Returns the common navigation help section.
+_get_nav_help_section() {
+    local border="${C_CYAN}│${T_RESET}"
+    local buffer=""
+    buffer+=$(printBannerMiddle "Navigation" "${C_ORANGE}")
+    buffer+="\n"
+    buffer+="${border}   ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
+    buffer+="${border}   ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
+    buffer+="${border}   ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end"
+    printf "%s" "$buffer"
+}
+
+function show_help() {
+    local border="${C_CYAN}│${T_RESET}"
+    local body=""
+    
+    body+=$(_get_nav_help_section)
+    body+="\n"
+    body+=$(printBannerMiddle "Variable Actions" "${C_ORANGE}")
+    body+="\n"
+    body+="${border}   ${C_BLUE}E${T_RESET}              Edit selected variable\n"
+    body+="${border}   ${C_GREEN}A${T_RESET}              Add new variable\n"
+    body+="${border}   ${C_RED}D${T_RESET}              Delete selected variable\n"
+    body+="${border}   ${C_YELLOW}C${T_RESET}              Clone selected variable\n"
+
+    body+=$(printBannerMiddle "File & View" "${C_ORANGE}")
+    body+="\n"
+    body+="${border}   ${C_GREEN}S${T_RESET}              Save changes to .env file\n"
+    body+="${border}   ${C_MAGENTA}O${T_RESET}              Open file in external editor (\$EDITOR)\n"
+    body+="${border}   ${C_GREEN}I${T_RESET}              Import from system environment\n"
+    body+="${border}   ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
+    body+="${border}   ${C_MAGENTA}/${T_RESET}              Filter variables\n"
+
+    body+=$(printBannerMiddle "General" "${C_ORANGE}")
+    body+="\n"
+    body+="${border}   ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
+    body+="${border}   ${C_RED}Q${T_RESET}              Quit\n"
+
+    _render_help_screen "Help & Shortcuts" "$body"
 }
 
 # (Private) Draws the UI for the variable editor screen.
@@ -1139,35 +1156,24 @@ function system_env_manager() {
     }
 
     _sys_show_help() {
-        clear_screen
-        local buffer=""
-        buffer+=$(printBanner "System Env - Help" "${C_CYAN}")
-        buffer+="\n"
-        
         local border="${C_CYAN}│${T_RESET}"
+        local body=""
+        
+        body+=$(_get_nav_help_section)
+        body+="\n"
 
-        buffer+=$(printBannerMiddle "Navigation" "${C_ORANGE}")
-        buffer+="\n"
-        buffer+="${border}   ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
-        buffer+="${border}   ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
-        buffer+="${border}   ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end\n"
+        body+=$(printBannerMiddle "Actions" "${C_ORANGE}")
+        body+="\n"
+        body+="${border}   ${C_GREEN}I${T_RESET}              Import/Remove selected variable\n"
+        body+="${border}   ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
+        body+="${border}   ${C_MAGENTA}/${T_RESET}              Filter variables\n"
 
-        buffer+=$(printBannerMiddle "Actions" "${C_ORANGE}")
-        buffer+="\n"
-        buffer+="${border}   ${C_GREEN}I${T_RESET}              Import/Remove selected variable\n"
-        buffer+="${border}   ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
-        buffer+="${border}   ${C_MAGENTA}/${T_RESET}              Filter variables\n"
+        body+=$(printBannerMiddle "General" "${C_ORANGE}")
+        body+="\n"
+        body+="${border}   ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
+        body+="${border}   ${C_RED}Q${T_RESET}/${C_CYAN}←${T_RESET}            Return to main menu\n"
 
-        buffer+=$(printBannerMiddle "General" "${C_ORANGE}")
-        buffer+="\n"
-        buffer+="${border}   ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
-        buffer+="${border}   ${C_RED}Q${T_RESET}/${C_CYAN}←${T_RESET}            Return to main menu\n"
-
-        buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
-
-        render_buffer "$buffer"
-        read_single_char >/dev/null
-        clear_screen
+        _render_help_screen "System Env - Help" "$body"
     }
 
     printMsgNoNewline "${T_CURSOR_HIDE}"
