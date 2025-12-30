@@ -480,24 +480,42 @@ _has_pending_changes() {
 # --- TUI Components ---
 
 function show_help() {
-    printBanner "Interactive .env Manager"
-    echo
-    printMsg "A TUI for managing environment variables in a .env file."
-    printMsg "Supports adding, editing, and deleting variables and their comments."
+    clear_screen
+    local buffer=""
+    buffer+=$(printBanner "Help & Shortcuts" "${C_CYAN}")
+    buffer+="\n"
 
-    printMsg "\n${T_ULINE}Usage:${T_RESET}"
-    printMsg "  $(basename "$0") [path_to_env_file]"
-    printMsg "  Defaults to '.env' in the project root if no path is given."
+    buffer+=$(printBanner "Navigation" "${C_ORANGE}")
+    buffer+="\n"
+    buffer+="  ${C_CYAN}↑${T_RESET}/${C_CYAN}↓${T_RESET} or ${C_CYAN}k${T_RESET}/${C_CYAN}j${T_RESET}  Select variable\n"
+    buffer+="  ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}     Scroll page\n"
+    buffer+="  ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}      Jump to start/end\n"
 
-    printMsg "\n${T_ULINE}Options:${T_RESET}"
-    printMsg "  ${C_L_BLUE}-h, --help${T_RESET}      Show this help message."
-    printMsg "  ${C_L_BLUE}-H, --hide-values${T_RESET}   Hide variable values on startup."
+    buffer+=$(printBanner "Variable Actions" "${C_ORANGE}")
+    buffer+="\n"
+    buffer+="  ${C_BLUE}E${T_RESET}              Edit selected variable\n"
+    buffer+="  ${C_GREEN}A${T_RESET}              Add new variable\n"
+    buffer+="  ${C_RED}D${T_RESET}              Delete selected variable\n"
+    buffer+="  ${C_YELLOW}C${T_RESET}              Clone selected variable\n"
 
-    printMsg "\n${T_ULINE}Examples:${T_RESET}"
-    printMsg "  ${C_GRAY}# Edit the root .env file${T_RESET}"
-    printMsg "  $(basename "$0")"
-    printMsg "  ${C_GRAY}# Edit a specific .env file${T_RESET}"
-    printMsg "  $(basename "$0") ./openwebui/.env"
+    buffer+=$(printBanner "File & View" "${C_ORANGE}")
+    buffer+="\n"
+    buffer+="  ${C_GREEN}S${T_RESET}              Save changes to .env file\n"
+    buffer+="  ${C_MAGENTA}O${T_RESET}              Open file in external editor (\$EDITOR)\n"
+    buffer+="  ${C_GREEN}I${T_RESET}              Import from system environment\n"
+    buffer+="  ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
+    buffer+="  ${C_MAGENTA}/${T_RESET}              Filter variables\n"
+
+    buffer+=$(printBanner "General" "${C_ORANGE}")
+    buffer+="\n"
+    buffer+="  ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
+    buffer+="  ${C_RED}Q${T_RESET}              Quit\n"
+
+    buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
+
+    render_buffer "$buffer"
+    read_single_char >/dev/null
+    clear_screen
 }
 
 # (Private) Draws the UI for the variable editor screen.
