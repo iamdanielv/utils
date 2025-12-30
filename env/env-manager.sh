@@ -67,7 +67,7 @@ KEY_PGDN=$'\033[6~'
 # Text Utils
 printMsg() { printf '%b\n' "$1"; }
 printMsgNoNewline() { printf '%b' "$1"; }
-printErrMsg() { printMsg "${ICON_ERR}${T_BOLD}${C_RED} ${1} ${T_RESET}"; }
+printInfoMsg() { printMsg "${ICON_INFO} ${1}${T_RESET}"; }
 printOkMsg() { printMsg "${ICON_OK} ${1}${T_RESET}"; }
 
 printBanner() {
@@ -81,11 +81,6 @@ printBanner() {
 printBannerMiddle() {
     local msg="$1"; local color="${2:-$C_BLUE}"
     printBanner "$msg" "$color" "├"
-}
-
-printBannerPlain() {
-    local msg="$1"; local color="${2:-$C_BLUE}"
-    printBanner "$msg" "$color" "─"
 }
 
 strip_ansi_codes() {
@@ -132,7 +127,6 @@ _format_fixed_width_string() {
 clear_screen() { printf "${T_CURSOR_HOME}${T_CLEAR_SCREEN_DOWN}" >/dev/tty; }
 clear_current_line() { printf "${T_CLEAR_WHOLE_LINE}\r" >/dev/tty; }
 clear_lines_up() { local lines=${1:-1}; for ((i = 0; i < lines; i++)); do printf "${T_CURSOR_UP}${T_CLEAR_WHOLE_LINE}"; done; printf '\r'; } >/dev/tty
-move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf "${T_CURSOR_UP}"; done; fi; printf '\r'; } >/dev/tty
 render_buffer() { printf "${T_CURSOR_HOME}%b${T_CLEAR_SCREEN_DOWN}" "$1"; }
 
 # Calculates the available height for the list view.
