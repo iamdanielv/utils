@@ -1091,12 +1091,17 @@ function system_env_manager() {
         fi
     }
 
-    # Helper for viewport
     _sys_viewport_calc() {
         local term_height; term_height=$(tput lines)
-        local extra=5
-        if [[ -n "$search_query" ]]; then extra=6; fi
-        echo $(( term_height - extra ))
+        local banner_height=1
+        local header_height=1
+        local divider_height=1
+        local footer_height=2
+        if [[ -n "$search_query" ]]; then footer_height=3; fi
+        local extra=$(( banner_height + header_height + divider_height + footer_height ))
+        local available=$(( term_height - extra ))
+        if (( available < 1 )); then available=1; fi
+        echo "$available"
     }
 
     _sys_draw_footer() {
