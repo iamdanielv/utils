@@ -67,8 +67,6 @@ KEY_PGDN=$'\033[6~'
 # Text Utils
 printMsg() { printf '%b\n' "$1"; }
 printMsgNoNewline() { printf '%b' "$1"; }
-printInfoMsg() { printMsg "${ICON_INFO} ${1}${T_RESET}"; }
-printOkMsg() { printMsg "${ICON_OK} ${1}${T_RESET}"; }
 
 printBanner() {
     local msg="$1"
@@ -1598,7 +1596,7 @@ main() {
         if prompt_yes_no "Directory '${file_dir}' does not exist. Create it?" "y"; then
             mkdir -p "$file_dir"
         else
-            printInfoMsg "Operation cancelled"
+            printMsg "${ICON_INFO} Operation cancelled${T_RESET}"
             exit 1
         fi
     fi
@@ -1612,7 +1610,7 @@ main() {
     # Launch the interactive TUI
     interactive_manager
 
-    printOkMsg "Exited .env manager"
+    printMsg "${ICON_OK} Exited .env manager${T_RESET}"
 }
 
 main "$@"
