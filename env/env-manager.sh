@@ -798,7 +798,7 @@ function draw_header() {
 function draw_footer() {
     local filter_text="$1"
     if [[ -n "$filter_text" ]]; then
-        local constructed="Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} ${dash_fill}"
+        local constructed="Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} "
         local header_line; header_line=$(_truncate_string "$constructed" 72 "─")
         printBannerMiddle "${header_line}" "${C_CYAN}"
         printf "\n"
@@ -1143,7 +1143,7 @@ function system_env_manager() {
 
     _sys_viewport_calc() {
         local term_height; term_height=$(tput lines)
-        # banner(1) + header(1) + spacer(1) + footer(3) = 6
+        # banner(1) + header(1) + footer(3) + buffer(1) = 6
         local extra=6
         local available=$(( term_height - extra ))
         if (( available < 1 )); then available=1; fi
@@ -1351,7 +1351,7 @@ function interactive_manager() {
     _viewport_calc_func() {
         # Calculate available height for the list
         local term_height; term_height=$(tput lines)
-        # banner(1) + header(1) + spacer(1) + footer(3) = 6
+        # banner(1) + header(1) + footer(3) + buffer(1) = 6
         local extra=6
         local available=$(( term_height - extra ))
         if (( available < 1 )); then available=1; fi
