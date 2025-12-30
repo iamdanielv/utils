@@ -1013,7 +1013,13 @@ function draw_sys_env_list() {
         for (( i=start_index; i<=end_index; i++ )); do
             local key="${SYS_ENV_DISPLAY_ORDER[i]}"
             local is_current="false"; if (( i == current_option_ref )); then is_current="true"; fi
-            local line_output=""
+            
+            local cursor="${C_CYAN}│${T_RESET} "
+            local line_bg="${T_RESET}"
+            if [[ "$is_current" == "true" ]]; then
+                cursor="${C_CYAN}│❱${T_RESET}"
+                line_bg="${T_BOLD}${C_BLUE}${T_REVERSE}"
+            fi
 
             local value="${SYS_ENV_VARS[$key]}"
             local color_preview=""
@@ -1032,27 +1038,44 @@ function draw_sys_env_list() {
             local final_display="${value_display_sanitized}${color_preview}"
             
             # Check if exists in .env
-            local status_indicator=" "
+            local status_char=" "
             if [[ -n "${ENV_VARS[$key]+x}" ]]; then
-                status_indicator="${C_L_GREEN}*${T_RESET}" # Exists
+                status_char="✓"
             fi
 
             local key_display="${key}"
-            if (( ${#key_display} > 20 )); then
-                key_display="${key_display:0:19}…"
+            if (( ${#key_display} > 19 )); then
+                key_display="${key_display:0:18}…"
             fi
 
             local visible_len=$(( ${#value_display_sanitized} + preview_visible_len ))
             local padding_needed=$(( 45 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
-            line_output=$(printf "%b${C_L_CYAN}%-20s${T_FG_RESET} ${C_L_WHITE}%s%*s${T_FG_RESET}" "$status_indicator" "${key_display}" "$final_display" "$padding_needed" "")
+            local val_padding=""; printf -v val_padding "%*s" "$padding_needed" ""
 
-            local item_content=""
-            _draw_menu_item "$is_current" "false" "false" "$line_output" item_content
+            local item_output=""
+            if [[ "$is_current" == "true" ]]; then
+                local display_key_str="${status_char} ${key_display}"
+                local key_len=${#display_key_str}
+                local pad_len=$(( 22 - key_len )); if (( pad_len < 0 )); then pad_len=0; fi
+                local key_padding=""; printf -v key_padding "%*s" "$pad_len" ""
+                local line_str="${display_key_str}${key_padding} ${final_display}${val_padding}"
+                item_output="${cursor}${line_bg}${line_str}${T_RESET}${T_CLEAR_LINE}"
+            else
+                local status_display="${status_char}"
+                if [[ "$status_char" == "✓" ]]; then status_display="${C_YELLOW}✓${T_RESET}"; fi
+                
+                local key_len=${#key_display}
+                local pad_len=$(( 20 - key_len )); if (( pad_len < 0 )); then pad_len=0; fi
+                local key_padding=""; printf -v key_padding "%*s" "$pad_len" ""
+                local key_padded="${key_display}${key_padding}"
+                item_output="${cursor}${status_display} ${C_L_CYAN}${key_padded}${T_RESET} ${C_L_WHITE}${final_display}${T_RESET}${val_padding}${T_CLEAR_LINE}"
+            fi
+
             if [[ ${#list_content} -gt 0 ]]; then list_content+=$'\n'; fi
-            list_content+="${item_content}"
+            list_content+="${item_output}"
         done
     else
-        list_content+=$(printf "    %s" "${C_GRAY}(No system variables found)${T_CLEAR_LINE}${T_RESET}")
+        list_content+=$(printf "${C_CYAN}│${T_RESET}  %s" "${C_GRAY}(No system variables found)${T_CLEAR_LINE}${T_RESET}")
     fi
 
     # Fill blank lines
@@ -1063,7 +1086,7 @@ function draw_sys_env_list() {
     if (( ${#SYS_ENV_DISPLAY_ORDER[@]} <= 0 )); then list_draw_height=1; fi
     local lines_to_fill=$(( viewport_height - list_draw_height ))
     if (( lines_to_fill > 0 )); then
-        for ((j=0; j<lines_to_fill; j++)); do list_content+=$(printf '\n%s' "${T_CLEAR_LINE}"); done
+        for ((j=0; j<lines_to_fill; j++)); do list_content+=$(printf '\n%s%s' "${C_CYAN}│${T_RESET}" "${T_CLEAR_LINE}"); done
     fi
 
     printf "%b" "$list_content"
@@ -1119,7 +1142,7 @@ function system_env_manager() {
         local sep="${C_CYAN}│${C_GRAY}"
         printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↑↓${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep}                 ${sep}${T_CLEAR_LINE}\n"
 
-        local info_msg="${C_GREEN}✓${C_GRAY} exists in .env"
+        local info_msg="${C_YELLOW}✓${C_GRAY} exists in .env"
         if [[ -n "$status_text" ]]; then
             info_msg="$status_text"
         fi
@@ -1192,6 +1215,7 @@ function system_env_manager() {
                 if [[ -n "${ENV_VARS[$selected_key]+x}" ]]; then
                     # Variable exists, this is a destructive action (removal). Ask for confirmation.
                     clear_current_line
+                    clear_lines_up 2
                     prompt_yes_no "'${C_BLUE}${selected_key}${T_RESET}' already exists. Remove it from .env?" "y"
                     local prompt_ret=$?
 
@@ -1209,7 +1233,7 @@ function system_env_manager() {
 
                         status_msg="${ICON_OK} Removed '${C_BLUE}${selected_key}${T_RESET}'"
                     elif [[ $prompt_ret -eq 1 ]]; then # No
-                        status_msg="${ICON_INFO} Action cancelled for '${C_BLUE}${selected_key}${T_RESET}'."
+                        status_msg="${T_RESET}${ICON_INFO} Action cancelled for '${C_BLUE}${selected_key}${T_RESET}'"
                     fi
                     # On cancel (ret=2), prompt_yes_no shows a timed message, so we do nothing.
                 else
