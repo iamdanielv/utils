@@ -112,9 +112,12 @@ _truncate_string() {
 }
 
 _format_fixed_width_string() {
-    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"
+    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"; local pad_char="${4:- }"
     local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
-    if (( len <= max_len )); then local padding_needed=$(( max_len - len )); printf "%s%*s" "$input_str" "$padding_needed" ""
+    if (( len <= max_len )); then
+        local padding_needed=$(( max_len - len )); local padding=""; if (( padding_needed > 0 )); then printf -v padding "%*s" "$padding_needed" ""; fi
+        if [[ "$pad_char" != " " ]]; then padding="${padding// /$pad_char}"; fi
+        printf "%s%s" "$input_str" "$padding"
     else _truncate_string "$input_str" "$max_len" "$trunc_char"; fi
 }
 
