@@ -128,8 +128,31 @@ read_single_char() {
 }
 
 show_timed_message() {
-    local message="$1"; local duration="${2:-1.8}"; local message_lines; message_lines=$(echo -e "$message" | wc -l)
-    printMsg "$message" >/dev/tty; sleep "$duration"; clear_lines_up "$message_lines" >/dev/tty
+    local message="$1"
+    local duration="${2:-1.8}"
+    
+    local color="${C_YELLOW}"
+    local title="${ICON_INFO} Info"
+    
+    if [[ "$message" == *"${ICON_ERR}"* ]]; then
+        color="${C_RED}"; title="${ICON_ERR} Error"
+    elif [[ "$message" == *"${ICON_WARN}"* ]]; then
+        color="${C_YELLOW}"; title="${ICON_WARN} Warning"
+    elif [[ "$message" == *"${ICON_OK}"* ]]; then
+        color="${C_GREEN}"; title="${ICON_OK} Success"
+    fi
+
+    local buffer=""
+    buffer+=$(printBanner "${T_RESET}${title} " "${color}")
+    buffer+="\n"
+    buffer+="${color}╰${T_RESET} ${message}"
+    
+    printMsg "$buffer" >/dev/tty
+    sleep "$duration"
+    
+    local lines_to_clear
+    lines_to_clear=$(echo -e "$buffer" | wc -l)
+    clear_lines_up "$lines_to_clear" >/dev/tty
 }
 
 show_action_summary() {
@@ -218,7 +241,7 @@ prompt_for_input() {
                 ;;
             "$KEY_ESC") 
                 clear_current_line >/dev/tty; clear_lines_up 1 >/dev/tty
-                show_timed_message " ${ICON_INFO} Input cancelled." 1
+                show_timed_message "${ICON_INFO} Input cancelled" 1
                 printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
                 return 1 
                 ;;
@@ -239,9 +262,9 @@ _interactive_editor_loop() {
     while true; do
         local key; key=$(read_single_char); local redraw=false
         case "$key" in
-            'c'|'C'|'d'|'D') clear_current_line; clear_lines_up 1; local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi; clear_lines_up 1; if prompt_yes_no "$question" "y"; then "$reset_func"; clear_current_line; clear_lines_up 1; show_timed_message " ${ICON_INFO} Changes discarded"; fi; redraw=true ;;
+            'c'|'C'|'d'|'D') clear_current_line; clear_lines_up 1; local question="Discard all pending changes?"; if [[ "$mode" == "add" || "$mode" == "clone" ]]; then question="Discard all changes and reset fields?"; fi; clear_lines_up 1; if prompt_yes_no "$question" "y"; then "$reset_func"; clear_current_line; clear_lines_up 1; show_timed_message "${ICON_INFO} Changes discarded"; fi; redraw=true ;;
             's'|'S') return 0 ;;
-            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then clear_current_line; clear_lines_up 2; if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else redraw=true; fi; else clear_current_line; clear_lines_up 2; show_timed_message " ${ICON_INFO} Edit cancelled. No changes were made."; return 1; fi ;;
+            'q'|'Q'|"$KEY_ESC") if "$change_checker_func"; then clear_current_line; clear_lines_up 2; if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then return 1; else redraw=true; fi; else clear_current_line; clear_lines_up 2; show_timed_message "${ICON_INFO} Edit cancelled. No changes were made."; return 1; fi ;;
             *) if "$field_handler_func" "$key"; then redraw=true; fi ;;
         esac
         if [[ "$redraw" == "true" ]]; then clear_screen; printBanner "$banner_text"; echo; "$draw_func"; fi
@@ -1211,7 +1234,7 @@ function interactive_manager() {
                 if ! _has_pending_changes; then
                     clear_current_line
                     clear_lines_up 3
-                    show_timed_message " ${ICON_INFO} No changes to save." 1.5
+                    show_timed_message "${ICON_INFO} No changes to save." 1.5
                     handler_result_ref="redraw"
                 else
                     clear_current_line
