@@ -823,18 +823,26 @@ function draw_header() {
     printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-45s${T_RESET}" "NAME" "VALUE"
 }
 
-# Draws the footer for main
-function draw_footer() {
+# Helper to draw the footer banner with filter info
+_draw_footer_banner() {
     local filter_text="$1"
+    local default_banner="$2"
+    
     if [[ -n "$filter_text" ]]; then
         local constructed="Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} "
         local header_line; header_line=$(_truncate_string "$constructed" 72 "─")
         printBannerMiddle "${header_line}" "${C_CYAN}"
         printf "\n"
     else
-        printBannerMiddle "Controls:┬──────────┬────────┬──────────┬───────────┬────────┬────────" "${C_CYAN}"
+        printBannerMiddle "$default_banner" "${C_CYAN}"
         printf "\n"
     fi
+}
+
+# Draws the footer for main
+function draw_footer() {
+    local filter_text="$1"
+    _draw_footer_banner "$filter_text" "Controls:┬──────────┬────────┬──────────┬───────────┬────────┬────────"
 
     local sep="${C_CYAN}│${C_GRAY}"
     
@@ -1147,16 +1155,7 @@ function system_env_manager() {
     _sys_draw_footer() {
         local status_text="$1"
         local filter_text="$2"
-
-        if [[ -n "$filter_text" ]]; then
-            local constructed="Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} "
-            local header_line; header_line=$(_truncate_string "$constructed" 72 "─")
-            printBannerMiddle "${header_line}" "${C_CYAN}"
-            printf "\n"
-        else
-            printBannerMiddle "Controls:┬──────────┬──────────┬───────────┬─────────────────┬────────" "${C_CYAN}"
-            printf "\n"
-        fi
+        _draw_footer_banner "$filter_text" "Controls:┬──────────┬──────────┬───────────┬─────────────────┬────────"
 
         local sep="${C_CYAN}│${C_GRAY}"
         printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↓↑${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep}                 ${sep} [${T_BOLD}${C_CYAN}?${C_GRAY}]Help${T_CLEAR_LINE}\n"
@@ -1329,10 +1328,6 @@ function interactive_manager() {
     _im_apply_filter() {
         filter_items ENV_ORDER ENV_VARS DISPLAY_ORDER "$search_query"
     }
-
-    # --- TUI Helper Functions ---
-    _header_func() { draw_header; }
-    _footer_func() { draw_footer "$search_query"; }
 
     # --- Key Handler ---
     _key_handler() {
@@ -1556,11 +1551,11 @@ function interactive_manager() {
             banner_text=$(_truncate_string "$banner_text" "$max_banner_width")
             screen_buffer+=$(printBanner "$banner_text" "${C_CYAN}")
             screen_buffer+=$'\n'
-            screen_buffer+=$(_header_func)
+            screen_buffer+=$(draw_header)
             screen_buffer+=$'\n'
             screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
             screen_buffer+=$'\n'
-            screen_buffer+=$(_footer_func)
+            screen_buffer+=$(draw_footer "$search_query")
             render_buffer "$screen_buffer"
 
             # --- Handle Input ---
