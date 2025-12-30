@@ -29,19 +29,83 @@ readonly T_CURSOR_RIGHT=$'\033[1C'
 readonly T_CLEAR_WHOLE_LINE=$'\033[2K'
 
 readonly KEY_ESC=$'\033'
+readonly KEY_ENTER="ENTER"
 readonly CONNECTED_BAR=$"${C_BLUE}${T_CURSOR_UP}┬${T_CURSOR_DOWN}${T_CURSOR_LEFT}│${T_RESET}"
 
 # Icons
+readonly ICON_ERR="[${T_BOLD}${C_RED}✗${T_RESET}]"
+readonly ICON_OK="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
+readonly ICON_INFO="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
+readonly ICON_WARN="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
+readonly ICON_QST="[${T_BOLD}${C_CYAN}?${T_RESET}]"
 readonly ICON_RUNNING="✔"
 readonly ICON_STOPPED="✘"
 readonly ICON_PAUSED="⏸"
 readonly ICON_UNKNOWN="?"
 
+printMsg() { printf '%b\n' "$1"; }
+printMsgNoNewline() { printf '%b' "$1"; }
+
 printBanner() {
     local msg="$1"
     local color="${2:-$C_BLUE}"
+    local start_char="${3:-╭}"
     local line="────────────────────────────────────────────────────────────────────────"
-    printf "${color}${line}${T_RESET}\r${color}╭─${msg}${T_RESET}"
+    printf "${color}${line}${T_RESET}${T_CLEAR_LINE}\r${color}${start_char}─${msg}${T_RESET}"
+}
+
+printBannerMiddle() {
+    local msg="$1"; local color="${2:-$C_BLUE}"
+    printBanner "$msg" "$color" "├"
+}
+
+strip_ansi_codes() {
+    local s="$1"; local esc=$'\033'
+    if [[ "$s" != *"$esc"* ]]; then echo -n "$s"; return; fi
+    local pattern="$esc\\[[0-9;]*[a-zA-Z]"
+    while [[ $s =~ $pattern ]]; do s="${s/${BASH_REMATCH[0]}/}"; done
+    echo -n "$s"
+}
+
+_truncate_string() {
+    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"; local trunc_char_len=${#trunc_char}
+    local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
+    if (( len <= max_len )); then echo -n "$input_str"; return; fi
+    local truncate_to_len=$(( max_len - trunc_char_len )); local new_str=""; local visible_count=0; local i=0; local in_escape=false
+    while (( i < ${#input_str} && visible_count < truncate_to_len )); do
+        local char="${input_str:i:1}"; new_str+="$char"
+        if [[ "$char" == $'\033' ]]; then in_escape=true; elif ! $in_escape; then (( visible_count++ )); fi
+        if $in_escape && [[ "$char" =~ [a-zA-Z] ]]; then in_escape=false; fi; ((i++))
+    done
+    echo -n "${new_str}${trunc_char}"
+}
+
+_format_fixed_width_string() {
+    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"; local pad_str="${4:- }"
+    local stripped_input; stripped_input=$(strip_ansi_codes "$input_str"); local input_len=${#stripped_input}
+
+    if (( input_len > max_len )); then _truncate_string "$input_str" "$max_len" "$trunc_char"; return; fi
+
+    local padding_needed=$(( max_len - input_len ))
+    if (( padding_needed == 0 )); then printf "%s" "$input_str"; return; fi
+
+    local stripped_pad; stripped_pad=$(strip_ansi_codes "$pad_str"); local pad_len=${#stripped_pad}
+    if (( pad_len == 0 )); then pad_str=" "; pad_len=1; fi
+
+    local full_repeats=$(( padding_needed / pad_len )); local remainder=$(( padding_needed % pad_len ))
+    local padding=""; for ((i=0; i<full_repeats; i++)); do padding+="$pad_str"; done
+    if (( remainder > 0 )); then local partial; partial=$(_truncate_string "$pad_str" "$remainder" ""); padding+="$partial"; fi
+
+    printf "%s%s" "$input_str" "$padding"
+}
+
+read_single_char() {
+    local char; local seq; IFS= read -rsn1 char < /dev/tty
+    if [[ -z "$char" ]]; then echo "$KEY_ENTER"; return; fi
+    if [[ "$char" == "$KEY_ESC" ]]; then
+        if IFS= read -rsn1 -t 0.001 seq < /dev/tty; then char+="$seq"; if [[ "$seq" == "[" || "$seq" == "O" ]]; then while IFS= read -rsn1 -t 0.001 seq < /dev/tty; do char+="$seq"; if [[ "$seq" =~ [a-zA-Z~] ]]; then break; fi; done; fi; fi
+    fi
+    echo "$char"
 }
 
 clear_screen() { printf "${T_CURSOR_HOME}${T_CLEAR_SCREEN_DOWN}" >/dev/tty; }
