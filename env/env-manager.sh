@@ -761,7 +761,15 @@ function draw_header() {
 
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
-    printf "${C_CYAN}├─${C_CYAN}Controls:┬──────────┬────────┬──────────┬───────────┬────────┬────────${T_RESET}\n"
+    local filter_text="$1"
+    if [[ -n "$filter_text" ]]; then
+        local dash_fill="────────────────────────────────────────────────────────────────────────"
+        local constructed="${C_CYAN}├─Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} ${dash_fill}"
+        local header_line; header_line=$(_truncate_string "$constructed" 72 "─")
+        printf "%s${T_RESET}\n" "$header_line"
+    else
+        printf "${C_CYAN}├─Controls:┬──────────┬────────┬──────────┬───────────┬────────┬────────${T_RESET}\n"
+    fi
 
     local sep="${C_CYAN}│${C_GRAY}"
     
@@ -900,7 +908,7 @@ function delete_variable() {
     fi
     
     clear_current_line
-    clear_lines_up 3
+    clear_lines_up 2
     if prompt_yes_no "Delete variable '${C_RED}${key_to_delete}${T_RESET}'?" "n"; then
         # Remove from all state arrays
         unset "ENV_VARS[$key_to_delete]"
@@ -930,7 +938,7 @@ _launch_editor_for_file() {
 
     # Suspend TUI drawing by hiding cursor and clearing screen
     printMsgNoNewline "${T_CURSOR_SHOW}"
-    clear
+    #clear
 
     # Run the editor (blocking)
     "${editor}" "${FILE_PATH}"
@@ -1123,11 +1131,11 @@ function system_env_manager() {
                 # so it doesn't clear the whole screen.
                 local footer_height=2
                 if [[ -n "$search_query" ]]; then footer_height=3; fi
-                move_cursor_up "$((footer_height - 1))"
-                printf "${T_CLEAR_SCREEN_DOWN}" >/dev/tty # Clear from cursor to end of screen
-
+                clear_current_line
+                clear_lines_up "$((footer_height - 1))"
+                
                 local new_query="$search_query"
-                if prompt_for_input "Filter variables" new_query "$search_query" "true" "1"; then
+                if prompt_for_input "$((footer_height - 1)) ${C_MAGENTA}Filter variables" new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
                     _apply_filter
                     current_option=0
@@ -1207,7 +1215,7 @@ function interactive_manager() {
 
     # --- TUI Helper Functions ---
     _header_func() { draw_header; }
-    _footer_func() { draw_footer; }
+    _footer_func() { draw_footer "$search_query"; }
     _refresh_func() {
         # This is a dummy refresh function for the generic TUI loop.
         # Data is managed locally in this script.
@@ -1218,7 +1226,6 @@ function interactive_manager() {
         local term_height; term_height=$(tput lines)
         # banner(1) + header(1) + list(...) + div(1) + footer(3) + filter_status(1 if active)
         local extra=6
-        if [[ -n "$search_query" ]]; then extra=7; fi
         echo $(( term_height - extra ))
     }
 
@@ -1233,7 +1240,7 @@ function interactive_manager() {
             'q'|'Q'|"$KEY_ESC")
                 if _has_pending_changes; then
                     clear_current_line
-                    clear_lines_up 3
+                    clear_lines_up 2
                     if prompt_yes_no "You have unsaved changes. Quit without saving?" "n"; then
                         handler_result_ref="exit"
                     else
@@ -1246,12 +1253,12 @@ function interactive_manager() {
             's'|'S')
                 if ! _has_pending_changes; then
                     clear_current_line
-                    clear_lines_up 3
+                    clear_lines_up 2
                     show_timed_message "${ICON_INFO} No changes to save." 1.5
                     handler_result_ref="redraw"
                 else
                     clear_current_line
-                    clear_lines_up 3
+                    clear_lines_up 2
                     if prompt_yes_no "Are you sure you want to save these changes?" "y"; then
                         save_env_file "$FILE_PATH"
                         handler_result_ref="refresh_data" # Re-parse file after saving
@@ -1296,7 +1303,7 @@ function interactive_manager() {
                 local proceed=true
                 if _has_pending_changes; then
                     clear_current_line
-                    clear_lines_up 3
+                    clear_lines_up 2
                     prompt_yes_no "You have unsaved changes. Save before opening editor?" "y"
                     local ret=$?
                     if [[ $ret -eq 0 ]]; then
@@ -1333,7 +1340,7 @@ function interactive_manager() {
                     local selected_key="${DISPLAY_ORDER[current_option_ref]}"
                     if [[ "$selected_key" =~ ^(BLANK_LINE_|COMMENT_LINE_) ]]; then
                         clear_current_line
-                        clear_lines_up 3
+                        clear_lines_up 2
                         show_timed_message "${ICON_WARN} Cannot clone blank lines or comments." 1.5
                         handler_result_ref="redraw"
                     else
@@ -1365,13 +1372,12 @@ function interactive_manager() {
                 fi
                 ;;
             '/')
-                local footer_height=3
-                if [[ -n "$search_query" ]]; then footer_height=4; fi
-                move_cursor_up "$((footer_height - 1))"
-                printf "${T_CLEAR_SCREEN_DOWN}" >/dev/tty # Clear from cursor to end of screen
-
+                local footer_height=2
+                clear_current_line
+                clear_lines_up "$((footer_height - 1))"
+                
                 local new_query="$search_query"
-                if prompt_for_input "Filter variables" new_query "$search_query" "true" "1"; then
+                if prompt_for_input "${C_MAGENTA}Filter by " new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
                     handler_result_ref="refresh_data"
                 else
@@ -1433,9 +1439,6 @@ function interactive_manager() {
             screen_buffer+=$(draw_var_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
             screen_buffer+=$'\n'
             screen_buffer+=$(_footer_func)
-            if [[ -n "$search_query" ]]; then
-                 screen_buffer+=$(printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
-            fi
             render_buffer "$screen_buffer"
 
             # --- Handle Input ---
