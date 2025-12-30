@@ -30,6 +30,8 @@ readonly T_CLEAR_WHOLE_LINE=$'\033[2K'
 
 readonly KEY_ESC=$'\033'
 readonly KEY_ENTER="ENTER"
+readonly KEY_UP=$'\033[A'
+readonly KEY_DOWN=$'\033[B'
 
 # Icons
 readonly ICON_ERR="[${T_BOLD}${C_RED}✗${T_RESET}]"
@@ -99,8 +101,14 @@ _format_fixed_width_string() {
 }
 
 read_single_char() {
-    local char; local seq; IFS= read -rsn1 char < /dev/tty
-    if [[ -z "$char" ]]; then echo "$KEY_ENTER"; return; fi
+    local timeout="${1:-}"
+    local char; local seq
+    if [[ -n "$timeout" ]]; then
+        if ! IFS= read -rsn1 -t "$timeout" char < /dev/tty; then return 1; fi
+    else
+        IFS= read -rsn1 char < /dev/tty
+    fi
+    if [[ -z "$char" ]]; then echo "$KEY_ENTER"; return 0; fi
     if [[ "$char" == "$KEY_ESC" ]]; then
         if IFS= read -rsn1 -t 0.001 seq < /dev/tty; then char+="$seq"; if [[ "$seq" == "[" || "$seq" == "O" ]]; then while IFS= read -rsn1 -t 0.001 seq < /dev/tty; do char+="$seq"; if [[ "$seq" =~ [a-zA-Z~] ]]; then break; fi; done; fi; fi
     fi
@@ -752,7 +760,7 @@ while true; do
     render_main_ui
 
     # Read input (1 char) with 2s timeout for auto-refresh
-    if ! read -rsn1 -t 2 key; then
+    if ! key=$(read_single_char 2); then
         if [[ "$HAS_ERROR" != "true" ]]; then
             fetch_vms
             STATUS_MSG=""
@@ -769,25 +777,13 @@ while true; do
     MSG_INPUT=""
     HAS_ERROR=false
     
-    # Handle Escape sequences (Arrow keys)
-    if [[ "$key" == "$KEY_ESC" ]]; then
-        read -rsn2 key
-        case "$key" in
-            '[A') # Up
-                ((SELECTED--))
-                ;;
-            '[B') # Down
-                ((SELECTED++))
-                ;;
-        esac
-    else
-        # Handle regular keys
+    # Handle keys
         cmd=""
         action=""
         case "$key" in
             q|Q) clear_screen; exit 0 ;;
-            k|K) ((SELECTED--)) ;;
-            j|J) ((SELECTED++)) ;;
+            "$KEY_UP"|k|K) ((SELECTED--)) ;;
+            "$KEY_DOWN"|j|J) ((SELECTED++)) ;;
             i|I)
                 require_vm_selected && show_vm_details "${VM_NAMES[$SELECTED]}"
                 ;;
@@ -817,7 +813,6 @@ while true; do
             r|R)
                 handle_vm_action "$C_YELLOW" "REBOOT" "reboot" "reboot" ;;
         esac
-
         if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
             vm="${VM_NAMES[$SELECTED]}"
             if run_with_spinner "Performing $action on $vm..." virsh "$cmd" "$vm"; then
@@ -828,5 +823,4 @@ while true; do
             fi
             cmd="" # Reset command
         fi
-    fi
 done
