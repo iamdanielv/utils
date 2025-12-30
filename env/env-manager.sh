@@ -537,6 +537,15 @@ _draw_variable_editor() {
     printf "\n  ${C_YELLOW}What is your choice?\n"
 }
 
+# (Private) Escapes special characters in a string variable by reference.
+_escape_value_ref() {
+    local -n _v="$1"
+    if [[ "$_v" == *$'\n'* ]]; then _v="${_v//$'\n'/^J}"; fi
+    if [[ "$_v" == *$'\r'* ]]; then _v="${_v//$'\r'/^M}"; fi
+    if [[ "$_v" == *$'\t'* ]]; then _v="${_v//$'\t'/^I}"; fi
+    if [[ "$_v" == *$'\033'* ]]; then _v="${_v//$'\033'/\\\\\\\\033}"; fi
+}
+
 # (Private) Gets a formatted display string for a given setting value.
 # This is a simplified version of the one in config-ollama.sh.
 _get_setting_display() {
@@ -550,10 +559,7 @@ _get_setting_display() {
         "value")
             if [[ -n "$value" ]]; then
                 local display_val="$value"
-                display_val="${display_val//$'\033'/\\\\\\\\033}"
-                display_val="${display_val//$'\n'/^J}"
-                display_val="${display_val//$'\r'/^M}"
-                display_val="${display_val//$'\t'/^I}"
+                _escape_value_ref display_val
 
                 local color_preview=""
                 local preview_len=0
@@ -608,11 +614,7 @@ _sanitize_and_truncate_value() {
 
     _val_ref="${_val_ref:0:$((max_len + 1))}"
 
-    # Escape special characters to prevent display corruption but keep them visible
-    if [[ "$_val_ref" == *$'\n'* ]]; then _val_ref="${_val_ref//$'\n'/^J}"; fi
-    if [[ "$_val_ref" == *$'\r'* ]]; then _val_ref="${_val_ref//$'\r'/^M}"; fi
-    if [[ "$_val_ref" == *$'\t'* ]]; then _val_ref="${_val_ref//$'\t'/^I}"; fi
-    if [[ "$_val_ref" == *$'\033'* ]]; then _val_ref="${_val_ref//$'\033'/\\\\\\\\033}"; fi
+    _escape_value_ref _val_ref
 
     if (( ${#_val_ref} > max_len )); then
         _val_ref="${_val_ref:0:$((max_len - 1))}…"
