@@ -108,8 +108,15 @@ _format_fixed_width_string() {
 printBanner() {
     local msg="$1"
     local color="${2:-$C_BLUE}"
+    local start_char="${3:-╭}"
     local line="────────────────────────────────────────────────────────────────────────"
-    printf "${color}${line}${T_RESET}\r${color}╭─${msg}${T_RESET}"
+    printf "${color}${line}${T_RESET}\r${color}${start_char}─${msg}${T_RESET}"
+}
+
+printBannerMiddle() {
+    local msg="$1"
+    local color="${2:-$C_BLUE}"
+    printBanner "$msg" "$color" "├"
 }
 
 # Terminal Control
@@ -491,32 +498,34 @@ function show_help() {
     local buffer=""
     buffer+=$(printBanner "Help & Shortcuts" "${C_CYAN}")
     buffer+="\n"
+    
+    local border="${C_CYAN}│${T_RESET}"
 
-    buffer+=$(printBanner "Navigation" "${C_ORANGE}")
+    buffer+=$(printBannerMiddle "Navigation" "${C_ORANGE}")
     buffer+="\n"
-    buffer+="  ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
-    buffer+="  ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
-    buffer+="  ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end\n"
+    buffer+="${border}   ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
+    buffer+="${border}   ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
+    buffer+="${border}   ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end\n"
 
-    buffer+=$(printBanner "Variable Actions" "${C_ORANGE}")
+    buffer+=$(printBannerMiddle "Variable Actions" "${C_ORANGE}")
     buffer+="\n"
-    buffer+="  ${C_BLUE}E${T_RESET}              Edit selected variable\n"
-    buffer+="  ${C_GREEN}A${T_RESET}              Add new variable\n"
-    buffer+="  ${C_RED}D${T_RESET}              Delete selected variable\n"
-    buffer+="  ${C_YELLOW}C${T_RESET}              Clone selected variable\n"
+    buffer+="${border}   ${C_BLUE}E${T_RESET}              Edit selected variable\n"
+    buffer+="${border}   ${C_GREEN}A${T_RESET}              Add new variable\n"
+    buffer+="${border}   ${C_RED}D${T_RESET}              Delete selected variable\n"
+    buffer+="${border}   ${C_YELLOW}C${T_RESET}              Clone selected variable\n"
 
-    buffer+=$(printBanner "File & View" "${C_ORANGE}")
+    buffer+=$(printBannerMiddle "File & View" "${C_ORANGE}")
     buffer+="\n"
-    buffer+="  ${C_GREEN}S${T_RESET}              Save changes to .env file\n"
-    buffer+="  ${C_MAGENTA}O${T_RESET}              Open file in external editor (\$EDITOR)\n"
-    buffer+="  ${C_GREEN}I${T_RESET}              Import from system environment\n"
-    buffer+="  ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
-    buffer+="  ${C_MAGENTA}/${T_RESET}              Filter variables\n"
+    buffer+="${border}   ${C_GREEN}S${T_RESET}              Save changes to .env file\n"
+    buffer+="${border}   ${C_MAGENTA}O${T_RESET}              Open file in external editor (\$EDITOR)\n"
+    buffer+="${border}   ${C_GREEN}I${T_RESET}              Import from system environment\n"
+    buffer+="${border}   ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
+    buffer+="${border}   ${C_MAGENTA}/${T_RESET}              Filter variables\n"
 
-    buffer+=$(printBanner "General" "${C_ORANGE}")
+    buffer+=$(printBannerMiddle "General" "${C_ORANGE}")
     buffer+="\n"
-    buffer+="  ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
-    buffer+="  ${C_RED}Q${T_RESET}              Quit\n"
+    buffer+="${border}   ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
+    buffer+="${border}   ${C_RED}Q${T_RESET}              Quit\n"
 
     buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
 
@@ -1161,23 +1170,25 @@ function system_env_manager() {
         local buffer=""
         buffer+=$(printBanner "System Env - Help" "${C_CYAN}")
         buffer+="\n"
+        
+        local border="${C_CYAN}│${T_RESET}"
 
-        buffer+=$(printBanner "Navigation" "${C_ORANGE}")
+        buffer+=$(printBannerMiddle "Navigation" "${C_ORANGE}")
         buffer+="\n"
-        buffer+="  ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
-        buffer+="  ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
-        buffer+="  ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end\n"
+        buffer+="${border}   ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
+        buffer+="${border}   ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
+        buffer+="${border}   ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end\n"
 
-        buffer+=$(printBanner "Actions" "${C_ORANGE}")
+        buffer+=$(printBannerMiddle "Actions" "${C_ORANGE}")
         buffer+="\n"
-        buffer+="  ${C_GREEN}I${T_RESET}              Import/Remove selected variable\n"
-        buffer+="  ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
-        buffer+="  ${C_MAGENTA}/${T_RESET}              Filter variables\n"
+        buffer+="${border}   ${C_GREEN}I${T_RESET}              Import/Remove selected variable\n"
+        buffer+="${border}   ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
+        buffer+="${border}   ${C_MAGENTA}/${T_RESET}              Filter variables\n"
 
-        buffer+=$(printBanner "General" "${C_ORANGE}")
+        buffer+=$(printBannerMiddle "General" "${C_ORANGE}")
         buffer+="\n"
-        buffer+="  ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
-        buffer+="  ${C_RED}Q${T_RESET}/${C_CYAN}←${T_RESET}            Return to main menu\n"
+        buffer+="${border}   ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
+        buffer+="${border}   ${C_RED}Q${T_RESET}/${C_CYAN}←${T_RESET}            Return to main menu\n"
 
         buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
 
