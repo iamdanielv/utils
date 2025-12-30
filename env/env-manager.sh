@@ -391,7 +391,7 @@ function parse_env_file() {
             ENV_VARS["$storage_key"]="$value"
             ENV_ORDER+=("$storage_key")
         else
-            ERROR_MESSAGE="Validation Error: Invalid format on line $line_num: '$line'"
+            ERROR_MESSAGE="Error: Invalid format ${T_RESET}on line $line_num: '$line'"
             return 1
         fi
     done < "$file_to_parse"
