@@ -495,8 +495,9 @@ _draw_variable_editor() {
     _print_menu_item "1" "Name" "$name_display"
     _print_menu_item "2" "Value" "$value_display"
     _print_menu_item "3" "Comment" "$comment_display"
-    printf "\n ${C_L_GREEN}(S)tage${T_RESET} | ${C_L_YELLOW}(D)iscard${T_RESET} | ${C_L_YELLOW}(Q)uit${T_RESET}"
-    printf "\n What is your choice?\n"
+
+    printf "${C_CYAN}│\n╰ ${C_GREEN}S)${T_RESET} Stage | ${C_YELLOW}D)${T_RESET} Discard | ${C_RED}Q)${T_RESET} Quit"
+    printf "\n  ${C_YELLOW}What is your choice?\n"
 }
 
 # (Private) Gets a formatted display string for a given setting value.
@@ -544,9 +545,9 @@ _print_menu_item() {
     local text2="$3"
 
     if [[ -n "$text2" ]]; then
-        printf " ${T_BOLD}${key})${T_RESET} %-10s - %b${T_CLEAR_LINE}\n" "$text1" "$text2"
+        printf "${C_CYAN}│ ${T_BOLD}${key})${T_RESET} %-7s : %b${T_CLEAR_LINE}\n" "$text1" "$text2"
     else
-        printf " ${T_BOLD}${key})${T_RESET} %b${T_CLEAR_LINE}\n" "$text1"
+        printf "${C_CYAN}│ ${T_BOLD}${key})${T_RESET} %b${T_CLEAR_LINE}\n" "$text1"
     fi
 }
 
@@ -793,10 +794,10 @@ function edit_variable() {
                 fi
                 return 0 ;;
             2)
-                prompt_for_input "New Value" pending_value "$pending_value" "true" 2
+                prompt_for_input "${C_YELLOW}New Value " pending_value "$pending_value" "true" 2
                 return 0 ;;
             3)
-                prompt_for_input "New Comment" pending_comment "$pending_comment" "true" 2
+                prompt_for_input "${C_YELLOW}New Comment " pending_comment "$pending_comment" "true" 2
                 return 0 ;;
             *) return 1 ;; # Not handled
         esac
@@ -817,7 +818,7 @@ function edit_variable() {
         pending_comment="$original_comment"
     }
 
-    local banner_text="Variable Editor: ${C_YELLOW}${key}"
+    local banner_text="Variable Editor: ${C_YELLOW}${key} "
     if _interactive_editor_loop "$mode" "$banner_text" _editor_draw_func _editor_field_handler _editor_change_checker _editor_reset_func; then
         # Calculate final storage key to handle duplicates
         local final_storage_key="$pending_key"
