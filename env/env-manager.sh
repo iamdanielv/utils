@@ -50,8 +50,6 @@ readonly ICON_INFO="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
 readonly ICON_WARN="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
 readonly ICON_QST="[${T_BOLD}${C_CYAN}?${T_RESET}]"
 
-DIV="──────────────────────────────────────────────────────────────────────"
-
 # Key Codes
 KEY_ESC=$'\033'
 KEY_UP=$'\033[A'
@@ -679,9 +677,42 @@ _get_color_preview_string() {
         elif [[ "$is_bg_color" == "false" && "$is_current" == "true" ]]; then
             display_code="${T_NO_REVERSE}${value}" # ANSI "Not Reversed"
         fi
-        color_preview_ref=$(printf "   %s██%s" "$display_code" "$T_RESET")
-        preview_len_ref=5 # Visible length of "   ██"
+        color_preview_ref=$(printf "   %s████%s" "$display_code" "$T_RESET")
+        preview_len_ref=5 # Visible length of "   ████"
     fi
+}
+
+# (Private) Formats the value column with color preview and padding.
+_format_value_field() {
+    local value="$1"
+    local is_current="$2"
+    local show_values="$3"
+    local -n out_ref="$4"
+
+    local color_preview=""
+    local preview_visible_len=0
+
+    if [[ "$show_values" == "false" ]]; then
+        value="*****"
+    else
+        _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
+    fi
+
+    local max_len=$(( 45 - preview_visible_len ))
+    local value_sanitized="$value"
+    _sanitize_and_truncate_value value_sanitized "$max_len"
+    
+    # Calculate visible length: \033 (1 char) becomes \\033 (5 chars) but displays as \033 (4 chars).
+    # Subtract 1 for each occurrence of \\033.
+    local raw_len=${#value_sanitized}
+    local tmp="${value_sanitized//\\\\033/}"
+    local count=$(( (raw_len - ${#tmp}) / 5 ))
+    local visible_len=$(( raw_len - count + preview_visible_len ))
+    
+    local padding_needed=$(( 45 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
+    local padding=""; printf -v padding "%*s" "$padding_needed" ""
+    
+    out_ref="${value_sanitized}${color_preview}${padding}"
 }
 
 # Draws the main list of environment variables.
@@ -732,24 +763,12 @@ function draw_var_list() {
                 local value="${ENV_VARS[$key]}"
                 local comment="${ENV_COMMENTS[$key]:-}"
                 
-                local color_preview=""
-                local preview_visible_len=0
-
-                if [[ "$show_values" == "false" ]]; then
-                    value="*****"
-                else
-                    _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
-                fi
-
-                local max_len=$(( 45 - preview_visible_len ))
-                local value_display_sanitized
-                value_display_sanitized="$value"
-                _sanitize_and_truncate_value value_display_sanitized "$max_len"
-                local final_display="${value_display_sanitized}${color_preview}"
-                
-                local final_display_padded; final_display_padded=$(_format_fixed_width_string "$final_display" 45)
+                local final_display_padded
+                _format_value_field "$value" "$is_current" "$show_values" final_display_padded
 
                 if [[ "$is_current" == "true" ]]; then
+                    # Re-apply background color after any resets (e.g. from color previews)
+                    final_display_padded="${final_display_padded//${T_RESET}/${T_RESET}${line_bg}}"
                     local line_str
                     printf -v line_str "%-22s %s" "${display_key}" "${final_display_padded}"
                     item_output="${cursor}${line_bg}${line_str}${T_RESET}${T_CLEAR_LINE}"
@@ -1037,21 +1056,9 @@ function draw_sys_env_list() {
             fi
 
             local value="${SYS_ENV_VARS[$key]}"
-            local color_preview=""
-            local preview_visible_len=0
+            local final_display_padded
+            _format_value_field "$value" "$is_current" "$show_values" final_display_padded
 
-            if [[ "$show_values" == "false" ]]; then
-                value="*****"
-            else
-                _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
-            fi
-
-            local max_len=$(( 45 - preview_visible_len ))
-            local value_display_sanitized
-            value_display_sanitized="$value"
-            _sanitize_and_truncate_value value_display_sanitized "$max_len"
-            local final_display="${value_display_sanitized}${color_preview}"
-            
             # Check if exists in .env
             local status_char=" "
             if [[ -n "${ENV_VARS[$key]+x}" ]]; then
@@ -1063,17 +1070,14 @@ function draw_sys_env_list() {
                 key_display="${key_display:0:18}…"
             fi
 
-            local visible_len=$(( ${#value_display_sanitized} + preview_visible_len ))
-            local padding_needed=$(( 45 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
-            local val_padding=""; printf -v val_padding "%*s" "$padding_needed" ""
-
             local item_output=""
             if [[ "$is_current" == "true" ]]; then
                 local display_key_str="${status_char} ${key_display}"
                 local key_len=${#display_key_str}
                 local pad_len=$(( 22 - key_len )); if (( pad_len < 0 )); then pad_len=0; fi
                 local key_padding=""; printf -v key_padding "%*s" "$pad_len" ""
-                local line_str="${display_key_str}${key_padding} ${final_display}${val_padding}"
+                local line_str="${display_key_str}${key_padding} ${final_display_padded}"
+                line_str="${line_str//${T_RESET}/${T_RESET}${line_bg}}"
                 item_output="${cursor}${line_bg}${line_str}${T_RESET}${T_CLEAR_LINE}"
             else
                 local status_display="${status_char}"
@@ -1083,7 +1087,7 @@ function draw_sys_env_list() {
                 local pad_len=$(( 20 - key_len )); if (( pad_len < 0 )); then pad_len=0; fi
                 local key_padding=""; printf -v key_padding "%*s" "$pad_len" ""
                 local key_padded="${key_display}${key_padding}"
-                item_output="${cursor}${status_display} ${C_L_CYAN}${key_padded}${T_RESET} ${C_L_WHITE}${final_display}${T_RESET}${val_padding}${T_CLEAR_LINE}"
+                item_output="${cursor}${status_display} ${C_L_CYAN}${key_padded}${T_RESET} ${C_L_WHITE}${final_display_padded}${T_RESET}${T_CLEAR_LINE}"
             fi
 
             if [[ ${#list_content} -gt 0 ]]; then list_content+=$'\n'; fi
