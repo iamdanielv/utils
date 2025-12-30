@@ -112,13 +112,22 @@ _truncate_string() {
 }
 
 _format_fixed_width_string() {
-    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"; local pad_char="${4:- }"
-    local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
-    if (( len <= max_len )); then
-        local padding_needed=$(( max_len - len )); local padding=""; if (( padding_needed > 0 )); then printf -v padding "%*s" "$padding_needed" ""; fi
-        if [[ "$pad_char" != " " ]]; then padding="${padding// /$pad_char}"; fi
-        printf "%s%s" "$input_str" "$padding"
-    else _truncate_string "$input_str" "$max_len" "$trunc_char"; fi
+    local input_str="$1"; local max_len="$2"; local trunc_char="${3:-…}"; local pad_str="${4:- }"
+    local stripped_input; stripped_input=$(strip_ansi_codes "$input_str"); local input_len=${#stripped_input}
+
+    if (( input_len > max_len )); then _truncate_string "$input_str" "$max_len" "$trunc_char"; return; fi
+
+    local padding_needed=$(( max_len - input_len ))
+    if (( padding_needed == 0 )); then printf "%s" "$input_str"; return; fi
+
+    local stripped_pad; stripped_pad=$(strip_ansi_codes "$pad_str"); local pad_len=${#stripped_pad}
+    if (( pad_len == 0 )); then pad_str=" "; pad_len=1; fi
+
+    local full_repeats=$(( padding_needed / pad_len )); local remainder=$(( padding_needed % pad_len ))
+    local padding=""; for ((i=0; i<full_repeats; i++)); do padding+="$pad_str"; done
+    if (( remainder > 0 )); then local partial; partial=$(_truncate_string "$pad_str" "$remainder" ""); padding+="$partial"; fi
+
+    printf "%s%s" "$input_str" "$padding"
 }
 
 # Terminal Control
@@ -738,13 +747,11 @@ function draw_var_list() {
                 _sanitize_and_truncate_value value_display_sanitized "$max_len"
                 local final_display="${value_display_sanitized}${color_preview}"
                 
-                local visible_len=$(( ${#value_display_sanitized} + preview_visible_len ))
-                local padding_needed=$(( 45 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
-                local val_padding=""; printf -v val_padding "%*s" "$padding_needed" ""
+                local final_display_padded; final_display_padded=$(_format_fixed_width_string "$final_display" 45)
 
                 if [[ "$is_current" == "true" ]]; then
                     local line_str
-                    printf -v line_str "%-22s %s%s" "${display_key}" "${final_display}" "${val_padding}"
+                    printf -v line_str "%-22s %s" "${display_key}" "${final_display_padded}"
                     item_output="${cursor}${line_bg}${line_str}${T_RESET}${T_CLEAR_LINE}"
                     if [[ -n "$comment" ]]; then
                         local comment_trunc; comment_trunc=$(_truncate_string "$comment" 62)
@@ -754,7 +761,7 @@ function draw_var_list() {
                     fi
                 else
                     local key_padded; printf -v key_padded "%-22s" "${display_key}"
-                    item_output="${cursor}${key_padded}${T_RESET} ${C_CYAN}${final_display}${T_RESET}${val_padding}${T_CLEAR_LINE}"
+                    item_output="${cursor}${key_padded}${T_RESET} ${C_CYAN}${final_display_padded}${T_RESET}${T_CLEAR_LINE}"
                     if [[ -n "$comment" ]]; then
                         local comment_trunc; comment_trunc=$(_truncate_string "$comment" 62)
                         item_output+=$'\n'
