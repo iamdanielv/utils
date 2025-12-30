@@ -30,7 +30,6 @@ readonly T_CLEAR_WHOLE_LINE=$'\033[2K'
 
 readonly KEY_ESC=$'\033'
 readonly KEY_ENTER="ENTER"
-readonly CONNECTED_BAR=$"${C_BLUE}${T_CURSOR_UP}┬${T_CURSOR_DOWN}${T_CURSOR_LEFT}│${T_RESET}"
 
 # Icons
 readonly ICON_ERR="[${T_BOLD}${C_RED}✗${T_RESET}]"
@@ -637,6 +636,17 @@ draw_header() {
     printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-35s${T_RESET} ${T_BOLD}${T_ULINE}%-12s${T_RESET} ${T_BOLD}${T_ULINE}%-7s${T_RESET} ${T_BOLD}${T_ULINE}%-7s${T_RESET} ${T_BOLD}${T_ULINE}%-3s${T_RESET}" "NAME" "STATE" "CPU" "MEM" "A/S"
 }
 
+draw_footer() {
+    local banner_msg="Controls:──┬──────────────┬──────────┬─────────────────────┬──────────"
+    printBannerMiddle "$banner_msg" "$C_CYAN"
+    printf "\n"
+
+    local sep="${C_CYAN}│${C_GRAY}"
+    
+    printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↓↑${C_GRAY}]Select ${sep} [${T_BOLD}${C_GREEN}S${C_GRAY}]tart/Stop ${sep} [${T_BOLD}${C_YELLOW}R${C_GRAY}]eboot ${sep} [${T_BOLD}${C_RED}F${C_GRAY}]orce Stop        ${sep} [${T_BOLD}${C_CYAN}?${C_GRAY}]Help${T_CLEAR_LINE}\n"
+    printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Select ${sep} [${T_BOLD}${C_YELLOW}I${C_GRAY}]nfo       ${sep} [${T_BOLD}${C_CYAN}C${C_GRAY}]lone  ${sep} [${T_BOLD}${C_RED}D${C_GRAY}]elete            ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}"
+}
+
 # Function to render the main UI
 render_main_ui() {
     # Double buffering to prevent flicker
@@ -697,10 +707,8 @@ render_main_ui() {
         done
     fi
     
-    buffer+="${C_CYAN}╰───────────────────────────────────────────────────────────────────────${T_RESET}\n"
-    buffer+="$(printBanner "Controls:" "${C_BLUE}")\n"
-    buffer+="${C_BLUE}│${T_RESET} [${T_BOLD}${C_CYAN}↓/↑${T_RESET}]Select ${CONNECTED_BAR} [${T_BOLD}${C_CYAN}S${T_RESET}]tart/Stop ${CONNECTED_BAR} [${T_BOLD}${C_YELLOW}R${T_RESET}]eboot ${CONNECTED_BAR} [${T_BOLD}${C_RED}F${T_RESET}]orce Stop       ${CONNECTED_BAR} [${T_BOLD}${C_CYAN}?${T_RESET}]Help${T_CLEAR_LINE}\n"
-    buffer+="${C_BLUE}╰${T_RESET} [${T_BOLD}${C_CYAN}j/k${T_RESET}]Select ${C_BLUE}│${T_RESET} [${T_BOLD}${C_YELLOW}I${T_RESET}]nfo       ${C_BLUE}│${T_RESET} [${T_BOLD}${C_CYAN}C${T_RESET}]lone  ${C_BLUE}│${T_RESET} [${T_BOLD}${C_RED}D${T_RESET}]elete           ${C_BLUE}│${T_RESET} [${T_BOLD}${C_RED}Q${T_RESET}]uit${T_CLEAR_LINE}\n"
+    buffer+=$(draw_footer)
+    buffer+="\n"
 
     if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
         local title="${MSG_TITLE:-Message:}"
