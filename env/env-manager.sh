@@ -792,12 +792,13 @@ function draw_header() {
 function draw_footer() {
     local filter_text="$1"
     if [[ -n "$filter_text" ]]; then
-        local dash_fill="────────────────────────────────────────────────────────────────────────"
-        local constructed="${C_CYAN}├─Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} ${dash_fill}"
+        local constructed="Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} ${dash_fill}"
         local header_line; header_line=$(_truncate_string "$constructed" 72 "─")
-        printf "%s${T_RESET}\n" "$header_line"
+        printBannerMiddle "${header_line}" "${C_CYAN}"
+        printf "\n"
     else
-        printf "${C_CYAN}├─Controls:┬──────────┬────────┬──────────┬───────────┬────────┬────────${T_RESET}\n"
+        printBannerMiddle "Controls:┬──────────┬────────┬──────────┬───────────┬────────┬────────" "${C_CYAN}"
+        printf "\n"
     fi
 
     local sep="${C_CYAN}│${C_GRAY}"
@@ -1140,12 +1141,13 @@ function system_env_manager() {
         local filter_text="$2"
 
         if [[ -n "$filter_text" ]]; then
-            local dash_fill="────────────────────────────────────────────────────────────────────────"
-            local constructed="${C_CYAN}├─Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} ${dash_fill}"
+            local constructed="Controls:┬ ${T_RESET}${T_BOLD}${C_YELLOW}[${C_MAGENTA}/${C_YELLOW}] Filter: ${C_CYAN}${filter_text} "
             local header_line; header_line=$(_truncate_string "$constructed" 72 "─")
-            printf "%s${T_RESET}${T_CLEAR_LINE}\n" "$header_line"
+            printBannerMiddle "${header_line}" "${C_CYAN}"
+            printf "\n"
         else
-            printf "${C_CYAN}├─Controls:┬──────────┬──────────┬───────────┬─────────────────┬────────${T_RESET}${T_CLEAR_LINE}\n"
+            printBannerMiddle "Controls:┬──────────┬──────────┬───────────┬─────────────────┬────────" "${C_CYAN}"
+            printf "\n"
         fi
 
         local sep="${C_CYAN}│${C_GRAY}"
