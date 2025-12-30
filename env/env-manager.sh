@@ -277,6 +277,21 @@ prompt_for_input() {
     done
 }
 
+# (Private) Prompts the user for a filter query.
+_prompt_filter_query() {
+    local -n query_ref="$1"
+    local lines_to_clear="$2"
+    
+    clear_current_line; clear_lines_up "$lines_to_clear"
+    
+    local new_query="$query_ref"
+    if prompt_for_input "${C_MAGENTA}Filter by Name or value " new_query "$query_ref" "true" "1"; then
+        query_ref="$new_query"
+        return 0
+    fi
+    return 1
+}
+
 _interactive_editor_loop() {
     local mode="$1" banner_text="$2" draw_func="$3" field_handler_func="$4" change_checker_func="$5" reset_func="$6"
     clear_screen; printBanner "$banner_text" "${C_CYAN}"; echo; "$draw_func"
@@ -1206,15 +1221,7 @@ function system_env_manager() {
                 break
                 ;;
             '/')
-                # To create an inline prompt, we manually clear the footer area
-                # and then call prompt_for_input, telling it how many lines to occupy
-                # so it doesn't clear the whole screen.
-                clear_current_line
-                clear_lines_up 1
-                
-                local new_query="$search_query"
-                if prompt_for_input "${C_MAGENTA}Filter by Name or value " new_query "$search_query" "true" "1"; then
-                    search_query="$new_query"
+                if _prompt_filter_query search_query 1; then
                     _sem_apply_filter
                     current_option=0
                     list_offset=0
@@ -1430,12 +1437,7 @@ function interactive_manager() {
             '/')
                 local footer_height=2
                 
-                clear_current_line
-                clear_lines_up "$((footer_height - 1))"
-                
-                local new_query="$search_query"
-                if prompt_for_input "${C_MAGENTA}Filter by Name or value " new_query "$search_query" "true" "1"; then
-                    search_query="$new_query"
+                if _prompt_filter_query search_query "$((footer_height - 1))"; then
                     handler_result_ref="refresh_data"
                     
                 else
