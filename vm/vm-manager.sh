@@ -634,7 +634,7 @@ handle_vm_action() {
 
 # Draw header for VM list
 draw_header() {
-    printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-20s${T_RESET} ${T_BOLD}${T_ULINE}%-10s${T_RESET} ${T_BOLD}${T_ULINE}%-8s${T_RESET} ${T_BOLD}${T_ULINE}%-8s${T_RESET} ${T_BOLD}${T_ULINE}%-3s${T_RESET}" "NAME" "STATE" "CPU" "MEM" "A/S"
+    printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-35s${T_RESET} ${T_BOLD}${T_ULINE}%-12s${T_RESET} ${T_BOLD}${T_ULINE}%-7s${T_RESET} ${T_BOLD}${T_ULINE}%-7s${T_RESET} ${T_BOLD}${T_ULINE}%-3s${T_RESET}" "NAME" "STATE" "CPU" "MEM" "A/S"
 }
 
 # Function to render the main UI
@@ -665,34 +665,35 @@ render_main_ui() {
                 autostart_display="${C_RED}No ${T_RESET}"
             fi
 
-            local line_color="$T_RESET"
-            local row_text_color="$C_GRAY"
-            local cursor="${C_CYAN}│${T_RESET} "
-            
             set_state_visuals "$state"
             local state_color="$STATE_COLOR"
             local state_icon="$STATE_ICON"
-            
-            if [[ "$state" == "running" ]]; then
-                row_text_color="${T_RESET}"
-            fi
-            
-            # Truncate name if too long (max 20 chars)
-            if (( ${#name} > 20 )); then name="${name:0:19}…"; fi
-            
             local state_display="${state_icon} ${state}"
+
+            # Prepare formatted strings
+            local name_fmt; name_fmt=$(_format_fixed_width_string " $name" 35)
+            local state_fmt; state_fmt=$(_format_fixed_width_string " $state_display" 12)
+            local cpu_fmt; cpu_fmt=$(_format_fixed_width_string "$cpu" 7)
+            local mem_fmt; mem_fmt=$(_format_fixed_width_string "$mem" 7)
+            local as_fmt; as_fmt=$(_format_fixed_width_string "$autostart_display" 3)
             
-            # Highlight selection
+            local cursor="${C_CYAN}│${T_RESET} "
+            local line_bg="${T_RESET}"
+            local text_color="$C_GRAY"
+            if [[ "$state" == "running" ]]; then text_color="${T_RESET}"; fi
+
             if [[ $i -eq $SELECTED ]]; then
                 cursor="${C_CYAN}│❱${T_RESET}"
-                line_color="${T_BOLD}${C_BLUE}${T_REVERSE}"
-                row_text_color=""
+                line_bg="${T_BOLD}${C_BLUE}${T_REVERSE}"
+                text_color=""
             fi
             
-            # Print line with padding
-            local line_str
-            printf -v line_str "${cursor}${line_color}${row_text_color}%-20s${T_RESET}${line_color} ${state_color}%-12s${T_RESET}${line_color} ${row_text_color}%-8s %-8s${T_RESET}${line_color} %b${T_RESET}${T_CLEAR_LINE}\n" "$name" "$state_display" "$cpu" "$mem" "$autostart_display"
-            buffer+="$line_str"
+            local line_content="${text_color}${name_fmt} ${state_color}${state_fmt}${T_RESET} ${text_color}${cpu_fmt} ${mem_fmt} ${as_fmt}"
+            if [[ $i -eq $SELECTED ]]; then
+                line_content="${line_content//${T_RESET}/${T_RESET}${line_bg}}"
+            fi
+            
+            buffer+="${cursor}${line_bg}${line_content}${T_RESET}${T_CLEAR_LINE}\n"
         done
     fi
     
