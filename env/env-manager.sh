@@ -66,13 +66,30 @@ KEY_DELETE=$'\033[3~'
 KEY_PGUP=$'\033[5~'
 KEY_PGDN=$'\033[6~'
 
-# Logging
+# Text Utils
 printMsg() { printf '%b\n' "$1"; }
 printMsgNoNewline() { printf '%b' "$1"; }
 printErrMsg() { printMsg "${ICON_ERR}${T_BOLD}${C_RED} ${1} ${T_RESET}"; }
 printOkMsg() { printMsg "${ICON_OK} ${1}${T_RESET}"; }
 
-# Banner Utils
+printBanner() {
+    local msg="$1"
+    local color="${2:-$C_BLUE}"
+    local start_char="${3:-╭}"
+    local line="────────────────────────────────────────────────────────────────────────"
+    printf "${color}${line}${T_RESET}\r${color}${start_char}─${msg}${T_RESET}"
+}
+
+printBannerMiddle() {
+    local msg="$1"; local color="${2:-$C_BLUE}"
+    printBanner "$msg" "$color" "├"
+}
+
+printBannerPlain() {
+    local msg="$1"; local color="${2:-$C_BLUE}"
+    printBanner "$msg" "$color" "─"
+}
+
 strip_ansi_codes() {
     local s="$1"; local esc=$'\033'
     if [[ "$s" != *"$esc"* ]]; then echo -n "$s"; return; fi
@@ -99,26 +116,6 @@ _format_fixed_width_string() {
     local stripped_str; stripped_str=$(strip_ansi_codes "$input_str"); local len=${#stripped_str}
     if (( len <= max_len )); then local padding_needed=$(( max_len - len )); printf "%s%*s" "$input_str" "$padding_needed" ""
     else _truncate_string "$input_str" "$max_len" "$trunc_char"; fi
-}
-
-printBanner() {
-    local msg="$1"
-    local color="${2:-$C_BLUE}"
-    local start_char="${3:-╭}"
-    local line="────────────────────────────────────────────────────────────────────────"
-    printf "${color}${line}${T_RESET}\r${color}${start_char}─${msg}${T_RESET}"
-}
-
-printBannerMiddle() {
-    local msg="$1"
-    local color="${2:-$C_BLUE}"
-    printBanner "$msg" "$color" "├"
-}
-
-printBannerPlain() {
-    local msg="$1"
-    local color="${2:-$C_BLUE}"
-    printBanner "$msg" "$color" "─"
 }
 
 # Terminal Control
@@ -713,13 +710,10 @@ function draw_var_list() {
                 local raw_text="${ENV_VARS[$key]}"
                 if [[ "$key" =~ ^BLANK_LINE_ ]]; then raw_text=""; fi
                 local display_text="${raw_text:-(Blank Line)}"
-                local display_text_trunc; display_text_trunc=$(_truncate_string "$display_text" 68)
-                
                 local text_color="${C_GRAY}"
                 if [[ "$is_current" == "true" ]]; then text_color=""; fi
                 
-                local padded_text
-                printf -v padded_text "%-68s" "$display_text_trunc"
+                local padded_text; padded_text=$(_format_fixed_width_string "$display_text" 68)
                 item_output="${cursor}${line_bg}${text_color}${padded_text}${T_RESET}${T_CLEAR_LINE}"
             else
                 local display_key="${key%%__DUPLICATE_KEY_*}"
@@ -1168,12 +1162,8 @@ function system_env_manager() {
         fi
 
         local max_width=49
-        info_msg=$(_truncate_string "$info_msg" "$max_width")
-        local stripped_msg; stripped_msg=$(strip_ansi_codes "$info_msg")
-        local pad_len=$(( max_width - ${#stripped_msg} ))
-        if (( pad_len < 0 )); then pad_len=0; fi
-        local padding=""; printf -v padding "%*s" "$pad_len" ""
-        printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} %s%s ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}" "$info_msg" "$padding"
+        local formatted_msg; formatted_msg=$(_format_fixed_width_string "$info_msg" "$max_width")
+        printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} %s ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}" "$formatted_msg"
     }
 
     _sys_show_help() {
