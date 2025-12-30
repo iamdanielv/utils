@@ -606,21 +606,6 @@ _print_menu_item() {
     fi
 }
 
-# (Private) Sanitizes a value for display by escaping control characters and truncating.
-# Modifies the variable in-place to avoid subshell overhead.
-_sanitize_and_truncate_value() {
-    local -n _val_ref="$1"
-    local max_len="$2"
-
-    _val_ref="${_val_ref:0:$((max_len + 1))}"
-
-    _escape_value_ref _val_ref
-
-    if (( ${#_val_ref} > max_len )); then
-        _val_ref="${_val_ref:0:$((max_len - 1))}…"
-    fi
-}
-
 # (Private) Generates a color preview block if the value is an ANSI color code.
 # Usage: _get_color_preview_string <value> <is_current> color_preview_ref preview_len_ref
 _get_color_preview_string() {
@@ -673,7 +658,12 @@ _format_value_field() {
 
     local max_len=$(( 45 - preview_visible_len ))
     local value_sanitized="$value"
-    _sanitize_and_truncate_value value_sanitized "$max_len"
+    
+    value_sanitized="${value_sanitized:0:$((max_len + 1))}"
+    _escape_value_ref value_sanitized
+    if (( ${#value_sanitized} > max_len )); then
+        value_sanitized="${value_sanitized:0:$((max_len - 1))}…"
+    fi
     
     # Calculate visible length: \033 (1 char) becomes \\033 (5 chars) but displays as \033 (4 chars).
     # Subtract 1 for each occurrence of \\033.
