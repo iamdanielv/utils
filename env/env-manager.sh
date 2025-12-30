@@ -769,8 +769,8 @@ function draw_var_list() {
                 if [[ "$is_current" == "true" ]]; then
                     # Re-apply background color after any resets (e.g. from color previews)
                     final_display_padded="${final_display_padded//${T_RESET}/${T_RESET}${line_bg}}"
-                    local line_str
-                    printf -v line_str "%-22s %s" "${display_key}" "${final_display_padded}"
+                    local key_padded; key_padded=$(_format_fixed_width_string "${display_key}" 22)
+                    local line_str="${key_padded} ${final_display_padded}"
                     item_output="${cursor}${line_bg}${line_str}${T_RESET}${T_CLEAR_LINE}"
                     if [[ -n "$comment" ]]; then
                         local comment_trunc; comment_trunc=$(_truncate_string "$comment" 62)
@@ -779,7 +779,7 @@ function draw_var_list() {
                         item_output+="${C_CYAN}│${T_RESET} ${T_REVERSE}${C_GRAY}${comment_line}${T_RESET}${T_CLEAR_LINE}"
                     fi
                 else
-                    local key_padded; printf -v key_padded "%-22s" "${display_key}"
+                    local key_padded; key_padded=$(_format_fixed_width_string "${display_key}" 22)
                     item_output="${cursor}${key_padded}${T_RESET} ${C_CYAN}${final_display_padded}${T_RESET}${T_CLEAR_LINE}"
                     if [[ -n "$comment" ]]; then
                         local comment_trunc; comment_trunc=$(_truncate_string "$comment" 62)
@@ -1065,14 +1065,9 @@ function draw_sys_env_list() {
                 status_char="✓"
             fi
 
-            local key_display="${key}"
-            if (( ${#key_display} > 19 )); then
-                key_display="${key_display:0:18}…"
-            fi
-
             local item_output=""
             if [[ "$is_current" == "true" ]]; then
-                local display_key_str="${status_char} ${key_display}"
+                local display_key_str="${status_char} ${key}"
                 local key_padded; key_padded=$(_format_fixed_width_string "$display_key_str" 22)
                 local line_str="${key_padded} ${final_display_padded}"
                 line_str="${line_str//${T_RESET}/${T_RESET}${line_bg}}"
@@ -1081,7 +1076,7 @@ function draw_sys_env_list() {
                 local status_display="${status_char}"
                 if [[ "$status_char" == "✓" ]]; then status_display="${C_YELLOW}✓${T_RESET}"; fi
                 
-                local key_padded; key_padded=$(_format_fixed_width_string "$key_display" 20)
+                local key_padded; key_padded=$(_format_fixed_width_string "$key" 20)
                 item_output="${cursor}${status_display} ${C_L_CYAN}${key_padded}${T_RESET} ${C_L_WHITE}${final_display_padded}${T_RESET}${T_CLEAR_LINE}"
             fi
 
