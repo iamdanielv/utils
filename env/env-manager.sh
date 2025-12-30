@@ -660,12 +660,20 @@ function draw_var_list() {
 
     local list_content=""
     local start_index=$list_offset_ref
-    local end_index=$(( list_offset_ref + viewport_height - 1 ))
-    if (( end_index >= ${#DISPLAY_ORDER[@]} )); then end_index=$(( ${#DISPLAY_ORDER[@]} - 1 )); fi
+    local lines_used=0
 
     if [[ ${#DISPLAY_ORDER[@]} -gt 0 ]]; then
-        for (( i=start_index; i<=end_index; i++ )); do
+        for (( i=start_index; i<${#DISPLAY_ORDER[@]}; i++ )); do
             local key="${DISPLAY_ORDER[i]}"
+            
+            local item_height=1
+            if [[ ! "$key" =~ ^(BLANK_LINE_|COMMENT_LINE_) && -n "${ENV_COMMENTS[$key]}" ]]; then
+                item_height=2
+            fi
+            
+            if (( lines_used + item_height > viewport_height )); then break; fi
+            lines_used=$((lines_used + item_height))
+
             local is_current="false"; if (( i == current_option_ref )); then is_current="true"; fi
             
             local cursor="${C_CYAN}│${T_RESET} "
@@ -741,16 +749,11 @@ function draw_var_list() {
         done
     else
         list_content+=$(printf "${C_CYAN}│${T_RESET}  %s" "${C_GRAY}(No variables found. Press 'A' to add one.)${T_CLEAR_LINE}${T_RESET}")
+        lines_used=1
     fi
 
     # Fill remaining viewport with blank lines
-    # Calculate drawn height considering multi-line items
-    local list_draw_height=0
-    if [[ ${#DISPLAY_ORDER[@]} -gt 0 ]]; then
-        list_draw_height=$(printf "%b" "$list_content" | wc -l)
-    fi
-    if (( ${#DISPLAY_ORDER[@]} <= 0 )); then list_draw_height=1; fi
-    local lines_to_fill=$(( viewport_height - list_draw_height ))
+    local lines_to_fill=$(( viewport_height - lines_used ))
     if (( lines_to_fill > 0 )); then
         for ((j=0; j<lines_to_fill; j++)); do list_content+=$(printf '\n%s%s' "${C_CYAN}│${T_RESET}" "${T_CLEAR_LINE}"); done
     fi
@@ -1420,11 +1423,24 @@ function interactive_manager() {
             num_options=${#DISPLAY_ORDER[@]}
 
             # Adjust scroll offset
-            if (( current_option >= list_offset + viewport_height )); then list_offset=$(( current_option - viewport_height + 1 )); fi
+            if (( current_option >= num_options )); then current_option=$(( num_options - 1 )); fi
+            if (( current_option < 0 )); then current_option=0; fi
+
             if (( current_option < list_offset )); then list_offset=$current_option; fi
-            local max_offset=$(( num_options - viewport_height )); if (( max_offset < 0 )); then max_offset=0; fi
-            if (( list_offset > max_offset )); then list_offset=$max_offset; fi
-            if (( num_options < viewport_height )); then list_offset=0; fi
+
+            # Calculate height from list_offset to current_option to ensure cursor visibility
+            local height_acc=0
+            for (( idx=list_offset; idx<=current_option; idx++ )); do
+                local key="${DISPLAY_ORDER[idx]}"
+                ((height_acc++))
+                if [[ ! "$key" =~ ^(BLANK_LINE_|COMMENT_LINE_) && -n "${ENV_COMMENTS[$key]}" ]]; then ((height_acc++)); fi
+            done
+            while (( height_acc > viewport_height )); do
+                local key="${DISPLAY_ORDER[list_offset]}"
+                ((height_acc--))
+                if [[ ! "$key" =~ ^(BLANK_LINE_|COMMENT_LINE_) && -n "${ENV_COMMENTS[$key]}" ]]; then ((height_acc--)); fi
+                ((list_offset++))
+            done
 
             # --- Double-buffer drawing ---
             local screen_buffer=""
