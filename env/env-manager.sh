@@ -1166,7 +1166,7 @@ function system_env_manager() {
                 clear_lines_up "$((footer_height - 1))"
                 
                 local new_query="$search_query"
-                if prompt_for_input "$((footer_height - 1)) ${C_MAGENTA}Filter variables" new_query "$search_query" "true" "1"; then
+                if prompt_for_input "${C_MAGENTA}Filter variables" new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
                     _apply_filter
                     current_option=0
