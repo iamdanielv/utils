@@ -1025,7 +1025,7 @@ function draw_sys_env_list() {
                 _get_color_preview_string "$value" "$is_current" color_preview preview_visible_len
             fi
 
-            local max_len=$(( 43 - preview_visible_len ))
+            local max_len=$(( 45 - preview_visible_len ))
             local value_display_sanitized
             value_display_sanitized="$value"
             _sanitize_and_truncate_value value_display_sanitized "$max_len"
@@ -1043,7 +1043,7 @@ function draw_sys_env_list() {
             fi
 
             local visible_len=$(( ${#value_display_sanitized} + preview_visible_len ))
-            local padding_needed=$(( 43 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
+            local padding_needed=$(( 45 - visible_len )); if (( padding_needed < 0 )); then padding_needed=0; fi
             line_output=$(printf "%b${C_L_CYAN}%-20s${T_FG_RESET} ${C_L_WHITE}%s%*s${T_FG_RESET}" "$status_indicator" "${key_display}" "$final_display" "$padding_needed" "")
 
             local item_content=""
@@ -1099,6 +1099,20 @@ function system_env_manager() {
         echo $(( term_height - extra ))
     }
 
+    _sys_draw_footer() {
+        local status_text="$1"
+        local filter_text="$2"
+        local help_nav=" ${C_CYAN}↑↓${C_WHITE} Move | ${C_GREEN}(I) Toggle${C_WHITE} | ${C_YELLOW}(V)alues${C_WHITE} | ${C_MAGENTA}(/) Filter${C_WHITE} | ${C_YELLOW}(Q)uit/Back${C_WHITE}"
+        local info_line=" ${ICON_INFO} ${C_GREEN}*${C_GRAY} indicates variable exists in .env"
+        if [[ -n "$status_text" ]]; then
+            info_line=" $status_text"
+        fi
+        printf " %s${T_CLEAR_LINE}\n%s${T_CLEAR_LINE}" "$help_nav" "$info_line"
+        if [[ -n "$filter_text" ]]; then
+             printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$filter_text"
+        fi
+    }
+
     printMsgNoNewline "${T_CURSOR_HIDE}"
     
     local viewport_height
@@ -1119,23 +1133,13 @@ function system_env_manager() {
         local screen_buffer=""
         screen_buffer+=$(printBanner "${C_YELLOW}System Environment Variables" "${C_CYAN}")
         screen_buffer+=$'\n'
-        screen_buffer+=$(printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-43s${T_RESET}" "VARIABLE" "VALUE")
+        screen_buffer+=$(draw_header)
         screen_buffer+=$'\n'
         screen_buffer+=$(draw_sys_env_list current_option list_offset "$viewport_height" "$SHOW_VALUES")
         screen_buffer+=$'\n'
         screen_buffer+="${C_GRAY}${DIV}${T_RESET}${T_CLEAR_LINE}\n"
-        
-        local help_nav=" ${C_CYAN}↑↓${C_WHITE} Move | ${C_GREEN}(I) Toggle${C_WHITE} | ${C_YELLOW}(V)alues${C_WHITE} | ${C_MAGENTA}(/) Filter${C_WHITE} | ${C_YELLOW}(Q)uit/Back${C_WHITE}"
-        local info_line=" ${ICON_INFO} ${C_GREEN}*${C_GRAY} indicates variable exists in .env"
-        if [[ -n "$status_msg" ]]; then
-            info_line=" $status_msg"
-            status_msg=""
-        fi
-        screen_buffer+=$(printf " %s${T_CLEAR_LINE}\n%s${T_CLEAR_LINE}" "$help_nav" "$info_line")
-
-        if [[ -n "$search_query" ]]; then
-             screen_buffer+=$(printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
-        fi
+        screen_buffer+=$(_sys_draw_footer "$status_msg" "$search_query")
+        status_msg=""
         
         render_buffer "$screen_buffer"
 
