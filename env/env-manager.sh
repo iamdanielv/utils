@@ -558,7 +558,14 @@ _get_setting_display() {
             if [[ -n "$value" ]]; then echo "${C_L_BLUE}${value}${T_RESET}"; else echo "${C_GRAY}(empty)${T_RESET}"; fi
             ;;
         "value")
-            if [[ -n "$value" ]]; then echo "${C_L_CYAN}${value}${T_RESET}"; else echo "${C_GRAY}(empty)${T_RESET}"; fi
+            if [[ -n "$value" ]]; then
+                local display_val="$value"
+                display_val="${display_val//$'\033'/\\\\\\\\033}"
+                display_val="${display_val//$'\n'/^J}"
+                display_val="${display_val//$'\r'/^M}"
+                display_val="${display_val//$'\t'/^I}"
+                echo "${C_L_CYAN}${display_val}${T_RESET}"
+            else echo "${C_GRAY}(empty)${T_RESET}"; fi
             ;;
         "comment")
             if [[ -n "$value" ]]; then echo "${C_GRAY}${value}${T_RESET}"; else echo "${C_GRAY}(none)${T_RESET}"; fi
@@ -845,7 +852,14 @@ function edit_variable() {
                 fi
                 return 0 ;;
             2)
-                prompt_for_input "${C_YELLOW}New Value " pending_value "$pending_value" "true" 2
+                local edit_val="${pending_value//$'\033'/\\033}"
+                if prompt_for_input "${C_YELLOW}New Value " edit_val "$edit_val" "true" 2; then
+                    if [[ "$edit_val" == *\\033* ]]; then
+                        pending_value=$(printf '%b' "$edit_val")
+                    else
+                        pending_value="$edit_val"
+                    fi
+                fi
                 return 0 ;;
             3)
                 prompt_for_input "${C_YELLOW}New Comment " pending_comment "$pending_comment" "true" 2
