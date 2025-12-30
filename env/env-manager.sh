@@ -776,7 +776,7 @@ function draw_var_list() {
 
 # Draws the header for the variable list.
 function draw_header() {
-    printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-45s${T_RESET}" "VARIABLE" "VALUE"
+    printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-45s${T_RESET}" "NAME" "VALUE"
 }
 
 # Draws the footer for main
