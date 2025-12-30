@@ -759,19 +759,12 @@ function draw_header() {
 
 # Draws the footer with keybindings and error messages.
 function draw_footer() {
-    printf "${C_CYAN}├─${C_BLUE}Controls:┬──────────┬────────┬──────────┬───────────┬─────────────────${T_RESET}\n"
+    printf "${C_CYAN}├─${C_CYAN}Controls:┬──────────┬────────┬──────────┬───────────┬────────┬────────${T_RESET}\n"
 
-    local sep="${C_BLUE}│${C_GRAY}"
+    local sep="${C_CYAN}│${C_GRAY}"
     
-    printf "${C_BLUE}│${C_GRAY} [${T_BOLD}${C_CYAN}↑↓${C_GRAY}]Move ${sep} [${T_BOLD}${C_BLUE}E${C_GRAY}]dit   ${sep} [${T_BOLD}${C_GREEN}A${C_GRAY}]dd  ${sep} [${T_BOLD}${C_RED}D${C_GRAY}]elete ${sep} [${T_BOLD}${C_YELLOW}C${C_GRAY}]lone   ${sep} [${T_BOLD}${C_MAGENTA}O${C_GRAY}]pen ${T_CLEAR_LINE}\n"
-    printf "${C_BLUE}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_GREEN}S${C_GRAY}]ave ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}\n"
-
-    if [[ -n "$ERROR_MESSAGE" ]]; then
-        printf "${C_RED}${T_RESET} ${ICON_ERR} ${ERROR_MESSAGE}${T_CLEAR_LINE}"
-    else
-        local relative_path="$FILE_PATH"
-        printf "${C_BLUE}${T_RESET} ${T_BOLD}${ICON_OK} Valid File: ${C_BLUE}%s${T_RESET}${T_CLEAR_LINE}" "${relative_path}"
-    fi
+    printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↑↓${C_GRAY}]Move ${sep} [${T_BOLD}${C_BLUE}E${C_GRAY}]dit   ${sep} [${T_BOLD}${C_GREEN}A${C_GRAY}]dd  ${sep} [${T_BOLD}${C_RED}D${C_GRAY}]elete ${sep} [${T_BOLD}${C_YELLOW}C${C_GRAY}]lone   ${sep} [${T_BOLD}${C_MAGENTA}O${C_GRAY}]pen ${sep} [${T_BOLD}${C_CYAN}?${C_GRAY}]Help${T_CLEAR_LINE}\n"
+    printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_GREEN}S${C_GRAY}]ave ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep}        ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}"
 }
 
 # Handles editing an existing variable or adding a new one.
@@ -1383,6 +1376,10 @@ function interactive_manager() {
                     # User cancelled, just redraw to clean up the prompt area
                     handler_result_ref="redraw"
                 fi
+                ;;
+            '?'|'h'|'H')
+                show_help
+                handler_result_ref="redraw"
                 ;;
             *)
                 handler_result_ref="noop"
