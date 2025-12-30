@@ -135,6 +135,16 @@ clear_lines_up() { local lines=${1:-1}; for ((i = 0; i < lines; i++)); do printf
 move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf "${T_CURSOR_UP}"; done; fi; printf '\r'; } >/dev/tty
 render_buffer() { printf "${T_CURSOR_HOME}%b${T_CLEAR_SCREEN_DOWN}" "$1"; }
 
+# Calculates the available height for the list view.
+_calc_viewport_height() {
+    local term_height; term_height=$(tput lines)
+    # banner(1) + header(1) + footer(3) + buffer(1) = 6
+    local extra=6
+    local available=$(( term_height - extra ))
+    if (( available < 1 )); then available=1; fi
+    echo "$available"
+}
+
 # User Input
 read_single_char() {
     local char; local seq; IFS= read -rsn1 char < /dev/tty
@@ -1134,15 +1144,6 @@ function system_env_manager() {
         filter_items SYS_ENV_ORDER SYS_ENV_VARS SYS_ENV_DISPLAY_ORDER "$search_query"
     }
 
-    _sys_viewport_calc() {
-        local term_height; term_height=$(tput lines)
-        # banner(1) + header(1) + footer(3) + buffer(1) = 6
-        local extra=6
-        local available=$(( term_height - extra ))
-        if (( available < 1 )); then available=1; fi
-        echo "$available"
-    }
-
     _sys_draw_footer() {
         local status_text="$1"
         local filter_text="$2"
@@ -1209,7 +1210,7 @@ function system_env_manager() {
     trap '_tui_resized=1' WINCH
 
     while true; do
-        viewport_height=$(_sys_viewport_calc)
+        viewport_height=$(_calc_viewport_height)
         local num_options=${#SYS_ENV_DISPLAY_ORDER[@]}
 
         # Scroll logic
@@ -1332,15 +1333,6 @@ function interactive_manager() {
     # --- TUI Helper Functions ---
     _header_func() { draw_header; }
     _footer_func() { draw_footer "$search_query"; }
-    _viewport_calc_func() {
-        # Calculate available height for the list
-        local term_height; term_height=$(tput lines)
-        # banner(1) + header(1) + footer(3) + buffer(1) = 6
-        local extra=6
-        local available=$(( term_height - extra ))
-        if (( available < 1 )); then available=1; fi
-        echo "$available"
-    }
 
     # --- Key Handler ---
     _key_handler() {
@@ -1525,7 +1517,7 @@ function interactive_manager() {
     trap '_tui_resized=1' WINCH
     while true; do
             # --- Recalculate and Redraw ---
-            viewport_height=$(_viewport_calc_func)
+            viewport_height=$(_calc_viewport_height)
             num_options=${#DISPLAY_ORDER[@]}
 
             # Adjust scroll offset
