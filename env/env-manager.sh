@@ -119,6 +119,12 @@ printBannerMiddle() {
     printBanner "$msg" "$color" "├"
 }
 
+printBannerPlain() {
+    local msg="$1"
+    local color="${2:-$C_BLUE}"
+    printBanner "$msg" "$color" "─"
+}
+
 # Terminal Control
 clear_screen() { printf "${T_CURSOR_HOME}${T_CLEAR_SCREEN_DOWN}" >/dev/tty; }
 clear_current_line() { printf "${T_CLEAR_WHOLE_LINE}\r" >/dev/tty; }
