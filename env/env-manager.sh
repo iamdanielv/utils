@@ -1146,7 +1146,14 @@ function system_env_manager() {
         if [[ -n "$status_text" ]]; then
             info_msg="$status_text"
         fi
-        printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} %-67s ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}" "$info_msg"
+
+        local max_width=49
+        info_msg=$(_truncate_string "$info_msg" "$max_width")
+        local stripped_msg; stripped_msg=$(strip_ansi_codes "$info_msg")
+        local pad_len=$(( max_width - ${#stripped_msg} ))
+        if (( pad_len < 0 )); then pad_len=0; fi
+        local padding=""; printf -v padding "%*s" "$pad_len" ""
+        printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} %s%s ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}" "$info_msg" "$padding"
     }
 
     printMsgNoNewline "${T_CURSOR_HIDE}"
@@ -1231,7 +1238,7 @@ function system_env_manager() {
                         ENV_ORDER=("${new_order[@]}")
                         DISPLAY_ORDER=("${new_display[@]}")
 
-                        status_msg="${ICON_OK} Removed '${C_BLUE}${selected_key}${T_RESET}'"
+                        status_msg="${T_RESET}${ICON_OK} Removed '${C_BLUE}${selected_key}${T_RESET}'"
                     elif [[ $prompt_ret -eq 1 ]]; then # No
                         status_msg="${T_RESET}${ICON_INFO} Action cancelled for '${C_BLUE}${selected_key}${T_RESET}'"
                     fi
@@ -1243,7 +1250,7 @@ function system_env_manager() {
 
                     ENV_ORDER+=("$selected_key")
                     DISPLAY_ORDER+=("$selected_key")
-                    status_msg="${ICON_OK} Imported '${C_BLUE}${selected_key}${T_RESET}'"
+                    status_msg="${T_RESET}${ICON_OK} Imported '${C_BLUE}${selected_key}${T_RESET}'"
                 fi
                 ;;
             'v'|'V')
