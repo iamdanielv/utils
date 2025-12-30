@@ -1,29 +1,35 @@
 #!/bin/bash
 
-# Colors
-readonly RED=$'\033[31m'
-readonly GREEN=$'\033[32m'
-readonly YELLOW=$'\033[33m'
-readonly BLUE=$'\033[34m'
-readonly CYAN=$'\033[36m'
-readonly GRAY=$'\033[38;5;244m'
-readonly ORANGE=$'\033[38;5;216m'
-readonly MAUVE=$'\033[38;5;99m'
-readonly BOLD=$'\033[1m'
-readonly REVERSE=$'\033[7m'
-readonly UNDERLINE=$'\033[4m'
-readonly NO_UNDERLINE=$'\033[24m'
-readonly NC=$'\033[0m' # No Color
-readonly CURSOR_HIDE=$'\033[?25l'
-readonly CURSOR_SHOW=$'\033[?25h'
-readonly CLEAR_LINE=$'\033[K'
-readonly CURSOR_HOME=$'\033[H'
-readonly CLEAR_SCREEN_DOWN=$'\033[J'
-readonly CURSOR_UP=$'\033[1A'
-readonly CURSOR_DOWN=$'\033[1B'
-readonly CURSOR_LEFT=$'\033[1D'
+declare -rx C_RED=$'\033[31m'
+declare -rx C_GREEN=$'\033[32m'
+declare -rx C_YELLOW=$'\033[33m'
+declare -rx C_BLUE=$'\033[34m'
+declare -rx C_MAGENTA=$'\033[35m'
+declare -rx C_CYAN=$'\033[36m'
+declare -rx C_WHITE=$'\033[37m'
+declare -rx C_GRAY=$'\033[38;5;244m'
+declare -rx C_ORANGE=$'\033[38;5;216m'
+declare -rx C_MAUVE=$'\033[38;5;99m'
+
+readonly T_RESET=$'\033[0m'
+readonly T_BOLD=$'\033[1m'
+readonly T_ULINE=$'\033[4m'
+readonly T_NO_ULINE=$'\033[24m'
+readonly T_REVERSE=$'\033[7m'
+readonly T_NO_REVERSE=$'\033[27m'
+readonly T_CLEAR_LINE=$'\033[K'
+readonly T_CURSOR_HIDE=$'\033[?25l'
+readonly T_CURSOR_SHOW=$'\033[?25h'
+readonly T_CURSOR_HOME=$'\033[H'
+readonly T_CLEAR_SCREEN_DOWN=$'\033[J'
+readonly T_CURSOR_UP=$'\033[1A'
+readonly T_CURSOR_DOWN=$'\033[1B'
+readonly T_CURSOR_LEFT=$'\033[1D'
+readonly T_CURSOR_RIGHT=$'\033[1C'
+readonly T_CLEAR_WHOLE_LINE=$'\033[2K'
+
 readonly KEY_ESC=$'\033'
-readonly CONNECTED_BAR=$"${BLUE}${CURSOR_UP}┬${CURSOR_DOWN}${CURSOR_LEFT}│${NC}"
+readonly CONNECTED_BAR=$"${C_BLUE}${T_CURSOR_UP}┬${T_CURSOR_DOWN}${T_CURSOR_LEFT}│${T_RESET}"
 
 # Icons
 readonly ICON_RUNNING="✔"
@@ -31,16 +37,23 @@ readonly ICON_STOPPED="✘"
 readonly ICON_PAUSED="⏸"
 readonly ICON_UNKNOWN="?"
 
-clear_screen() { printf "${CURSOR_HOME}${CLEAR_SCREEN_DOWN}" >/dev/tty; }
-move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf "${CURSOR_UP}"; done; fi; printf '\r'; } >/dev/tty
-render_buffer() { printf "${CURSOR_HOME}%b${CLEAR_SCREEN_DOWN}" "$1"; }
+printBanner() {
+    local msg="$1"
+    local color="${2:-$C_BLUE}"
+    local line="────────────────────────────────────────────────────────────────────────"
+    printf "${color}${line}${T_RESET}\r${color}╭─${msg}${T_RESET}"
+}
+
+clear_screen() { printf "${T_CURSOR_HOME}${T_CLEAR_SCREEN_DOWN}" >/dev/tty; }
+move_cursor_up() { local lines=${1:-1}; if (( lines > 0 )); then for ((i = 0; i < lines; i++)); do printf "${T_CURSOR_UP}"; done; fi; printf '\r'; } >/dev/tty
+render_buffer() { printf "${T_CURSOR_HOME}%b${T_CLEAR_SCREEN_DOWN}" "$1"; }
 
 # Trap to restore cursor on exit
-trap 'printf "%b" "${CURSOR_SHOW}"; exit' EXIT INT TERM
+trap 'printf "%b" "${T_CURSOR_SHOW}"; exit' EXIT INT TERM
 
 # Check dependencies
 if ! command -v virsh &> /dev/null; then
-    echo -e "${RED}Error: 'virsh' command not found. Please install libvirt-clients${NC}"
+    echo -e "${C_RED}Error: 'virsh' command not found. Please install libvirt-clients${T_RESET}"
     exit 1
 fi
 
@@ -162,20 +175,20 @@ fetch_vms() {
 # Helper to set state colors and icons
 set_state_visuals() {
     local state="$1"
-    STATE_COLOR="${NC}"
+    STATE_COLOR="${T_RESET}"
     STATE_ICON="${ICON_UNKNOWN}"
     
     case "$state" in
         "running")
-            STATE_COLOR="$GREEN"
+            STATE_COLOR="$C_GREEN"
             STATE_ICON="$ICON_RUNNING"
             ;;
         "shut off")
-            STATE_COLOR="$RED"
+            STATE_COLOR="$C_RED"
             STATE_ICON="$ICON_STOPPED"
             ;;
         "paused")
-            STATE_COLOR="$YELLOW"
+            STATE_COLOR="$C_YELLOW"
             STATE_ICON="$ICON_PAUSED"
             ;;
     esac
@@ -197,7 +210,7 @@ append_network_info() {
     local clean_net_info
     clean_net_info=$(echo "$net_info" | tail -n +3)
     if [[ -n "$clean_net_info" ]]; then
-        buf+=$(printBanner "Network Interfaces (${CYAN}Source: $net_source${NC})" "$BLUE")
+        buf+=$(printBanner "Network Interfaces (${C_CYAN}Source: $net_source${T_RESET})" "$C_BLUE")
         buf+="\n"
         while read -r iface mac proto addr; do
             [[ -z "$iface" ]] && continue
@@ -205,13 +218,13 @@ append_network_info() {
             local mac_disp="$mac"
             [[ "$iface" == "-" ]] && iface_disp=""
             [[ "$mac" == "-" ]] && mac_disp=""
-            printf -v line "  ${CYAN}%-10s${NC} ${BLUE}%-17s${NC} ${YELLOW}%-4s${NC} ${GREEN}%s${NC}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
+            printf -v line "  ${C_CYAN}%-10s${T_RESET} ${C_BLUE}%-17s${T_RESET} ${C_YELLOW}%-4s${T_RESET} ${C_GREEN}%s${T_RESET}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
             buf+="$line"
         done <<< "$clean_net_info"
     else
-        buf+=$(printBanner "Network Interfaces" "$BLUE")
+        buf+=$(printBanner "Network Interfaces" "$C_BLUE")
         buf+="\n"
-        buf+="  ${YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${NC}\n"
+        buf+="  ${C_YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${T_RESET}\n"
     fi
 }
 
@@ -219,7 +232,7 @@ append_storage_info() {
     local vm="$1"
     local -n buf="$2"
 
-    buf+=$(printBanner "Storage" "$BLUE")
+    buf+=$(printBanner "Storage" "$C_BLUE")
     buf+="\n"
     local blklist
     blklist=$(virsh domblklist "$vm" --details | tail -n +3)
@@ -231,16 +244,16 @@ append_storage_info() {
             [[ -z "$target" ]] && continue
             
             if [[ "$source" == "-" && "$device" == "cdrom" ]]; then
-                buf+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC}) - ${CYAN}(Empty)${NC}\n"
+                buf+="  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - ${C_CYAN}(Empty)${T_RESET}\n"
                 continue
             fi
 
-            buf+="  ${BOLD}Device: $target${NC} (${YELLOW}$device${NC}) - Type: ${CYAN}${type}${NC}\n"
+            buf+="  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - Type: ${C_CYAN}${type}${T_RESET}\n"
             
             if [[ "$source" == "-" ]]; then
                 source="(unknown or passthrough)"
             fi
-            buf+="    Host path: ${CYAN}$source${NC}\n"
+            buf+="    Host path: ${C_CYAN}$source${T_RESET}\n"
             
             local blk_info
             blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
@@ -272,7 +285,7 @@ show_vm_details() {
     clear_screen
 
     # show loading message
-    printBanner "VM Details: ${BOLD}${YELLOW}Loading..." "${CYAN}"
+    printBanner "VM Details: ${T_BOLD}${C_YELLOW}Loading..." "${C_CYAN}"
     
     # Gather Info
     local dominfo
@@ -301,13 +314,13 @@ show_vm_details() {
     local state_icon="$STATE_ICON"
 
     local agent_status="Not Detected"
-    local agent_color="$RED"
+    local agent_color="$C_RED"
     local agent_hint=""
     local os_info=""
     if [[ "$state" == "running" ]]; then
         if virsh qemu-agent-command "$vm" '{"execute":"guest-ping"}' &>/dev/null; then
             agent_status="Running"
-            agent_color="$GREEN"
+            agent_color="$C_GREEN"
             # Attempt to fetch OS info via guest agent
             local os_json
             os_json=$(virsh qemu-agent-command "$vm" '{"execute":"guest-get-osinfo"}' 2>/dev/null)
@@ -318,29 +331,29 @@ show_vm_details() {
             agent_hint=" (Try: apt install qemu-guest-agent)"
         fi
     else
-        agent_status="${REVERSE} VM Not Running ${REVERSE}"
-        agent_color="${YELLOW}"
+        agent_status="${T_REVERSE} VM Not Running ${T_REVERSE}"
+        agent_color="${C_YELLOW}"
     fi
 
     local buffer=""
-    buffer+=$(printBanner "VM Details: ${BOLD}${YELLOW}$vm${NC} (${REVERSE}${state_color} ${state_icon} ${state} ${REVERSE}${NC})" "$CYAN")
+    buffer+=$(printBanner "VM Details: ${T_BOLD}${C_YELLOW}$vm${T_RESET} (${T_REVERSE}${state_color} ${state_icon} ${state} ${T_REVERSE}${T_RESET})" "$C_CYAN")
     buffer+="\n"
     
     local line
-    printf -v line "  CPU(s): ${CYAN}%s${NC}\t Memory: ${CYAN}%s${NC}\t Autostart: ${CYAN}%s${NC}\n" "$cpus" "$mem_display" "$autostart"
+    printf -v line "  CPU(s): ${C_CYAN}%s${T_RESET}\t Memory: ${C_CYAN}%s${T_RESET}\t Autostart: ${C_CYAN}%s${T_RESET}\n" "$cpus" "$mem_display" "$autostart"
     buffer+="$line"
     if [[ -n "$os_info" ]]; then
-        printf -v line "  ${GREEN}Agent OS: ${CYAN}%s${NC}\n" "$os_info"
+        printf -v line "  ${C_GREEN}Agent OS: ${C_CYAN}%s${T_RESET}\n" "$os_info"
         buffer+="$line"
     else
-        printf -v line "  Agent:  ${agent_color}%s${NC}%s\n" "$agent_status" "$agent_hint"
+        printf -v line "  Agent:  ${agent_color}%s${T_RESET}%s\n" "$agent_status" "$agent_hint"
         buffer+="$line"
     fi
 
     append_network_info "$vm" buffer
     append_storage_info "$vm" buffer
 
-    buffer+="\n${BLUE}Press any key to return...${NC}\n"
+    buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
     render_buffer "$buffer"
     read -rsn1
     clear_screen
@@ -350,31 +363,31 @@ show_vm_details() {
 show_help() {
     clear_screen
     local buffer=""
-    buffer+=$(printBanner "Help & Shortcuts" "$CYAN")
+    buffer+=$(printBanner "Help & Shortcuts" "$C_CYAN")
     buffer+="\n"
     
-    buffer+=$(printBanner "Navigation" "$ORANGE")
+    buffer+=$(printBanner "Navigation" "$C_ORANGE")
     buffer+="\n"
-    buffer+="  ${CYAN}↓${NC}/${CYAN}↑${NC} or ${CYAN}j${NC}/${CYAN}k${NC}  Select VM from the list\n"
+    buffer+="  ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}  Select VM from the list\n"
     
-    buffer+=$(printBanner "Power Actions" "$ORANGE")
+    buffer+=$(printBanner "Power Actions" "$C_ORANGE")
     buffer+="\n"
-    buffer+="  ${GREEN}S${NC}           Start/Shutdown/Resume VM (Toggle)\n"
-    buffer+="  ${YELLOW}R${NC}           Reboot\n"
-    buffer+="  ${RED}F${NC}           Force Stop (Hard power off)\n"
+    buffer+="  ${C_GREEN}S${T_RESET}           Start/Shutdown/Resume VM (Toggle)\n"
+    buffer+="  ${C_YELLOW}R${T_RESET}           Reboot\n"
+    buffer+="  ${C_RED}F${T_RESET}           Force Stop (Hard power off)\n"
     
-    buffer+=$(printBanner "Management" "$ORANGE")
+    buffer+=$(printBanner "Management" "$C_ORANGE")
     buffer+="\n"
-    buffer+="  ${YELLOW}I${NC}           Show Details (IP, Disk, Network)\n"
-    buffer+="  ${CYAN}C${NC}           Clone VM\n"
-    buffer+="  ${RED}D${NC}           Delete VM\n"
+    buffer+="  ${C_YELLOW}I${T_RESET}           Show Details (IP, Disk, Network)\n"
+    buffer+="  ${C_CYAN}C${T_RESET}           Clone VM\n"
+    buffer+="  ${C_RED}D${T_RESET}           Delete VM\n"
     
-    buffer+=$(printBanner "Other" "$ORANGE")
+    buffer+=$(printBanner "Other" "$C_ORANGE")
     buffer+="\n"
-    buffer+="  ${CYAN}?${NC}/${CYAN}h${NC}         Show this help\n"
-    buffer+="  ${RED}Q${NC}           Quit\n"
+    buffer+="  ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}         Show this help\n"
+    buffer+="  ${C_RED}Q${T_RESET}           Quit\n"
     
-    buffer+="\n${BLUE}Press any key to return...${NC}\n"
+    buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
     
     render_buffer "$buffer"
     read -rsn1
@@ -384,7 +397,7 @@ show_help() {
 # Check if a VM is selected
 require_vm_selected() {
     if [[ -z "${VM_NAMES[$SELECTED]}" ]]; then
-        STATUS_MSG="${YELLOW}No VM selected${NC}"
+        STATUS_MSG="${C_YELLOW}No VM selected${T_RESET}"
         HAS_ERROR=true
         return 1
     fi
@@ -421,7 +434,7 @@ set_error_status() {
     # Combine prefix and wrapped text, then fold it
     STATUS_MSG=$(echo "${prefix}${error_text}" | fold -s -w "$wrap_width")
     HAS_ERROR=true
-    MSG_COLOR="$RED"
+    MSG_COLOR="$C_RED"
     MSG_TITLE="Error"
 }
 
@@ -439,12 +452,12 @@ run_with_spinner() {
     
     STATUS_MSG="${message}  "
     render_main_ui
-    local color="${MSG_COLOR:-$YELLOW}"
+    local color="${MSG_COLOR:-$C_YELLOW}"
     
     while kill -0 "$pid" 2>/dev/null; do
         local char="${spinner_chars:spinner_idx:1}"
-        local current_msg="${message} ${MAUVE}${char}${NC}"
-        printf "${CURSOR_UP}\r${color}╰${NC} ${BOLD}${current_msg}${NC}${CLEAR_LINE}\n"
+        local current_msg="${message} ${C_MAUVE}${char}${T_RESET}"
+        printf "${T_CURSOR_UP}\r${color}╰${T_RESET} ${T_BOLD}${current_msg}${T_RESET}${T_CLEAR_LINE}\n"
         spinner_idx=$(( (spinner_idx + 1) % ${#spinner_chars} ))
         sleep 0.1
     done
@@ -462,25 +475,25 @@ handle_clone_vm() {
     require_vm_selected || return
 
     if ! command -v virt-clone &> /dev/null; then
-        STATUS_MSG="${RED}Error: 'virt-clone' not found. Install 'virtinst'.${NC}"
+        STATUS_MSG="${C_RED}Error: 'virt-clone' not found. Install 'virtinst'.${T_RESET}"
         HAS_ERROR=true
         return
     fi
 
     local default_name="${VM_NAMES[$SELECTED]}-c"
     MSG_TITLE="CLONE ${VM_NAMES[$SELECTED]}? (empty name to cancel)"
-    MSG_COLOR="$ORANGE"
+    MSG_COLOR="$C_ORANGE"
     MSG_INPUT="true"
     STATUS_MSG="" # Clear any previous status
     render_main_ui
-    echo -ne "${CURSOR_SHOW}"
+    echo -ne "${T_CURSOR_SHOW}"
     read -e -p " Enter new name: " -i "$default_name" -r new_name
-    echo -e "${CURSOR_HIDE}"
+    echo -e "${T_CURSOR_HIDE}"
     MSG_INPUT="false"
     if [[ -n "$new_name" ]]; then
         # Validate VM name: alphanumeric, dot, underscore, hyphen only
         if [[ ! "$new_name" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-            STATUS_MSG="${RED}Error: Invalid name. Use only a-z, 0-9, ., _, - (no spaces).${NC}"
+            STATUS_MSG="${C_RED}Error: Invalid name. Use only a-z, 0-9, ., _, - (no spaces).${T_RESET}"
             HAS_ERROR=true
             return
         fi
@@ -488,7 +501,7 @@ handle_clone_vm() {
         # Check if name already exists
         for existing_vm in "${VM_NAMES[@]}"; do
             if [[ "$existing_vm" == "$new_name" ]]; then
-                STATUS_MSG="${RED}Error: VM '$new_name' already exists.${NC}"
+                STATUS_MSG="${C_RED}Error: VM '$new_name' already exists.${T_RESET}"
                 HAS_ERROR=true
                 return
             fi
@@ -497,13 +510,13 @@ handle_clone_vm() {
 
         if run_with_spinner "Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)" \
             virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone; then
-            STATUS_MSG="${GREEN}Clone successful: $new_name${NC}"
+            STATUS_MSG="${C_GREEN}Clone successful: $new_name${T_RESET}"
             fetch_vms
         else
             set_error_status "Clone failed: " "$CMD_OUTPUT"
         fi
     else
-        STATUS_MSG="${YELLOW}Clone cancelled${NC}"
+        STATUS_MSG="${C_YELLOW}Clone cancelled${T_RESET}"
     fi
 }
 
@@ -512,8 +525,8 @@ handle_delete_vm() {
     require_vm_selected || return
     local vm="${VM_NAMES[$SELECTED]}"
 
-    if ! ask_confirmation "${RED}DELETE${NC} $vm?"; then
-        STATUS_MSG="${YELLOW}Delete cancelled${NC}"
+    if ! ask_confirmation "${C_RED}DELETE${T_RESET} $vm?"; then
+        STATUS_MSG="${C_YELLOW}Delete cancelled${T_RESET}"
         return
     fi
 
@@ -530,7 +543,7 @@ handle_delete_vm() {
     }
 
     if run_with_spinner "Deleting $vm..." _perform_delete; then
-        STATUS_MSG="${GREEN}Deleted $vm${NC}"
+        STATUS_MSG="${C_GREEN}Deleted $vm${T_RESET}"
         fetch_vms
     else
         set_error_status "Delete failed: " "$CMD_OUTPUT"
@@ -546,36 +559,29 @@ handle_vm_action() {
 
     require_vm_selected || return
 
-    if ask_confirmation "${color}${display_name}${NC} ${VM_NAMES[$SELECTED]}?"; then
+    if ask_confirmation "${color}${display_name}${T_RESET} ${VM_NAMES[$SELECTED]}?"; then
         action="$action_name"
         cmd="$virsh_cmd"
     else
         local cancel_name="${display_name,,}"
-        STATUS_MSG="${YELLOW}${cancel_name^} cancelled${NC}"
+        STATUS_MSG="${C_YELLOW}${cancel_name^} cancelled${T_RESET}"
     fi
-}
-
-printBanner() {
-    local msg="$1"
-    local color="${2:-$BLUE}"
-    local line="────────────────────────────────────────────────────────────────────────"
-    printf "${color}${line}${NC}\r${color}╭─${msg}${NC}"
 }
 
 # Function to render the main UI
 render_main_ui() {
     # Double buffering to prevent flicker
     local buffer=""
-    buffer+=$(printBanner "VM Manager" "$CYAN")
+    buffer+=$(printBanner "VM Manager" "$C_CYAN")
     buffer+="\n"
     local header
-    printf -v header "${CYAN}│${NC} ${BOLD}${UNDERLINE}%-20s${NO_UNDERLINE} ${UNDERLINE}%-10s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-8s${NO_UNDERLINE} ${UNDERLINE}%-3s${NO_UNDERLINE}${NC}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
+    printf -v header "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-20s${T_NO_ULINE} ${T_ULINE}%-10s${T_NO_ULINE} ${T_ULINE}%-8s${T_NO_ULINE} ${T_ULINE}%-8s${T_NO_ULINE} ${T_ULINE}%-3s${T_NO_ULINE}${T_RESET}\n" "NAME" "STATE" "CPU" "MEM" "A/S"
     buffer+="$header"
         
     local count=${#VM_NAMES[@]}
     
     if [[ $count -eq 0 ]]; then
-        buffer+="${CYAN}│${NC}  ${YELLOW}No VMs defined on this host${NC}\n"
+        buffer+="${C_CYAN}│${T_RESET}  ${C_YELLOW}No VMs defined on this host${T_RESET}\n"
     else
         for ((i=0; i<count; i++)); do
             local name="${VM_NAMES[$i]}"
@@ -586,21 +592,21 @@ render_main_ui() {
             local autostart_display=""
             
             if [[ "$autostart" == "Yes" ]]; then
-                autostart_display="${GREEN}Yes${NC}"
+                autostart_display="${C_GREEN}Yes${T_RESET}"
             else
-                autostart_display="${RED}No ${NC}"
+                autostart_display="${C_RED}No ${T_RESET}"
             fi
 
-            local line_color="$NC"
-            local row_text_color="$GRAY"
-            local cursor="${CYAN}│${NC} "
+            local line_color="$T_RESET"
+            local row_text_color="$C_GRAY"
+            local cursor="${C_CYAN}│${T_RESET} "
             
             set_state_visuals "$state"
             local state_color="$STATE_COLOR"
             local state_icon="$STATE_ICON"
             
             if [[ "$state" == "running" ]]; then
-                row_text_color="${NC}"
+                row_text_color="${T_RESET}"
             fi
             
             # Truncate name if too long (max 20 chars)
@@ -610,39 +616,38 @@ render_main_ui() {
             
             # Highlight selection
             if [[ $i -eq $SELECTED ]]; then
-                cursor="${CYAN}│❱${NC}"
-                line_color="${BOLD}${BLUE}${REVERSE}"
+                cursor="${C_CYAN}│❱${T_RESET}"
+                line_color="${T_BOLD}${C_BLUE}${T_REVERSE}"
                 row_text_color=""
             fi
             
             # Print line with padding
             local line_str
-            printf -v line_str "${cursor}${line_color}${row_text_color}%-20s${NC}${line_color} ${state_color}%-12s${NC}${line_color} ${row_text_color}%-8s %-8s${NC}${line_color} %b${NC}${CLEAR_LINE}\n" "$name" "$state_display" "$cpu" "$mem" "$autostart_display"
+            printf -v line_str "${cursor}${line_color}${row_text_color}%-20s${T_RESET}${line_color} ${state_color}%-12s${T_RESET}${line_color} ${row_text_color}%-8s %-8s${T_RESET}${line_color} %b${T_RESET}${T_CLEAR_LINE}\n" "$name" "$state_display" "$cpu" "$mem" "$autostart_display"
             buffer+="$line_str"
         done
     fi
     
-    buffer+="${CYAN}╰───────────────────────────────────────────────────────────────────────${NC}\n"
-    buffer+=$(printBanner "Controls:" "$BLUE")
-    buffer+="\n"
-    buffer+="${BLUE}│${NC} [${BOLD}${CYAN}↓/↑${NC}]Select ${CONNECTED_BAR} [${BOLD}${CYAN}S${NC}]tart/Stop ${CONNECTED_BAR} [${BOLD}${YELLOW}R${NC}]eboot ${CONNECTED_BAR} [${BOLD}${RED}F${NC}]orce Stop       ${CONNECTED_BAR} [${BOLD}${CYAN}?${NC}]Help${CLEAR_LINE}\n"
-    buffer+="${BLUE}╰${NC} [${BOLD}${CYAN}j/k${NC}]Select ${BLUE}│${NC} [${BOLD}${YELLOW}I${NC}]nfo       ${BLUE}│${NC} [${BOLD}${CYAN}C${NC}]lone  ${BLUE}│${NC} [${BOLD}${RED}D${NC}]elete           ${BLUE}│${NC} [${BOLD}${RED}Q${NC}]uit${CLEAR_LINE}\n"
+    buffer+="${C_CYAN}╰───────────────────────────────────────────────────────────────────────${T_RESET}\n"
+    buffer+="$(printBanner "Controls:" "${C_BLUE}")\n"
+    buffer+="${C_BLUE}│${T_RESET} [${T_BOLD}${C_CYAN}↓/↑${T_RESET}]Select ${CONNECTED_BAR} [${T_BOLD}${C_CYAN}S${T_RESET}]tart/Stop ${CONNECTED_BAR} [${T_BOLD}${C_YELLOW}R${T_RESET}]eboot ${CONNECTED_BAR} [${T_BOLD}${C_RED}F${T_RESET}]orce Stop       ${CONNECTED_BAR} [${T_BOLD}${C_CYAN}?${T_RESET}]Help${T_CLEAR_LINE}\n"
+    buffer+="${C_BLUE}╰${T_RESET} [${T_BOLD}${C_CYAN}j/k${T_RESET}]Select ${C_BLUE}│${T_RESET} [${T_BOLD}${C_YELLOW}I${T_RESET}]nfo       ${C_BLUE}│${T_RESET} [${T_BOLD}${C_CYAN}C${T_RESET}]lone  ${C_BLUE}│${T_RESET} [${T_BOLD}${C_RED}D${T_RESET}]elete           ${C_BLUE}│${T_RESET} [${T_BOLD}${C_RED}Q${T_RESET}]uit${T_CLEAR_LINE}\n"
 
     if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
         local title="${MSG_TITLE:-Message:}"
-        local color="${MSG_COLOR:-$YELLOW}"
+        local color="${MSG_COLOR:-$C_YELLOW}"
         buffer+=$(printBanner "$title" "$color")
         buffer+="\n"
         if [[ "$MSG_INPUT" == "true" ]]; then
-            buffer+="${color}╰${NC} "
+            buffer+="${color}╰${T_RESET} "
         else
             local first_line=true
             while IFS= read -r line; do
                 if [[ "$first_line" == "true" ]]; then
-                    buffer+="${color}╰${NC} ${BOLD}${line}${NC}${CLEAR_LINE}\n"
+                    buffer+="${color}╰${T_RESET} ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
                     first_line=false
                 else
-                    buffer+="  ${BOLD}${line}${NC}${CLEAR_LINE}\n"
+                    buffer+="  ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
                 fi
             done <<< "$STATUS_MSG"
         fi
@@ -653,7 +658,7 @@ render_main_ui() {
 }
 
 # Main Loop
-echo -e "${CURSOR_HIDE}"
+echo -e "${T_CURSOR_HIDE}"
 clear_screen
 
 # Handle window resize
@@ -719,21 +724,21 @@ while true; do
                 if require_vm_selected; then
                     case "${VM_STATES[$SELECTED]}" in
                         "running")
-                            handle_vm_action "$RED" "SHUTDOWN" "shutdown" "shutdown" ;;
+                            handle_vm_action "$C_RED" "SHUTDOWN" "shutdown" "shutdown" ;;
                         "shut off")
-                            handle_vm_action "$GREEN" "START" "start" "start" ;;
+                            handle_vm_action "$C_GREEN" "START" "start" "start" ;;
                         "paused")
-                            handle_vm_action "$GREEN" "RESUME" "resume" "resume" ;;
+                            handle_vm_action "$C_GREEN" "RESUME" "resume" "resume" ;;
                         *)
-                            STATUS_MSG="${YELLOW}Action unavailable for state: ${VM_STATES[$SELECTED]}${NC}"
+                            STATUS_MSG="${C_YELLOW}Action unavailable for state: ${VM_STATES[$SELECTED]}${T_RESET}"
                             HAS_ERROR=true
                             ;;
                     esac
                 fi ;;
             f|F)
-                handle_vm_action "$RED" "FORCE STOP" "force stop" "destroy" ;;
+                handle_vm_action "$C_RED" "FORCE STOP" "force stop" "destroy" ;;
             r|R)
-                handle_vm_action "$YELLOW" "REBOOT" "reboot" "reboot" ;;
+                handle_vm_action "$C_YELLOW" "REBOOT" "reboot" "reboot" ;;
         esac
 
         if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
