@@ -779,7 +779,7 @@ function draw_header() {
     printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-45s${T_RESET}" "VARIABLE" "VALUE"
 }
 
-# Draws the footer with keybindings and error messages.
+# Draws the footer for main
 function draw_footer() {
     local filter_text="$1"
     if [[ -n "$filter_text" ]]; then
@@ -1137,7 +1137,7 @@ function system_env_manager() {
              screen_buffer+=$(printf "\n ${ICON_INFO} Filter: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}" "$search_query")
         fi
         
-        printf '\033[H%b' "$screen_buffer"
+        render_buffer "$screen_buffer"
 
         local key; key=$(read_single_char)
         
@@ -1159,11 +1159,8 @@ function system_env_manager() {
                 # so it doesn't clear the whole screen.
                 local footer_height=2
                 if [[ -n "$search_query" ]]; then footer_height=3; fi
-                #clear_current_line
                 clear_lines_up "$((footer_height - 1))"
-                #move_cursor_up "$((footer_height - 1))"
-                #printf "${T_CLEAR_SCREEN_DOWN}" >/dev/tty # Clear from cursor to end of screen
-
+                
                 local new_query="$search_query"
                 if prompt_for_input "$((footer_height - 1)) ${C_MAGENTA}Filter variables" new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
@@ -1571,7 +1568,6 @@ main() {
     # Initial parse of the .env file
     if ! parse_env_file "$FILE_PATH"; then
         # An error occurred during parsing, but we can still open the editor
-        # The error will be displayed in the footer.
         :
     fi
 
