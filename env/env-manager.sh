@@ -494,9 +494,9 @@ function show_help() {
 
     buffer+=$(printBanner "Navigation" "${C_ORANGE}")
     buffer+="\n"
-    buffer+="  ${C_CYAN}↑${T_RESET}/${C_CYAN}↓${T_RESET} or ${C_CYAN}k${T_RESET}/${C_CYAN}j${T_RESET}  Select variable\n"
-    buffer+="  ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}     Scroll page\n"
-    buffer+="  ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}      Jump to start/end\n"
+    buffer+="  ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
+    buffer+="  ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
+    buffer+="  ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end\n"
 
     buffer+=$(printBanner "Variable Actions" "${C_ORANGE}")
     buffer+="\n"
@@ -793,7 +793,7 @@ function draw_footer() {
 
     local sep="${C_CYAN}│${C_GRAY}"
     
-    printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↑↓${C_GRAY}]Move ${sep} [${T_BOLD}${C_BLUE}E${C_GRAY}]dit   ${sep} [${T_BOLD}${C_GREEN}A${C_GRAY}]dd  ${sep} [${T_BOLD}${C_RED}D${C_GRAY}]elete ${sep} [${T_BOLD}${C_YELLOW}C${C_GRAY}]lone   ${sep} [${T_BOLD}${C_MAGENTA}O${C_GRAY}]pen ${sep} [${T_BOLD}${C_CYAN}?${C_GRAY}]Help${T_CLEAR_LINE}\n"
+    printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↓↑${C_GRAY}]Move ${sep} [${T_BOLD}${C_BLUE}E${C_GRAY}]dit   ${sep} [${T_BOLD}${C_GREEN}A${C_GRAY}]dd  ${sep} [${T_BOLD}${C_RED}D${C_GRAY}]elete ${sep} [${T_BOLD}${C_YELLOW}C${C_GRAY}]lone   ${sep} [${T_BOLD}${C_MAGENTA}O${C_GRAY}]pen ${sep} [${T_BOLD}${C_CYAN}?${C_GRAY}]Help${T_CLEAR_LINE}\n"
     printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_GREEN}S${C_GRAY}]ave ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep}        ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}"
 }
 
@@ -1140,7 +1140,7 @@ function system_env_manager() {
         fi
 
         local sep="${C_CYAN}│${C_GRAY}"
-        printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↑↓${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep}                 ${sep}${T_CLEAR_LINE}\n"
+        printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↓↑${C_GRAY}]Move ${sep} [${T_BOLD}${C_GREEN}I${C_GRAY}]mport ${sep} [${T_BOLD}${C_YELLOW}V${C_GRAY}]alues ${sep} [${T_BOLD}${C_MAGENTA}/${C_GRAY}]Filter ${sep}                 ${sep} [${T_BOLD}${C_CYAN}?${C_GRAY}]Help${T_CLEAR_LINE}\n"
 
         local info_msg="${C_YELLOW}✓${C_GRAY} exists in .env"
         if [[ -n "$status_text" ]]; then
@@ -1154,6 +1154,36 @@ function system_env_manager() {
         if (( pad_len < 0 )); then pad_len=0; fi
         local padding=""; printf -v padding "%*s" "$pad_len" ""
         printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Move ${sep} %s%s ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}" "$info_msg" "$padding"
+    }
+
+    _sys_show_help() {
+        clear_screen
+        local buffer=""
+        buffer+=$(printBanner "System Env - Help" "${C_CYAN}")
+        buffer+="\n"
+
+        buffer+=$(printBanner "Navigation" "${C_ORANGE}")
+        buffer+="\n"
+        buffer+="  ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select variable\n"
+        buffer+="  ${C_CYAN}PgUp${T_RESET}/${C_CYAN}PgDn${T_RESET}      Scroll page\n"
+        buffer+="  ${C_CYAN}Home${T_RESET}/${C_CYAN}End${T_RESET}       Jump to start/end\n"
+
+        buffer+=$(printBanner "Actions" "${C_ORANGE}")
+        buffer+="\n"
+        buffer+="  ${C_GREEN}I${T_RESET}              Import/Remove selected variable\n"
+        buffer+="  ${C_YELLOW}V${T_RESET}              Toggle value visibility\n"
+        buffer+="  ${C_MAGENTA}/${T_RESET}              Filter variables\n"
+
+        buffer+=$(printBanner "General" "${C_ORANGE}")
+        buffer+="\n"
+        buffer+="  ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
+        buffer+="  ${C_RED}Q${T_RESET}/${C_CYAN}←${T_RESET}            Return to main menu\n"
+
+        buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
+
+        render_buffer "$buffer"
+        read_single_char >/dev/null
+        clear_screen
     }
 
     printMsgNoNewline "${T_CURSOR_HIDE}"
@@ -1255,6 +1285,9 @@ function system_env_manager() {
                 ;;
             'v'|'V')
                 if [[ "$SHOW_VALUES" == "true" ]]; then SHOW_VALUES="false"; else SHOW_VALUES="true"; fi
+                ;;
+            '?'|'h'|'H')
+                _sys_show_help
                 ;;
         esac
     done
