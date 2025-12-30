@@ -455,10 +455,12 @@ function save_env_file() {
         local relative_path="$file_to_save"
 
         clear_current_line
+        clear_lines_up 1
         show_timed_message "${ICON_OK} Saved changes to ${C_BLUE}${relative_path}${T_RESET} (Backup created)" 1.5
         return 0
     else
         rm -f "$temp_file"
+        clear_lines_up 1
         show_timed_message "${ICON_ERR} Failed to save changes to ${C_BLUE}${relative_path}${T_RESET}" 2.5
         return 1
     fi
