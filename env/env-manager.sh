@@ -1413,7 +1413,17 @@ function interactive_manager() {
             # --- Double-buffer drawing ---
             local screen_buffer=""
             local relative_path="$FILE_PATH"
-            local banner_text="Editing: ${C_YELLOW}${relative_path}"
+
+            # Max width for banner content (70 chars line - 2 chars for "╭─")
+            local max_banner_width=68
+            local status_text=""
+            if [[ -n "$ERROR_MESSAGE" ]]; then
+                status_text=" - ${ICON_ERR} ${C_RED}${ERROR_MESSAGE} ${T_RESET}"
+            else
+                status_text=" - ${ICON_OK} ${C_GREEN}Valid ${T_RESET}"
+            fi
+            local banner_text="Editing: ${C_YELLOW}${relative_path}${T_RESET}${status_text}"
+            banner_text=$(_truncate_string "$banner_text" "$max_banner_width")
             screen_buffer+=$(printBanner "$banner_text" "${C_CYAN}")
             screen_buffer+=$'\n'
             screen_buffer+=$(_header_func)
