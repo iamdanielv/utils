@@ -222,7 +222,8 @@ prompt_for_input() {
             if (( view_start + available_width < total_len )); then display_str="${display_str:0:${#display_str}-1}${ellipsis}"; fi
         fi
         
-        printMsgNoNewline "${display_str}${T_CLEAR_LINE}" >/dev/tty
+        local safe_display_str="${display_str//\\/\\\\}"
+        printMsgNoNewline "${safe_display_str}${T_CLEAR_LINE}" >/dev/tty
         printf '\r\033[%sC' "$prefix_len" >/dev/tty
         
         local display_cursor_pos=$(( cursor_pos - view_start ))
@@ -564,7 +565,12 @@ _get_setting_display() {
                 display_val="${display_val//$'\n'/^J}"
                 display_val="${display_val//$'\r'/^M}"
                 display_val="${display_val//$'\t'/^I}"
-                echo "${C_L_CYAN}${display_val}${T_RESET}"
+
+                local color_preview=""
+                local preview_len=0
+                _get_color_preview_string "$value" "false" color_preview preview_len
+
+                echo "${C_L_CYAN}${display_val}${T_RESET}${color_preview}"
             else echo "${C_GRAY}(empty)${T_RESET}"; fi
             ;;
         "comment")
