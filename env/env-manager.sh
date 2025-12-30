@@ -340,7 +340,8 @@ function parse_env_file() {
     local line_num=0
     while IFS= read -r line || [[ -n "$line" ]]; do
         ((line_num++))
-        local trimmed_line; trimmed_line=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+        local trimmed_line="${line#"${line%%[![:space:]]*}"}"
+        trimmed_line="${trimmed_line%"${trimmed_line##*[![:space:]]}"}"
 
         if [[ -z "$trimmed_line" ]]; then
             ENV_ORDER+=("BLANK_LINE_${line_num}")
@@ -368,7 +369,8 @@ function parse_env_file() {
             local value="${BASH_REMATCH[2]}"
 
             # Handle bash-specific $'' syntax for C-style escapes
-            if [[ "$value" =~ ^\$'((.*))'$ ]]; then
+            local ansi_pattern="^\\$'(.*)'$"
+            if [[ "$value" =~ $ansi_pattern ]]; then
                 # The inner content is in BASH_REMATCH[1]. Let printf interpret it.
                 value=$(printf '%b' "${BASH_REMATCH[1]}")
             
@@ -412,14 +414,14 @@ function save_env_file() {
 
     for key in "${ENV_ORDER[@]}"; do
         if [[ "$key" =~ ^BLANK_LINE_ ]]; then
-            echo "" >> "$temp_file"
+            printf "\n" >> "$temp_file"
         elif [[ "$key" =~ ^COMMENT_LINE_ ]]; then
-            echo "${ENV_VARS[$key]}" >> "$temp_file"
+            printf "%s\n" "${ENV_VARS[$key]}" >> "$temp_file"
         else
             local real_key="${key%%__DUPLICATE_KEY_*}"
             # This is a regular variable. Check if it has a special comment.
             if [[ -n "${ENV_COMMENTS[$key]}" ]]; then
-                echo "##@ $real_key ${ENV_COMMENTS[$key]}" >> "$temp_file"
+                printf "##@ %s %s\n" "$real_key" "${ENV_COMMENTS[$key]}" >> "$temp_file"
             fi
 
             # Best Practice: Add quotes only if the value contains spaces or is empty.
@@ -428,11 +430,11 @@ function save_env_file() {
             if [[ "$value" == *$'\033'* ]]; then
                 # Replace the raw ESC character with the literal string '\033'
                 local bash_formatted_value="${value//$'\033'/\\033}"
-                echo "$real_key=\$'$bash_formatted_value'" >> "$temp_file"
+                printf "%s=\$'%s'\n" "$real_key" "$bash_formatted_value" >> "$temp_file"
             elif [[ "$value" == *[[:space:]]* || -z "$value" ]]; then
-                echo "$real_key=\"$value\"" >> "$temp_file"
+                printf "%s=\"%s\"\n" "$real_key" "$value" >> "$temp_file"
             else
-                echo "$real_key=$value" >> "$temp_file"
+                printf "%s=%s\n" "$real_key" "$value" >> "$temp_file"
             fi
         fi
     done
@@ -1131,9 +1133,11 @@ function system_env_manager() {
                 # so it doesn't clear the whole screen.
                 local footer_height=2
                 if [[ -n "$search_query" ]]; then footer_height=3; fi
-                clear_current_line
+                #clear_current_line
                 clear_lines_up "$((footer_height - 1))"
-                
+                #move_cursor_up "$((footer_height - 1))"
+                #printf "${T_CLEAR_SCREEN_DOWN}" >/dev/tty # Clear from cursor to end of screen
+
                 local new_query="$search_query"
                 if prompt_for_input "$((footer_height - 1)) ${C_MAGENTA}Filter variables" new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
@@ -1373,6 +1377,7 @@ function interactive_manager() {
                 ;;
             '/')
                 local footer_height=2
+                
                 clear_current_line
                 clear_lines_up "$((footer_height - 1))"
                 
@@ -1380,6 +1385,7 @@ function interactive_manager() {
                 if prompt_for_input "${C_MAGENTA}Filter by " new_query "$search_query" "true" "1"; then
                     search_query="$new_query"
                     handler_result_ref="refresh_data"
+                    
                 else
                     # User cancelled, just redraw to clean up the prompt area
                     handler_result_ref="redraw"
