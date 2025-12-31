@@ -73,6 +73,15 @@ Recursively performs Git commands on the current directory and all subdirectorie
 - View all local and remote branches (`-gvb`)
 - Switch all repos to a specific branch (`-gb <branch>`)
 
+### 🧹 Docker Cleanup (`docker-cleanup.sh`)
+
+**Description:**
+A utility to clean up unused Docker resources like containers, images, networks, and volumes.
+
+- Prune stopped containers, unused networks, unused volumes, and dangling/unused images.
+- Supports dry-run mode (`--dry-run`).
+- Force option (`-f`) to skip confirmation.
+
 ### 🐳 Docker Compose Autoscaler (`docker-autoscale.sh`)
 
 **Description:**
