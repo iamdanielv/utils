@@ -209,15 +209,6 @@ install_dependencies() {
     install_package "ripgrep" "rg"
     install_package "fd-find" "fd"
 
-    
-    # On Debian/Ubuntu, the 'fd-find' package installs the binary as 'fdfind'.
-    # Many scripts and tools (including fzf config) expect 'fd'.
-    # We create a symlink in a user-local directory to bridge this gap.
-    if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
-        printInfoMsg "Creating symlink for 'fd' from 'fdfind'..."
-        ln -sf "$(which fdfind)" "${HOME}/.local/bin/fd"
-    fi
-    
     install_package "tree"
     install_package "fontconfig" "fc-cache"
     install_package "unzip"

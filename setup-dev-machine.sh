@@ -528,6 +528,7 @@ install_core_tools() {
     # Symlink fd if needed (fdfind -> fd)
     if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
         printInfoMsg "Creating symlink for 'fd' from 'fdfind'..."
+        mkdir -p "${HOME}/.local/bin"
         ln -sf "$(which fdfind)" "${HOME}/.local/bin/fd"
     fi
     install_bat_or_batcat
@@ -541,6 +542,9 @@ install_core_tools() {
     install_package "micro"
     # For parsing JSON in scripts
     install_package "jq"
+    # For extracting archives and directory trees (used by fzf preview)
+    install_package "unzip"
+    install_package "tree"
 
     # For 'lg' alias (lazygit) and docker management (lazydocker)
     install_jesseduffield_tool "lazygit"
