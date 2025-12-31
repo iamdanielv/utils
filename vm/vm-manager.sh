@@ -960,7 +960,7 @@ while true; do
 	i | I)
 		require_vm_selected && show_vm_details "${VM_NAMES[$SELECTED]}"
 		;;
-	\? | h | H)
+	\? | / | h | H)
 		show_help
 		;;
 	c | C)
