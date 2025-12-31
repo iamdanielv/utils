@@ -544,12 +544,33 @@ require_vm_selected() {
 
 # Helper for yes/no confirmation
 ask_confirmation() {
-	local prompt="$1"
-	STATUS_MSG="${prompt} (y/n)"
+	local question="$1"
+	local default_answer="${2:-n}"
+	local prompt_suffix
+	if [[ "$default_answer" == "y" ]]; then prompt_suffix="(Y/n)"; else prompt_suffix="(y/N)"; fi
+
+	# Clear status to ensure clean slate
+	STATUS_MSG=""
 	render_main_ui
-	local key
-	read -rsn1 key
-	[[ "$key" == "y" || "$key" == "Y" ]]
+
+	local buffer=""
+	buffer+="\n"
+	buffer+=$(printBanner "Confirmation" "${C_YELLOW}")
+	buffer+="\n"
+	buffer+="${C_YELLOW}╰${T_RESET} ${T_BOLD}${question} ${prompt_suffix}${T_RESET}"
+	printMsgNoNewline "$buffer"
+
+	local answer
+	while true; do
+		answer=$(read_single_char)
+		if [[ "$answer" == "$KEY_ENTER" ]]; then answer="$default_answer"; fi
+		case "$answer" in
+		[Yy] | [Nn])
+			if [[ "$answer" =~ [Yy] ]]; then return 0; else return 1; fi
+			;;
+		"$KEY_ESC" | "q" | "Q") return 1 ;;
+		esac
+	done
 }
 
 # Helper to format and set a wrapped error status message
