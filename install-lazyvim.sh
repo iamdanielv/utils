@@ -136,8 +136,7 @@ print_usage() {
     printMsg "  3. Downloads, installs, and updates the latest stable release of Neovim."
     printMsg "  4. Backs up any existing Neovim configuration."
     printMsg "  5. Clones the LazyVim starter template."
-    printMsg "  6. Sets up custom fzf configuration with previews in '~/.bashrc'."
-    printMsg "  7. Ensures '~/.local/bin' is in your PATH."
+    printMsg "  6. Ensures '~/.local/bin' is in your PATH."
     printMsg "  7. Installs the FiraCode Nerd Font for proper icon display."
     printMsg "\nRun without arguments to start the installation."
 }
@@ -193,27 +192,6 @@ install_package() {
     printOkMsg "Successfully installed ${package_name}."
 }
 
-# Installs bat or batcat for file previews.
-# On newer Debian/Ubuntu, 'bat' provides 'batcat'. On older ones, it's reversed.
-# We need either command to be available for fzf previews.
-install_bat_or_batcat() {
-    # fzf-preview.sh prefers 'batcat' then 'bat'.
-    if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
-        printInfoMsg "bat/batcat is already installed. Skipping."
-        return
-    fi
-
-    printInfoMsg "Attempting to install 'bat'..."
-    # Temporarily disable exit-on-error to allow fallback
-    (set +e; sudo apt-get install -y bat &>/dev/null)
-    if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
-        printOkMsg "Successfully installed bat/batcat."
-    else
-        printWarnMsg "'bat' installation failed, trying 'batcat'. This may not provide file previews."
-        install_package "batcat"
-    fi
-}
-
 # Installs core dependencies required for building and running plugins.
 install_dependencies() {
     printBanner "Installing Core Dependencies"
@@ -240,41 +218,9 @@ install_dependencies() {
         ln -sf "$(which fdfind)" "${HOME}/.local/bin/fd"
     fi
     
-    # For fzf preview script
-    install_bat_or_batcat
     install_package "tree"
     install_package "fontconfig" "fc-cache"
     install_package "unzip"
-}
-
-# Clones and installs fzf from the official GitHub repository.
-install_fzf_from_source() {
-    printBanner "Installing fzf (from source)"
-    local fzf_dir="${HOME}/.fzf"
-    
-    if [[ -d "$fzf_dir" ]]; then
-        printInfoMsg "fzf is already installed. Updating..."
-        if ! git -C "$fzf_dir" pull; then
-            printErrMsg "Failed to update fzf."
-            return 1
-        fi
-    else
-        printInfoMsg "Cloning fzf repository..."
-        local fzf_repo="https://github.com/junegunn/fzf.git"
-        if ! git clone --depth 1 "$fzf_repo" "$fzf_dir"; then
-            printErrMsg "Failed to clone fzf repository."
-            return 1
-        fi
-    fi
-
-    # Run the fzf install script non-interactively.
-    # --all enables key-bindings and completion.
-    # The script will automatically update .bashrc or .zshrc.
-    printInfoMsg "Running fzf install script..."
-    if ! "${HOME}/.fzf/install" --all; then
-        printErrMsg "fzf install script failed."
-        return 1
-    fi
 }
 
 # Downloads and installs the latest stable version of Neovim.
@@ -351,12 +297,17 @@ check_local_bin_in_path() {
     printOkMsg "PATH updated for current session."
 
     if [[ -f "$bashrc_path" ]]; then
-        if grep -q "${local_bin_dir}" "$bashrc_path"; then
+        if grep -q ".local/bin" "$bashrc_path"; then
             printInfoMsg "It seems '${local_bin_dir}' is already configured in ${bashrc_path}, but not active."
             return
         fi
 
         if prompt_yes_no "Add '${local_bin_dir}' to PATH in '${bashrc_path}'?" "y"; then
+            if prompt_yes_no "Create a backup of '${bashrc_path}' before modifying?" "y"; then
+                local backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
+                cp "$bashrc_path" "$backup_file"
+                printOkMsg "Backup created at: ${backup_file}"
+            fi
             echo -e "\n# Add local bin to PATH (added by install-lazyvim.sh)\nexport PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$bashrc_path"
             printOkMsg "Updated ${bashrc_path}."
         else
@@ -473,95 +424,6 @@ setup_lazyvim() {
     fi
 }
 
-# Sets up custom fzf configuration and preview script.
-setup_fzf_config() {
-    printBanner "Setting up Custom FZF Configuration"
-
-    local bin_dir="${HOME}/.local/bin"
-    mkdir -p "$bin_dir"
-
-    # --- Download fzf-preview.sh script ---
-    local preview_script_path="${bin_dir}/fzf-preview.sh"
-    local preview_script_url="https://raw.githubusercontent.com/junegunn/fzf/master/bin/fzf-preview.sh"
-
-    printInfoMsg "Downloading latest fzf preview script..."
-    # Use curl with -f to fail silently on server errors, which run_with_spinner will catch.
-    # --create-dirs is redundant here since we already did mkdir -p, but it's good practice.
-    if curl -L -f --create-dirs -o "$preview_script_path" "$preview_script_url"; then
-        chmod +x "$preview_script_path"
-        printOkMsg "fzf-preview.sh downloaded successfully."
-    else
-        printErrMsg "Failed to download fzf-preview.sh. A custom fzf preview will not be available."
-        # We don't exit here, as the rest of the installation can still succeed.
-    fi
-
-    # --- Append fzf settings to .bashrc ---
-    local bashrc_path="${HOME}/.bashrc"
-    local fzf_marker="# FZF_CUSTOM_CONFIG_FOR_LAZYVIM_INSTALLER"
-
-    if grep -q "$fzf_marker" "$bashrc_path"; then
-        printInfoMsg "Custom fzf configuration already exists in ${bashrc_path}. Skipping."
-        return
-    fi
-
-    printInfoMsg "Appending custom fzf configuration to ${bashrc_path}..."
-
-    # Use a heredoc to define the configuration block.
-    # The 'cat << EOF' syntax with unquoted EOF prevents variable expansion inside the heredoc.
-    cat >> "$bashrc_path" << 'EOF'
-
-# -----------------------------------------------------------------------------
-# FZF Configuration (added by LazyVim installer)
-# FZF_CUSTOM_CONFIG_FOR_LAZYVIM_INSTALLER
-# -----------------------------------------------------------------------------
-
-# Use fd as the default command for fzf to use for finding files.
-export FZF_DEFAULT_COMMAND='fd --hidden --follow --exclude ".git"'
-
-# Options for CTRL-T (insert file path in command line)
-export FZF_CTRL_T_OPTS="--style full \
-    --input-label ' Input ' --header-label ' File Type ' \
-    --preview 'fzf-preview.sh {}' \
-    --layout reverse \
-    --bind 'result:transform-list-label: \
-        if [[ -z \$FZF_QUERY ]]; then \
-          echo \" \$FZF_MATCH_COUNT items \" \
-        else \
-          echo \" \$FZF_MATCH_COUNT matches for [\$FZF_QUERY] \" \
-        fi \
-        ' \
-    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf \" Previewing [%s] \" {}' \
-    --bind 'focus:+transform-header:file --brief {} || echo \"No file selected\"' \
-    --color 'border:#aaaaaa,label:#cccccc,preview-border:#9999cc,preview-label:#ccccff' \
-    --color 'list-border:#669966,list-label:#99cc99,input-border:#996666,input-label:#ffcccc' \
-    --color 'header-border:#6699cc,header-label:#99ccff'"
-
-# Options for ALT-C (cd into a directory)
-export FZF_ALT_C_OPTS="--exact --style full \
-                        --bind 'focus:transform-header:file --brief {}' \
-                        --preview 'tree -L 1 -C {}'"
-
-# --- FZF Completion Overrides ---
-# Use fd to power fzf's path and directory completion (**<TAB>).
-_fzf_compgen_path() {
-  fd --hidden --follow --exclude ".git" . "$1"
-}
-_fzf_compgen_dir() {
-  fd --type d --hidden --follow --exclude ".git" . "$1"
-}
-
-# --- Custom FZF Functions & Bindings ---
-# Custom function to find a file and open it in Neovim (Alt+F).
-fzf_nvim() {
-  fzf --exact --style full --preview 'fzf-preview.sh {}' --bind "enter:become(nvim {})"
-}
-bind -x '"\ef":fzf_nvim'
-bind -x '"\C-x":clear' # Utility binding: Ctrl+X to clear the screen.
-EOF
-
-    printOkMsg "fzf configuration added. Please run 'source ~/.bashrc' or open a new terminal."
-}
-
 main() {
     if [[ "$1" == "-h" || "$1" == "--help" ]]; then
         print_usage
@@ -577,11 +439,9 @@ main() {
 
     detect_system
     install_dependencies
-    install_fzf_from_source
     install_neovim
     check_local_bin_in_path
     install_nerd_fonts
-    setup_fzf_config
     setup_lazyvim
 
     echo

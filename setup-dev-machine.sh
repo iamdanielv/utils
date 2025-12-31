@@ -245,6 +245,35 @@ install_jesseduffield_tool() {
     fi
 }
 
+# (Private) Checks and offers to add ~/.local/bin to ~/.bashrc.
+_setup_local_bin_path() {
+    local local_bin_path="${HOME}/.local/bin"
+    local bashrc_path="${HOME}/.bashrc"
+    local path_export_line="export PATH=\"\$HOME/.local/bin:\$PATH\""
+    local path_comment="# Add local bin to PATH (added by setup-dev-machine.sh)"
+
+    if [[ ! -f "$bashrc_path" ]]; then
+        return
+    fi
+
+    # Check if the directory is already mentioned in .bashrc
+    if grep -q ".local/bin" "$bashrc_path"; then
+        return
+    fi
+
+    printMsg "" # Add a newline for spacing
+    if prompt_yes_no "Add '${local_bin_path}' to your '${bashrc_path}'?" "y"; then
+        if prompt_yes_no "Create a backup of '${bashrc_path}' before modifying?" "y"; then
+            local backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
+            cp "$bashrc_path" "$backup_file"
+            printOkMsg "Backup created at: ${backup_file}"
+        fi
+        echo -e "\n${path_comment}\n${path_export_line}" >> "$bashrc_path"
+        printOkMsg "Successfully updated '${bashrc_path}'."
+        export PATH="${local_bin_path}:${PATH}"
+    fi
+}
+
 # Installs or updates Go (Golang) to the latest stable version.
 install_golang() {
     printBanner "Install/Update Go (Golang)"
@@ -309,6 +338,138 @@ install_golang() {
     fi
 }
 
+# Installs bat or batcat for file previews (used by fzf).
+install_bat_or_batcat() {
+    # fzf-preview.sh prefers 'batcat' then 'bat'.
+    if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
+        printInfoMsg "bat/batcat is already installed. Skipping."
+        return
+    fi
+
+    printInfoMsg "Attempting to install 'bat'..."
+    # Temporarily disable exit-on-error to allow fallback
+    if sudo apt-get install -y bat &>/dev/null; then
+        printOkMsg "Successfully installed bat."
+    else
+        printWarnMsg "'bat' installation failed, trying 'batcat'. This may not provide file previews."
+        install_package "batcat"
+    fi
+}
+
+# Clones and installs fzf from the official GitHub repository.
+install_fzf_from_source() {
+    printBanner "Installing fzf (from source)"
+    local fzf_dir="${HOME}/.fzf"
+    
+    if [[ -d "$fzf_dir" ]]; then
+        printInfoMsg "fzf is already installed. Updating..."
+        if ! run_with_spinner "Updating fzf repo..." git -C "$fzf_dir" pull; then
+            printErrMsg "Failed to update fzf."
+            return 1
+        fi
+    else
+        printInfoMsg "Cloning fzf repository..."
+        local fzf_repo="https://github.com/junegunn/fzf.git"
+        if ! run_with_spinner "Cloning fzf..." git clone --depth 1 "$fzf_repo" "$fzf_dir"; then
+            printErrMsg "Failed to clone fzf repository."
+            return 1
+        fi
+    fi
+
+    # Run the fzf install script non-interactively.
+    printInfoMsg "Running fzf install script..."
+    if ! run_with_spinner "Installing fzf binaries..." "${HOME}/.fzf/install" --all; then
+        printErrMsg "fzf install script failed."
+        return 1
+    fi
+}
+
+# Sets up custom fzf configuration and preview script.
+setup_fzf_config() {
+    printBanner "Setting up Custom FZF Configuration"
+
+    local bin_dir="${HOME}/.local/bin"
+    mkdir -p "$bin_dir"
+
+    # --- Download fzf-preview.sh script ---
+    local preview_script_path="${bin_dir}/fzf-preview.sh"
+    local preview_script_url="https://raw.githubusercontent.com/junegunn/fzf/master/bin/fzf-preview.sh"
+
+    if [[ ! -f "$preview_script_path" ]]; then
+        if run_with_spinner "Downloading fzf-preview.sh..." curl -L -f -o "$preview_script_path" "$preview_script_url"; then
+            chmod +x "$preview_script_path"
+            printOkMsg "fzf-preview.sh downloaded successfully."
+        else
+            printErrMsg "Failed to download fzf-preview.sh."
+        fi
+    fi
+
+    # --- Append fzf settings to .bashrc ---
+    local bashrc_path="${HOME}/.bashrc"
+    local fzf_marker="# FZF_CUSTOM_CONFIG_FOR_DEV_MACHINE"
+
+    if grep -q "$fzf_marker" "$bashrc_path"; then
+        printInfoMsg "Custom fzf configuration already exists in ${bashrc_path}. Skipping."
+        return
+    fi
+
+    printInfoMsg "Appending custom fzf configuration to ${bashrc_path}..."
+    # We use the cat << 'EOF' trick to append the block.
+    # Note: We are reusing the block previously found in install-lazyvim.sh
+    # but updating the marker comment.
+    cat >> "$bashrc_path" << 'EOF'
+
+# -----------------------------------------------------------------------------
+# FZF Configuration (added by setup-dev-machine.sh)
+# FZF_CUSTOM_CONFIG_FOR_DEV_MACHINE
+# -----------------------------------------------------------------------------
+
+# Use fd as the default command for fzf to use for finding files.
+export FZF_DEFAULT_COMMAND='fd --hidden --follow --exclude ".git"'
+
+# Options for CTRL-T (insert file path in command line)
+export FZF_CTRL_T_OPTS="--style full \
+    --input-label ' Input ' --header-label ' File Type ' \
+    --preview 'fzf-preview.sh {}' \
+    --layout reverse \
+    --bind 'result:transform-list-label: \
+        if [[ -z \$FZF_QUERY ]]; then \
+          echo \" \$FZF_MATCH_COUNT items \" \
+        else \
+          echo \" \$FZF_MATCH_COUNT matches for [\$FZF_QUERY] \" \
+        fi \
+        ' \
+    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf \" Previewing [%s] \" {}' \
+    --bind 'focus:+transform-header:file --brief {} || echo \"No file selected\"' \
+    --color 'border:#aaaaaa,label:#cccccc,preview-border:#9999cc,preview-label:#ccccff' \
+    --color 'list-border:#669966,list-label:#99cc99,input-border:#996666,input-label:#ffcccc' \
+    --color 'header-border:#6699cc,header-label:#99ccff'"
+
+# Options for ALT-C (cd into a directory)
+export FZF_ALT_C_OPTS="--exact --style full \
+                        --bind 'focus:transform-header:file --brief {}' \
+                        --preview 'tree -L 1 -C {}'"
+
+# --- FZF Completion Overrides ---
+# Use fd to power fzf's path and directory completion (**<TAB>).
+_fzf_compgen_path() {
+  fd --hidden --follow --exclude ".git" . "$1"
+}
+_fzf_compgen_dir() {
+  fd --type d --hidden --follow --exclude ".git" . "$1"
+}
+
+# --- Custom FZF Functions & Bindings ---
+# Custom function to find a file and open it in Neovim (Alt+F).
+fzf_nvim() {
+  fzf --exact --style full --preview 'fzf-preview.sh {}' --bind "enter:become(nvim {})"
+}
+bind -x '"\ef":fzf_nvim'
+bind -x '"\C-x":clear' # Utility binding: Ctrl+X to clear the screen.
+EOF
+    printOkMsg "fzf configuration added to .bashrc."
+}
+
 # (Private) Checks and offers to add the Go binary path to ~/.bashrc.
 # This is called by install_golang after a successful installation.
 _setup_go_path() {
@@ -361,6 +522,16 @@ install_core_tools() {
 
     # For 'ag' alias
     install_package "silversearcher-ag" "ag"
+    # For fzf and general searching
+    install_package "ripgrep" "rg"
+    install_package "fd-find" "fd"
+    # Symlink fd if needed (fdfind -> fd)
+    if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
+        printInfoMsg "Creating symlink for 'fd' from 'fdfind'..."
+        ln -sf "$(which fdfind)" "${HOME}/.local/bin/fd"
+    fi
+    install_bat_or_batcat
+
     # For 'ports' alias (netstat)
     install_package "net-tools" "netstat"
     # For 'ls', 'll', 'lt', etc. aliases
@@ -374,6 +545,9 @@ install_core_tools() {
     # For 'lg' alias (lazygit) and docker management (lazydocker)
     install_jesseduffield_tool "lazygit"
     install_jesseduffield_tool "lazydocker"
+
+    # Ensure ~/.local/bin is in PATH
+    _setup_local_bin_path
 
     # For Go development
     install_golang
@@ -423,6 +597,10 @@ main() {
 
     install_core_tools
     setup_bash_aliases
+
+    # Install and configure fzf
+    install_fzf_from_source
+    setup_fzf_config
 
     # Execute the LazyVim installer script
     bash "${SCRIPT_DIR}/install-lazyvim.sh"
