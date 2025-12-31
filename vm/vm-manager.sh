@@ -597,7 +597,7 @@ prompt_for_input() {
 
 	local buffer=""
 	buffer+="\n"
-	buffer+=$(printBanner "Input - ${prompt_text}" "${C_CYAN}")
+	buffer+=$(printBanner "Input - ${prompt_text} (${C_YELLOW}esc${C_CYAN} to cancel)" "${C_CYAN}")
 	buffer+="\n"
 	buffer+="${C_CYAN}╰❱${T_RESET} "
 	printMsgNoNewline "$buffer"
