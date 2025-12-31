@@ -337,17 +337,35 @@ install_neovim() {
 check_local_bin_in_path() {
     printBanner "Checking PATH Environment Variable"
     local local_bin_dir="${HOME}/.local/bin"
+    local bashrc_path="${HOME}/.bashrc"
 
     # Check if the directory is in the PATH. The colons are important for matching.
     if [[ ":$PATH:" == *":${local_bin_dir}:"* ]]; then
         printOkMsg "'${local_bin_dir}' is already in your PATH."
+        return
+    fi
+
+    printWarnMsg "'${local_bin_dir}' is not in your current PATH."
+    printInfoMsg "Temporarily adding it to the PATH for this session."
+    export PATH="${local_bin_dir}:${PATH}"
+    printOkMsg "PATH updated for current session."
+
+    if [[ -f "$bashrc_path" ]]; then
+        if grep -q "${local_bin_dir}" "$bashrc_path"; then
+            printInfoMsg "It seems '${local_bin_dir}' is already configured in ${bashrc_path}, but not active."
+            return
+        fi
+
+        if prompt_yes_no "Add '${local_bin_dir}' to PATH in '${bashrc_path}'?" "y"; then
+            echo -e "\n# Add local bin to PATH (added by install-lazyvim.sh)\nexport PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$bashrc_path"
+            printOkMsg "Updated ${bashrc_path}."
+        else
+            printInfoMsg "Skipped modifying ${bashrc_path}."
+            printMsg "  Please manually add: ${C_L_CYAN}export PATH=\"\$HOME/.local/bin:\$PATH\"${T_RESET}"
+            prompt_to_continue "Press any key to continue with the installation..."
+        fi
     else
-        printWarnMsg "'${local_bin_dir}' is not in your current PATH."
-        printInfoMsg "Temporarily adding it to the PATH for this session."
-        export PATH="${local_bin_dir}:${PATH}"
-        printOkMsg "PATH updated for current session."
-        printInfoMsg "For this change to be permanent, add the following line to your ~/.bashrc or ~/.zshrc:"
-        printMsg "  ${C_L_CYAN}export PATH=\"\$HOME/.local/bin:\$PATH\"${T_RESET}"
+        printInfoMsg "Could not find ${bashrc_path}. Please manually add '${local_bin_dir}' to your PATH."
         prompt_to_continue "Press any key to continue with the installation..."
     fi
 }
