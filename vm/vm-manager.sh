@@ -335,6 +335,7 @@ set_state_visuals() {
 append_network_info() {
 	local vm="$1"
 	local -n buf="$2"
+	local border="${C_CYAN}│${T_RESET}"
 
 	local net_info
 	local net_source="Agent"
@@ -348,7 +349,7 @@ append_network_info() {
 	local clean_net_info
 	clean_net_info=$(echo "$net_info" | tail -n +3)
 	if [[ -n "$clean_net_info" ]]; then
-		buf+=$(printBanner "Network Interfaces (${C_CYAN}Source: $net_source${T_RESET})" "$C_BLUE")
+		buf+=$(printBannerMiddle "Network Interfaces (${C_CYAN}Source: $net_source${T_RESET})" "$C_CYAN")
 		buf+="\n"
 		while read -r iface mac proto addr; do
 			[[ -z "$iface" ]] && continue
@@ -356,42 +357,43 @@ append_network_info() {
 			local mac_disp="$mac"
 			[[ "$iface" == "-" ]] && iface_disp=""
 			[[ "$mac" == "-" ]] && mac_disp=""
-			printf -v line "  ${C_CYAN}%-10s${T_RESET} ${C_BLUE}%-17s${T_RESET} ${C_YELLOW}%-4s${T_RESET} ${C_GREEN}%s${T_RESET}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
+			printf -v line "${border}  ${C_CYAN}%-10s${T_RESET} ${C_BLUE}%-17s${T_RESET} ${C_YELLOW}%-4s${T_RESET} ${C_GREEN}%s${T_RESET}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
 			buf+="$line"
 		done <<<"$clean_net_info"
 	else
-		buf+=$(printBanner "Network Interfaces" "$C_BLUE")
+		buf+=$(printBannerMiddle "Network Interfaces" "$C_CYAN")
 		buf+="\n"
-		buf+="  ${C_YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${T_RESET}\n"
+		buf+="${border}  ${C_YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${T_RESET}\n"
 	fi
 }
 
 append_storage_info() {
 	local vm="$1"
 	local -n buf="$2"
+	local border="${C_CYAN}│${T_RESET}"
 
-	buf+=$(printBanner "Storage" "$C_BLUE")
+	buf+=$(printBannerMiddle "Storage" "$C_CYAN")
 	buf+="\n"
 	local blklist
 	blklist=$(virsh domblklist "$vm" --details | tail -n +3)
 
 	if [[ -z "$blklist" ]]; then
-		buf+="  No storage devices found.\n"
+		buf+="${border}  No storage devices found.\n"
 	else
 		while read -r type device target source; do
 			[[ -z "$target" ]] && continue
 
 			if [[ "$source" == "-" && "$device" == "cdrom" ]]; then
-				buf+="  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - ${C_CYAN}(Empty)${T_RESET}\n"
+				buf+="${border}  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - ${C_CYAN}(Empty)${T_RESET}\n"
 				continue
 			fi
 
-			buf+="  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - Type: ${C_CYAN}${type}${T_RESET}\n"
+			buf+="${border}  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - Type: ${C_CYAN}${type}${T_RESET}\n"
 
 			if [[ "$source" == "-" ]]; then
 				source="(unknown or passthrough)"
 			fi
-			buf+="    Host path: ${C_CYAN}$source${T_RESET}\n"
+			buf+="${border}    Host path: ${C_CYAN}$source${T_RESET}\n"
 
 			local blk_info
 			blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
@@ -405,12 +407,12 @@ append_storage_info() {
 				if [[ -n "$cap" && -n "$alloc" ]]; then
 					local usage_str
 					usage_str=$(awk -v c="$cap" -v a="$alloc" 'BEGIN { printf "%.0f/%.0f GiB", a/1073741824, c/1073741824 }')
-					buf+="    Capacity: $usage_str\n"
+					buf+="${border}    Capacity: $usage_str\n"
 				else
-					buf+="    (No info available)\n"
+					buf+="${border}    (No info available)\n"
 				fi
 			else
-				buf+="    (No info available)\n"
+				buf+="${border}    (No info available)\n"
 			fi
 		done <<<"$blklist"
 	fi
@@ -473,18 +475,19 @@ show_vm_details() {
 		agent_color="${C_YELLOW}"
 	fi
 
+	local border="${C_CYAN}│${T_RESET}"
 	local buffer=""
 	buffer+=$(printBanner "VM Details: ${T_BOLD}${C_YELLOW}$vm${T_RESET} (${T_REVERSE}${state_color} ${state_icon} ${state} ${T_REVERSE}${T_RESET})" "$C_CYAN")
 	buffer+="\n"
 
 	local line
-	printf -v line "  CPU(s): ${C_CYAN}%s${T_RESET}\t Memory: ${C_CYAN}%s${T_RESET}\t Autostart: ${C_CYAN}%s${T_RESET}\n" "$cpus" "$mem_display" "$autostart"
+	printf -v line "${border}  CPU(s): ${C_CYAN}%s${T_RESET}\t Memory: ${C_CYAN}%s${T_RESET}\t Autostart: ${C_CYAN}%s${T_RESET}\n" "$cpus" "$mem_display" "$autostart"
 	buffer+="$line"
 	if [[ -n "$os_info" ]]; then
-		printf -v line "  ${C_GREEN}Agent OS: ${C_CYAN}%s${T_RESET}\n" "$os_info"
+		printf -v line "${border}  ${C_GREEN}Agent OS: ${C_CYAN}%s${T_RESET}\n" "$os_info"
 		buffer+="$line"
 	else
-		printf -v line "  Agent:  ${agent_color}%s${T_RESET}%s\n" "$agent_status" "$agent_hint"
+		printf -v line "${border}  Agent:  ${agent_color}%s${T_RESET}%s\n" "$agent_status" "$agent_hint"
 		buffer+="$line"
 	fi
 
@@ -493,7 +496,7 @@ show_vm_details() {
 
 	buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
 	render_buffer "$buffer"
-	read -rsn1
+	read_single_char >/dev/null
 	clear_screen
 }
 
