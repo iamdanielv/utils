@@ -588,14 +588,12 @@ prompt_for_input() {
 	local default_val="${3:-}"
 	local allow_empty="${4:-false}"
 
-	printMsgNoNewline "${T_CURSOR_SHOW}"
+	MSG_TITLE="Input - ${prompt_text} (${C_CYAN}esc${C_YELLOW} to cancel)"
+	MSG_COLOR="$C_YELLOW"
+	MSG_INPUT="true"
+	render_main_ui
 
-	local buffer=""
-	buffer+="\n"
-	buffer+=$(printBanner "Input - ${prompt_text} (${C_YELLOW}esc${C_CYAN} to cancel)" "${C_CYAN}")
-	buffer+="\n"
-	buffer+="${C_CYAN}╰❱${T_RESET} "
-	printMsgNoNewline "$buffer"
+	printMsgNoNewline "${T_CURSOR_SHOW}"
 
 	# Prefix length: "╰❱ " (3 chars)
 	local prefix_len=3
@@ -615,11 +613,15 @@ prompt_for_input() {
 			if [[ -n "$input_str" || "$allow_empty" == "true" ]]; then
 				var_ref="$input_str"
 				printMsgNoNewline "${T_CURSOR_HIDE}"
+				MSG_INPUT=""
+				MSG_TITLE=""
 				return 0
 			fi
 			;;
 		"$KEY_ESC")
 			printMsgNoNewline "${T_CURSOR_HIDE}"
+			MSG_INPUT=""
+			MSG_TITLE=""
 			return 1
 			;;
 		"$KEY_BACKSPACE") if ((cursor_pos > 0)); then input_str="${input_str:0:cursor_pos-1}${input_str:cursor_pos}"; ((cursor_pos--)); fi ;;
@@ -713,7 +715,7 @@ handle_clone_vm() {
 	STATUS_MSG="" # Clear any previous status
 	render_main_ui
 
-	if prompt_for_input "Clone ${VM_NAMES[$SELECTED]}" new_name "$default_name"; then
+	if prompt_for_input "Name for Clone of ${VM_NAMES[$SELECTED]}" new_name "$default_name"; then
 		if [[ -n "$new_name" ]]; then
 			# Validate VM name: alphanumeric, dot, underscore, hyphen only
 			if [[ ! "$new_name" =~ ^[a-zA-Z0-9._-]+$ ]]; then
@@ -889,7 +891,7 @@ render_main_ui() {
 		buffer+=$(printBannerMiddle "$title" "$color")
 		buffer+="\n"
 		if [[ "$MSG_INPUT" == "true" ]]; then
-			buffer+="${color}╰${T_RESET} "
+			buffer+="${color}╰${C_MAGENTA}❱${T_RESET} "
 		else
 			local first_line=true
 			while IFS= read -r line; do
