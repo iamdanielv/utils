@@ -565,7 +565,6 @@ ask_confirmation() {
 	render_main_ui
 
 	local buffer=""
-	buffer+="\n"
 	buffer+=$(printBanner "Confirmation" "${C_YELLOW}")
 	buffer+="\n"
 	buffer+="${C_YELLOW}╰${T_RESET} ${T_BOLD}${question} ${prompt_suffix}${T_RESET}"
