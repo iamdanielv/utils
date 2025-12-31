@@ -314,12 +314,12 @@ install_golang() {
 _setup_go_path() {
     local go_bin_path="/usr/local/go/bin"
     local bashrc_path="${HOME}/.bashrc"
-    local path_export_line="export PATH=\$PATH:${go_bin_path}"
-    local path_comment="# Add Go binary to PATH (added by setup-dev-machine.sh)"
+    local path_export_line="export PATH=\$PATH:${go_bin_path}:\$HOME/go/bin"
+    local path_comment="# Add Go binary paths to PATH (added by setup-dev-machine.sh)"
 
     if [[ ! -f "$bashrc_path" ]]; then
         printWarnMsg "Could not find '${bashrc_path}'. Cannot configure PATH automatically."
-        printInfoMsg "Please add '${go_bin_path}' to your shell's PATH manually."
+        printInfoMsg "Please add '${go_bin_path}' and '\$HOME/go/bin' to your shell's PATH manually."
         return
     fi
 
