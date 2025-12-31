@@ -563,15 +563,10 @@ ask_confirmation() {
 	local prompt_suffix
 	if [[ "$default_answer" == "y" ]]; then prompt_suffix="(Y/n)"; else prompt_suffix="(y/N)"; fi
 
-	# Clear status to ensure clean slate
-	STATUS_MSG=""
+	MSG_TITLE="Confirmation"
+	MSG_COLOR="$C_YELLOW"
+	STATUS_MSG="${question} ${prompt_suffix}"
 	render_main_ui
-
-	local buffer=""
-	buffer+=$(printBanner "Confirmation" "${C_YELLOW}")
-	buffer+="\n"
-	buffer+="${C_YELLOW}╰${T_RESET} ${T_BOLD}${question} ${prompt_suffix}${T_RESET}"
-	printMsgNoNewline "$buffer"
 
 	local answer
 	while true; do
