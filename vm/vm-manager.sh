@@ -661,7 +661,7 @@ set_error_status() {
 	STATUS_MSG=$(echo "${prefix}${error_text}" | fold -s -w "$wrap_width")
 	HAS_ERROR=true
 	MSG_COLOR="$C_RED"
-	MSG_TITLE="Error"
+	MSG_TITLE="${ICON_ERR} Error"
 }
 
 # Helper to run a command with a spinner
@@ -739,6 +739,8 @@ handle_clone_vm() {
 			if run_with_spinner "Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)" \
 				virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone; then
 				STATUS_MSG="${C_GREEN}Clone successful: $new_name${T_RESET}"
+				MSG_TITLE="${ICON_OK} Success"
+				MSG_COLOR="$C_GREEN"
 				fetch_vms
 			else
 				set_error_status "Clone failed: " "$CMD_OUTPUT"
@@ -746,6 +748,8 @@ handle_clone_vm() {
 		fi
 	else
 		STATUS_MSG="${C_YELLOW}Clone cancelled${T_RESET}"
+		MSG_TITLE="${ICON_INFO} Info"
+		MSG_COLOR="$C_YELLOW"
 	fi
 }
 
@@ -756,6 +760,8 @@ handle_delete_vm() {
 
 	if ! ask_confirmation "${C_RED}DELETE${T_RESET} $vm?"; then
 		STATUS_MSG="${C_YELLOW}Delete cancelled${T_RESET}"
+		MSG_TITLE="${ICON_INFO} Info"
+		MSG_COLOR="$C_YELLOW"
 		return
 	fi
 
@@ -773,6 +779,8 @@ handle_delete_vm() {
 
 	if run_with_spinner "Deleting $vm..." _perform_delete; then
 		STATUS_MSG="${C_GREEN}Deleted $vm${T_RESET}"
+		MSG_TITLE="${ICON_OK} Success"
+		MSG_COLOR="$C_GREEN"
 		fetch_vms
 	else
 		set_error_status "Delete failed: " "$CMD_OUTPUT"
@@ -794,6 +802,8 @@ handle_vm_action() {
 	else
 		local cancel_name="${display_name,,}"
 		STATUS_MSG="${C_YELLOW}${cancel_name^} cancelled${T_RESET}"
+		MSG_TITLE="${ICON_INFO} Info"
+		MSG_COLOR="$C_YELLOW"
 	fi
 }
 
@@ -993,6 +1003,8 @@ while true; do
 		if run_with_spinner "Performing $action on $vm..." virsh "$cmd" "$vm"; then
 			fetch_vms
 			STATUS_MSG="Command '$action' sent to $vm"
+			MSG_TITLE="${ICON_OK} Success"
+			MSG_COLOR="$C_GREEN"
 		else
 			set_error_status "Error: " "$CMD_OUTPUT"
 		fi
