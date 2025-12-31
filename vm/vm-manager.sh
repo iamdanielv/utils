@@ -951,7 +951,7 @@ while true; do
 	cmd=""
 	action=""
 	case "$key" in
-	q | Q)
+	"$KEY_ESC" | q | Q)
 		clear_screen
 		exit 0
 		;;
