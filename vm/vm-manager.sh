@@ -673,10 +673,16 @@ run_with_spinner() {
 	local temp_out
 	temp_out=$(mktemp)
 
+	printMsgNoNewline "${T_CURSOR_HIDE}"
+
 	"$@" >"$temp_out" 2>&1 &
 	local pid=$!
 
-	STATUS_MSG="${message}  "
+	if [[ -z "$MSG_TITLE" ]]; then
+		MSG_TITLE="Processing"
+	fi
+
+	STATUS_MSG="${message}"
 	render_main_ui
 	local color="${MSG_COLOR:-$C_YELLOW}"
 
