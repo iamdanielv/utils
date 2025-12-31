@@ -888,13 +888,10 @@ render_main_ui() {
 		done
 	fi
 
-	buffer+=$(draw_footer)
-	buffer+="\n"
-
 	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
 		local title="${MSG_TITLE:-Message:}"
 		local color="${MSG_COLOR:-$C_YELLOW}"
-		buffer+=$(printBanner "$title" "$color")
+		buffer+=$(printBannerMiddle "$title" "$color")
 		buffer+="\n"
 		if [[ "$MSG_INPUT" == "true" ]]; then
 			buffer+="${color}╰${T_RESET} "
@@ -909,6 +906,9 @@ render_main_ui() {
 				fi
 			done <<<"$STATUS_MSG"
 		fi
+	else
+		buffer+=$(draw_footer)
+		buffer+="\n"
 	fi
 
 	# Print buffer at home position and clear rest of screen
