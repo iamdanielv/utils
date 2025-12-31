@@ -573,6 +573,60 @@ ask_confirmation() {
 	done
 }
 
+# Helper for text input (Modal style)
+prompt_for_input() {
+	local prompt_text="$1"
+	local -n var_ref="$2"
+	local default_val="${3:-}"
+	local allow_empty="${4:-false}"
+
+	printMsgNoNewline "${T_CURSOR_SHOW}"
+
+	local buffer=""
+	buffer+="\n"
+	buffer+=$(printBanner "Input - ${prompt_text}" "${C_CYAN}")
+	buffer+="\n"
+	buffer+="${C_CYAN}╰❱${T_RESET} "
+	printMsgNoNewline "$buffer"
+
+	# Prefix length: "╰❱ " (3 chars)
+	local prefix_len=3
+	local input_str="$default_val"
+	local cursor_pos=${#input_str}
+	local key
+
+	while true; do
+		# Redraw input line
+		printf '\r\033[%sC' "$prefix_len"
+		printMsgNoNewline "${input_str}${T_CLEAR_LINE}"
+		printf '\r\033[%sC' "$((prefix_len + cursor_pos))"
+
+		key=$(read_single_char)
+		case "$key" in
+		"$KEY_ENTER")
+			if [[ -n "$input_str" || "$allow_empty" == "true" ]]; then
+				var_ref="$input_str"
+				printMsgNoNewline "${T_CURSOR_HIDE}"
+				return 0
+			fi
+			;;
+		"$KEY_ESC")
+			printMsgNoNewline "${T_CURSOR_HIDE}"
+			return 1
+			;;
+		"$KEY_BACKSPACE") if ((cursor_pos > 0)); then input_str="${input_str:0:cursor_pos-1}${input_str:cursor_pos}"; ((cursor_pos--)); fi ;;
+		"$KEY_DELETE") if ((cursor_pos < ${#input_str})); then input_str="${input_str:0:cursor_pos}${input_str:cursor_pos+1}"; fi ;;
+		"$KEY_LEFT") if ((cursor_pos > 0)); then ((cursor_pos--)); fi ;;
+		"$KEY_RIGHT") if ((cursor_pos < ${#input_str})); then ((cursor_pos++)); fi ;;
+		"$KEY_HOME") cursor_pos=0 ;;
+		"$KEY_END") cursor_pos=${#input_str} ;;
+		*)
+			if ((${#key} == 1)) && [[ "$key" =~ [[:print:]] ]]; then input_str="${input_str:0:cursor_pos}${key}${input_str:cursor_pos}"; ((cursor_pos++)); fi
+			;;
+		esac
+	done
+}
+
 # Helper to format and set a wrapped error status message
 set_error_status() {
 	local prefix="$1"
@@ -640,38 +694,36 @@ handle_clone_vm() {
 	fi
 
 	local default_name="${VM_NAMES[$SELECTED]}-c"
-	MSG_TITLE="CLONE ${VM_NAMES[$SELECTED]}? (empty name to cancel)"
-	MSG_COLOR="$C_ORANGE"
-	MSG_INPUT="true"
+	local new_name="$default_name"
+
 	STATUS_MSG="" # Clear any previous status
 	render_main_ui
-	echo -ne "${T_CURSOR_SHOW}"
-	read -e -p " Enter new name: " -i "$default_name" -r new_name
-	echo -e "${T_CURSOR_HIDE}"
-	MSG_INPUT="false"
-	if [[ -n "$new_name" ]]; then
-		# Validate VM name: alphanumeric, dot, underscore, hyphen only
-		if [[ ! "$new_name" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-			STATUS_MSG="${C_RED}Error: Invalid name. Use only a-z, 0-9, ., _, - (no spaces).${T_RESET}"
-			HAS_ERROR=true
-			return
-		fi
 
-		# Check if name already exists
-		for existing_vm in "${VM_NAMES[@]}"; do
-			if [[ "$existing_vm" == "$new_name" ]]; then
-				STATUS_MSG="${C_RED}Error: VM '$new_name' already exists.${T_RESET}"
+	if prompt_for_input "Clone ${VM_NAMES[$SELECTED]}" new_name "$default_name"; then
+		if [[ -n "$new_name" ]]; then
+			# Validate VM name: alphanumeric, dot, underscore, hyphen only
+			if [[ ! "$new_name" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+				STATUS_MSG="${C_RED}Error: Invalid name. Use only a-z, 0-9, ., _, - (no spaces).${T_RESET}"
 				HAS_ERROR=true
 				return
 			fi
-		done
 
-		if run_with_spinner "Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)" \
-			virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone; then
-			STATUS_MSG="${C_GREEN}Clone successful: $new_name${T_RESET}"
-			fetch_vms
-		else
-			set_error_status "Clone failed: " "$CMD_OUTPUT"
+			# Check if name already exists
+			for existing_vm in "${VM_NAMES[@]}"; do
+				if [[ "$existing_vm" == "$new_name" ]]; then
+					STATUS_MSG="${C_RED}Error: VM '$new_name' already exists.${T_RESET}"
+					HAS_ERROR=true
+					return
+				fi
+			done
+
+			if run_with_spinner "Cloning ${VM_NAMES[$SELECTED]} to $new_name... (Please wait)" \
+				virt-clone --original "${VM_NAMES[$SELECTED]}" --name "$new_name" --auto-clone; then
+				STATUS_MSG="${C_GREEN}Clone successful: $new_name${T_RESET}"
+				fetch_vms
+			else
+				set_error_status "Clone failed: " "$CMD_OUTPUT"
+			fi
 		fi
 	else
 		STATUS_MSG="${C_YELLOW}Clone cancelled${T_RESET}"
