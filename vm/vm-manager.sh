@@ -497,39 +497,50 @@ show_vm_details() {
 	clear_screen
 }
 
-# Function to show help overlay
-show_help() {
+# (Private) Renders a standardized help screen with the given title and body content.
+_render_help_screen() {
+	local title="$1"
+	local body="$2"
+
 	clear_screen
 	local buffer=""
-	buffer+=$(printBanner "Help & Shortcuts" "$C_CYAN")
+	buffer+=$(printBanner "$title" "${C_CYAN}")
 	buffer+="\n"
-
-	buffer+=$(printBanner "Navigation" "$C_ORANGE")
-	buffer+="\n"
-	buffer+="  ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}  Select VM from the list\n"
-
-	buffer+=$(printBanner "Power Actions" "$C_ORANGE")
-	buffer+="\n"
-	buffer+="  ${C_GREEN}S${T_RESET}           Start/Shutdown/Resume VM (Toggle)\n"
-	buffer+="  ${C_YELLOW}R${T_RESET}           Reboot\n"
-	buffer+="  ${C_RED}F${T_RESET}           Force Stop (Hard power off)\n"
-
-	buffer+=$(printBanner "Management" "$C_ORANGE")
-	buffer+="\n"
-	buffer+="  ${C_YELLOW}I${T_RESET}           Show Details (IP, Disk, Network)\n"
-	buffer+="  ${C_CYAN}C${T_RESET}           Clone VM\n"
-	buffer+="  ${C_RED}D${T_RESET}           Delete VM\n"
-
-	buffer+=$(printBanner "Other" "$C_ORANGE")
-	buffer+="\n"
-	buffer+="  ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}         Show this help\n"
-	buffer+="  ${C_RED}Q${T_RESET}           Quit\n"
-
+	buffer+="$body"
 	buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
 
 	render_buffer "$buffer"
-	read -rsn1
+	read_single_char >/dev/null
 	clear_screen
+}
+
+# Function to show help overlay
+show_help() {
+	local border="${C_CYAN}│${T_RESET}"
+	local body=""
+
+	body+=$(printBannerMiddle "Navigation" "${C_ORANGE}")
+	body+="\n"
+	body+="${border}   ${C_CYAN}↓${T_RESET}/${C_CYAN}↑${T_RESET} or ${C_CYAN}j${T_RESET}/${C_CYAN}k${T_RESET}     Select VM from the list\n"
+
+	body+=$(printBannerMiddle "Power Actions" "${C_ORANGE}")
+	body+="\n"
+	body+="${border}   ${C_GREEN}S${T_RESET}              Start/Shutdown/Resume VM (Toggle)\n"
+	body+="${border}   ${C_YELLOW}R${T_RESET}              Reboot\n"
+	body+="${border}   ${C_RED}F${T_RESET}              Force Stop (Hard power off)\n"
+
+	body+=$(printBannerMiddle "Management" "${C_ORANGE}")
+	body+="\n"
+	body+="${border}   ${C_YELLOW}I${T_RESET}              Show Details (IP, Disk, Network)\n"
+	body+="${border}   ${C_CYAN}C${T_RESET}              Clone VM\n"
+	body+="${border}   ${C_RED}D${T_RESET}              Delete VM\n"
+
+	body+=$(printBannerMiddle "Other" "${C_ORANGE}")
+	body+="\n"
+	body+="${border}   ${C_CYAN}?${T_RESET}/${C_CYAN}h${T_RESET}            Show this help\n"
+	body+="${border}   ${C_RED}Q${T_RESET}              Quit\n"
+
+	_render_help_screen "Help & Shortcuts" "$body"
 }
 
 # Check if a VM is selected
