@@ -32,6 +32,12 @@ readonly KEY_ESC=$'\033'
 readonly KEY_ENTER="ENTER"
 readonly KEY_UP=$'\033[A'
 readonly KEY_DOWN=$'\033[B'
+readonly KEY_RIGHT=$'\033[C'
+readonly KEY_LEFT=$'\033[D'
+readonly KEY_BACKSPACE=$'\x7f'
+readonly KEY_HOME=$'\033[H'
+readonly KEY_END=$'\033[F'
+readonly KEY_DELETE=$'\033[3~'
 
 # Icons
 readonly ICON_ERR="[${T_BOLD}${C_RED}✗${T_RESET}]"
@@ -166,6 +172,12 @@ read_single_char() {
 	echo "$char"
 }
 
+clear_current_line() { printf "${T_CLEAR_WHOLE_LINE}\r" >/dev/tty; }
+clear_lines_up() {
+	local lines=${1:-1}
+	for ((i = 0; i < lines; i++)); do printf "${T_CURSOR_UP}${T_CLEAR_WHOLE_LINE}"; done
+	printf '\r'
+} >/dev/tty
 clear_screen() { printf "${T_CURSOR_HOME}${T_CLEAR_SCREEN_DOWN}" >/dev/tty; }
 move_cursor_up() {
 	local lines=${1:-1}
