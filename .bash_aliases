@@ -85,7 +85,7 @@ glf() {
 alias update='sudo apt-get update && sudo apt-get upgrade -y && echo "" && check-reboot'
 
 # Check if a system reboot is required.
-alias check-reboot='if [ -f /var/run/reboot-required ]; then echo -e "\033[1;31m↻ Reboot Required\033[0m"; else echo -e "\033[1;32m✓ No reboot required\033[0m"; fi'
+alias check-reboot='if [ -f /var/run/reboot-required ]; then echo -e "\033[1;31m Reboot Required\033[0m"; else echo -e "\033[1;32m✓ No reboot required\033[0m"; fi'
 
 # Get public IP address from ipinfo.io.
 alias myip='curl -s ipinfo.io/ip'
