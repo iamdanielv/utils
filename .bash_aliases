@@ -93,8 +93,8 @@ alias myip='curl -s ipinfo.io/ip'
 # List all listening TCP and UDP ports.
 alias ports='netstat -tulpn'
 
-# For a detailed, tree-like view of all running processes.
-alias psa='ps auxf'
+# List all running processes with essential columns.
+alias psa='ps -eo user,pid,pcpu,pmem,command'
 
 # -------------------
 # Process Management
