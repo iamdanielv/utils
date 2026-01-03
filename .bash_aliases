@@ -66,6 +66,10 @@ export -f _shorten_git_date
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
 unalias gl 2>/dev/null
 gl() {
+  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
+    echo "Error: Not a git repository."
+    return 1
+  fi
   git log --graph --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" "$@"
 }
 
@@ -73,6 +77,10 @@ gl() {
 # Usage: glf <file_path>
 unalias glf 2>/dev/null
 glf() {
+  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
+    echo "Error: Not a git repository."
+    return 1
+  fi
   # The '--' separates log options from file paths.
   git log --follow --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" -- "$@"
 }
@@ -291,6 +299,10 @@ bind '"\exgg":"lg\n"'
 # Press 'enter' to view the full diff of a commit.
 # Press 'ctrl-y' to print the commit hash and exit.
 fgl() {
+  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
+    echo "Error: Not a git repository."
+    return 1
+  fi
   local current_branch
   current_branch=$(git branch --show-current)
   export current_branch
@@ -318,6 +330,10 @@ fgl() {
 
 # fgb - fuzzy git branch checkout
 fgb() {
+  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
+    echo "Error: Not a git repository."
+    return 1
+  fi
   local branches branch current_branch
   current_branch=$(git branch --show-current)
   export current_branch
