@@ -244,8 +244,7 @@ alias psa='ps -eo user,pid,pcpu,pmem,command'
 # Process Management
 # -------------------
 
-# Interactively find and kill a process using fzf.
-# We define a helper function for the preview to keep the main command clean.
+# Helper function for fzfkill preview window.
 _fzfkill_preview() {
   local pid=$1
   # Define colors for awk, inherit the terminal's theme
@@ -285,6 +284,7 @@ _fzfkill_preview() {
 # Export the function so fzf's subshell can access it.
 export -f _fzfkill_preview
 
+# Interactively find and kill a process using fzf.
 fzfkill() {
   # Get a process list with only User, PID, and Command, without headers.
   # Exclude the current fzfkill process and its children from the list.
