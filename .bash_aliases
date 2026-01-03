@@ -412,7 +412,7 @@ fzglfh() {
 
   # Define common fzf options to avoid duplication
   local common_opts=(
-    --ansi --reverse --tiebreak=index --header-first --border
+    --ansi --reverse --tiebreak=index --header-first --border top
     --preview-window 'right,60%,border,wrap'
     --border-label-pos='3'
     --preview-label-pos='3'
