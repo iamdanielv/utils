@@ -80,7 +80,7 @@ _require_git_repo() {
   if ! git rev-parse --is-inside-work-tree &> /dev/null; then
     local c_err='\033[38;2;243;139;168m' # Catppuccin Red
     local c_reset='\033[0m'
-    printf "${c_err}✗ Error:${c_reset} Not a git repository\n"
+    printf "%b✗ Error:%b Not a git repository\n" "${c_err}" "${c_reset}"
     return 1
   fi
 }
@@ -147,7 +147,7 @@ _fzfkill_preview() {
     c_light_red="\033[38;5;11m";
     c_line="\033[38;5;237m"; # A dim gray for the separator line
 
-    # Highlight the user if it is 'root'
+    # Highlight the user if it is root
     user_color = c_bold;
     if (user == "root") {
       user_color = c_light_red;
@@ -236,8 +236,8 @@ alias tmux='tmux new-session -AD -s main'
 # Interactive cheatsheet for custom keybindings
 show_keybinding_cheatsheet() {
   local selected
-  local c_key='\033[1;33m'
-  local c_reset='\033[0m'
+  local c_key=$'\033[1;33m'
+  local c_reset=$'\033[0m'
   # Define base options
   local fzf_opts=(
     --ansi 
@@ -271,7 +271,7 @@ ${c_key}g h${c_reset}     : Git File History (fzglfh)
 EOF
 )
 
-  selected=$(echo -e "$menu_items" | \
+  selected=$(echo "$menu_items" | \
   fzf "${fzf_opts[@]}" \
       --color=bg+:#2d3f76,bg:#1e2030,gutter:#1e2030 \
       --color=fg:#c8d3f5,query:#c8d3f5:regular \
@@ -366,12 +366,12 @@ fgb() {
     else
       # If it's a remote branch, strip the remote prefix (e.g. origin/) to checkout the local tracking branch.
       local target="$clean_branch"
-      for remote in $(git remote); do
+      while read -r remote; do
         if [[ "$clean_branch" == "$remote/"* ]]; then
           target="${clean_branch#$remote/}"
           break
         fi
-      done
+      done < <(git remote)
 
       # If the local branch already exists, switch to it.
       if git show-ref --verify --quiet "refs/heads/$target"; then
