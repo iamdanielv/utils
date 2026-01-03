@@ -28,6 +28,25 @@ alias grep="grep --color=auto -i"
 alias ..='cd ..'
 
 # -------------------
+# FZF Configuration
+# -------------------
+
+# Shared styles and options for FZF functions.
+# Includes layout, keybindings for preview toggling, and the default "Blue" color theme.
+_FZF_LBL_STYLE=$'\033[38;2;255;255;255;48;2;45;63;118m'
+_FZF_LBL_RESET=$'\033[0m'
+
+_FZF_COMMON_OPTS=(
+  --ansi --reverse --tiebreak=index --header-first --border=top
+  --preview-window 'right,60%,border,wrap'
+  --border-label-pos='3'
+  --preview-label-pos='3'
+  --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
+  --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
+  --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
+)
+
+# -------------------
 # Git
 # -------------------
 
@@ -61,20 +80,6 @@ _shorten_git_date() {
 }
 # Export the function so it's available to subshells, like those used by fzf's preview.
 export -f _shorten_git_date
-
-# Shared styles and options for FZF Git functions (fgb, fzglfh)
-_GIT_FZF_LBL_STYLE=$'\033[38;2;255;255;255;48;2;45;63;118m'
-_GIT_FZF_LBL_RESET=$'\033[0m'
-
-_GIT_FZF_COMMON_OPTS=(
-  --ansi --reverse --tiebreak=index --header-first --border=top
-  --preview-window 'right,60%,border,wrap'
-  --border-label-pos='3'
-  --preview-label-pos='3'
-  --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
-  --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
-  --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
-)
 
 # Helper to ensure the current directory is a git repository.
 _require_git_repo() {
@@ -118,14 +123,14 @@ fgl() {
 
   git log --color=always \
       --format="${_GIT_LOG_COMPACT_FORMAT}" "$@" |
-      _shorten_git_date | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
+      _shorten_git_date | fzf "${_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
       --header $'ENTER: view diff | CTRL-Y: print hash\nSHIFT-UP/DOWN: scroll diff | CTRL-/: view' \
       --border-label=" Git Log: $current_branch " \
       --prompt='  Log❯ ' \
       --bind 'enter:execute(git show --color=always {1} | less -R)' \
       --bind 'ctrl-y:execute(echo {1})+abort' \
       --preview 'git show --color=always {1}' \
-      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Diff for [%s] ${_GIT_FZF_LBL_RESET}\" {1}"
+      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}"
 }
 
 # fgb - fuzzy git branch checkout
@@ -142,12 +147,12 @@ fgb() {
 
   # Use fzf to select a branch
   local branch
-  branch=$(echo "$branches" | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort \
+  branch=$(echo "$branches" | fzf "${_FZF_COMMON_OPTS[@]}" --no-sort \
     --border-label=' Branch Manager ' \
     --prompt='  Checkout❯ ' \
     --preview "git log --oneline --graph --decorate --color=always \$(echo {} | cut -d\" \" -f1)" \
     --header "Current: $current_branch"$'\nENTER: checkout | ESC: quit\nSHIFT-UP/DOWN: scroll log | CTRL-/: view' \
-    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Log for [%s] ${_GIT_FZF_LBL_RESET}\" \$(echo {} | cut -d\" \" -f1)"
+    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Log for [%s] ${_FZF_LBL_RESET}\" \$(echo {} | cut -d\" \" -f1)"
   )
 
   if [[ -n "$branch" ]]; then
@@ -188,12 +193,12 @@ fzglfh() {
   while true; do
     # 2. Use fzf to select a file, with its history in the preview.
     local selected_file
-    selected_file=$(git ls-files | fzf "${_GIT_FZF_COMMON_OPTS[@]}" \
+    selected_file=$(git ls-files | fzf "${_FZF_COMMON_OPTS[@]}" \
       --header $'ENTER: inspect commits | ESC: quit\nSHIFT-UP/DOWN: scroll history | CTRL-/: view' \
       --border-label=' File History Explorer ' \
       --preview "git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | _shorten_git_date" \
       --prompt='  File❯ ' \
-      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} History for [%s] ${_GIT_FZF_LBL_RESET}\" {}")
+      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} History for [%s] ${_FZF_LBL_RESET}\" {}")
 
     # If no file is selected (e.g., user pressed ESC), exit the loop.
     if [[ -z "$selected_file" ]]; then
@@ -204,7 +209,7 @@ fzglfh() {
     # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
     ( git log --follow --color=always \
           --format="${_GIT_LOG_COMPACT_FORMAT}" -- "$selected_file" |
-          _shorten_git_date | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
+          _shorten_git_date | fzf "${_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
           --header $'ENTER: view diff | ESC: back to files\nCTRL-Y: print hash | CTRL-/: view' \
           --border-label " History for $selected_file " \
           --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
@@ -212,7 +217,7 @@ fzglfh() {
           --preview "git show --color=always {1} -- \"$selected_file\"" \
           --prompt='  Commit❯ ' \
           --input-label ' Filter Commits ' \
-          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Diff for [%s] ${_GIT_FZF_LBL_RESET}\" {1}" )
+          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}" )
   done
 }
 
@@ -298,11 +303,11 @@ fzfkill() {
 
   # The fzf command now directly executes the kill command.
   # This allows us to bind different signals to different keys.
-  printf "%s" "$processes" | fzf -m --reverse --no-hscroll \
-    --ansi --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL) | TAB: mark | SHIFT-UP/DOWN: scroll details' --header-first \
-    --preview '_fzfkill_preview {2}' --preview-window 'down,40%,border-top,wrap' \
-    --style=full --prompt='Filter> ' \
-    --input-label ' Filter Processes ' --header-label ' Process Killer ' \
+  printf "%s" "$processes" | fzf -m --no-hscroll "${_FZF_COMMON_OPTS[@]}" \
+    --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL) | TAB: mark | SHIFT-UP/DOWN: scroll details' \
+    --preview '_fzfkill_preview {2}' \
+    --prompt='Filter> ' \
+    --border-label=' Process Killer ' --input-label ' Filter Processes ' \
     --bind "enter:execute(echo {} | awk '{print \$2}' | xargs -r kill -s TERM)+abort" \
     --bind "ctrl-k:execute(echo {} | awk '{print \$2}' | xargs -r kill -s KILL)+abort" \
     --bind "result:transform-list-label:
