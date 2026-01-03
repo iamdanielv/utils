@@ -351,7 +351,6 @@ fgb() {
 }
 
 # fzglfh - fuzzy git log file history
-# Usage: fzglfh <file_path>
 fzglfh() {
   # 1. Check if we are in a git repository
   if ! git rev-parse --is-inside-work-tree &> /dev/null; then
@@ -359,18 +358,30 @@ fzglfh() {
     return 1
   fi
 
+  # Define label style: White text on #2d3f76 background
+  local lbl_style=$'\033[38;2;255;255;255;48;2;45;63;118m'
+  local lbl_reset=$'\033[0m'
+
+  # Define common fzf options to avoid duplication
+  local common_opts=(
+    --ansi --reverse --tiebreak=index --header-first --border
+    --preview-window 'right,60%,border,wrap'
+    --border-label-pos='3'
+    --preview-label-pos='3'
+    --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
+    --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
+    --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030'
+  )
+
   while true; do
     # 2. Use fzf to select a file, with its history in the preview.
     local selected_file
-    selected_file=$(git ls-files | fzf --ansi --reverse --tiebreak=index \
-      --header 'ENTER: inspect commits | ESC: quit | SHIFT-UP/DOWN: scroll history' \
-      --preview-window 'down,70%,border-top,wrap' \
+    selected_file=$(git ls-files | fzf "${common_opts[@]}" \
+      --header $'ENTER: inspect commits | ESC: quit\nSHIFT-UP/DOWN: scroll history | CTRL-/: view' \
+      --border-label=' File History Explorer ' \
       --preview "git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | _shorten_git_date" \
-      --header-first \
-      --style=full --prompt='File> ' \
-      --input-label ' Filter Files ' --header-label ' File History Explorer ' \
-      --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " History for [%s] " {}' \
-      --color 'border:#6699cc,label:#99ccff,preview-border:#9999cc,preview-label:#ccccff,header-border:#6699cc,header-label:#99ccff')
+      --prompt='File> ' \
+      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} History for [%s] ${lbl_reset}\" {}")
 
     # If no file is selected (e.g., user pressed ESC), exit the loop.
     if [[ -z "$selected_file" ]]; then
@@ -381,16 +392,14 @@ fzglfh() {
     # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
     ( git log --follow --color=always \
           --format="${_GIT_LOG_COMPACT_FORMAT}" -- "$selected_file" |
-          _shorten_git_date | fzf --ansi --no-sort --reverse --tiebreak=index --no-hscroll\
-          --header 'ENTER: view diff | ESC: back to files | CTRL-Y: print hash' \
-          --preview-window 'down,70%,border-top,wrap' \
+          _shorten_git_date | fzf "${common_opts[@]}" --no-sort --no-hscroll \
+          --header $'ENTER: view diff | ESC: back to files\nCTRL-Y: print hash | CTRL-/: view' \
+          --border-label " History for $selected_file " \
           --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
           --bind 'ctrl-y:execute(echo {1})+abort' \
           --preview "git show --color=always {1} -- \"$selected_file\"" \
-          --header-first \
-          --style=full --prompt='Commit> ' \
-          --input-label ' Filter Commits ' --header-label " History for $selected_file " \
-          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \" Diff for [%s] \" {1}" \
-          --color 'border:#6699cc,label:#99ccff,preview-border:#9999cc,preview-label:#ccccff,header-border:#6699cc,header-label:#99ccff' )
+          --prompt='Commit> ' \
+          --input-label ' Filter Commits ' \
+          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} Diff for [%s] ${lbl_reset}\" {1}" )
   done
 }
