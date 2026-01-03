@@ -105,6 +105,118 @@ glf() {
 }
 
 # -------------------
+# Git with FZF
+# -------------------
+
+# Interactively browse git logs with fzf.
+# Press 'enter' to view the full diff of a commit.
+# Press 'ctrl-y' to print the commit hash and exit.
+fgl() {
+  _require_git_repo || return 1
+  local current_branch
+  current_branch=$(git branch --show-current)
+
+  git log --color=always \
+      --format="${_GIT_LOG_COMPACT_FORMAT}" "$@" |
+      _shorten_git_date | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
+      --header $'ENTER: view diff | CTRL-Y: print hash\nSHIFT-UP/DOWN: scroll diff | CTRL-/: view' \
+      --border-label=" Git Log: $current_branch " \
+      --prompt='  Log❯ ' \
+      --bind 'enter:execute(git show --color=always {1} | less -R)' \
+      --bind 'ctrl-y:execute(echo {1})+abort' \
+      --preview 'git show --color=always {1}' \
+      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Diff for [%s] ${_GIT_FZF_LBL_RESET}\" {1}"
+}
+
+# fgb - fuzzy git branch checkout
+fgb() {
+  _require_git_repo || return 1
+  local current_branch
+  current_branch=$(git branch --show-current)
+
+  # Get all branches, color them, and format them nicely
+  local branches
+  branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ refs/remotes/ \
+    --format='%(color:green)%(refname:short)%(color:reset) - (%(color:blue)%(committerdate:relative)%(color:reset)) %(color:yellow)%(subject)%(color:reset)' \
+    | grep -v '/HEAD')
+
+  # Use fzf to select a branch
+  local branch
+  branch=$(echo "$branches" | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort \
+    --border-label=' Branch Manager ' \
+    --prompt='  Checkout❯ ' \
+    --preview "git log --oneline --graph --decorate --color=always \$(echo {} | cut -d\" \" -f1)" \
+    --header "Current: $current_branch"$'\nENTER: checkout | ESC: quit\nSHIFT-UP/DOWN: scroll log | CTRL-/: view' \
+    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Log for [%s] ${_GIT_FZF_LBL_RESET}\" \$(echo {} | cut -d\" \" -f1)"
+  )
+
+  if [[ -n "$branch" ]]; then
+    # Strip ANSI codes and extract the branch name
+    local clean_branch
+    clean_branch=$(echo "$branch" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
+
+    # If it's a local branch, checkout directly.
+    if git show-ref --verify --quiet "refs/heads/$clean_branch"; then
+      git checkout "$clean_branch"
+    else
+      # If it's a remote branch, strip the remote prefix (e.g. origin/) to checkout the local tracking branch.
+      local target="$clean_branch"
+      while read -r remote; do
+        if [[ "$clean_branch" == "$remote/"* ]]; then
+          target="${clean_branch#"$remote"/}"
+          break
+        fi
+      done < <(git remote)
+
+      # If the local branch already exists, switch to it.
+      if git show-ref --verify --quiet "refs/heads/$target"; then
+        git checkout "$target"
+      else
+        # Otherwise, create a new tracking branch.
+        # --track handles cases where the branch name might be ambiguous (multiple remotes).
+        git checkout --track "$clean_branch"
+      fi
+    fi
+  fi
+}
+
+# fzglfh - fuzzy git log file history
+fzglfh() {
+  # 1. Check if we are in a git repository
+  _require_git_repo || return 1
+
+  while true; do
+    # 2. Use fzf to select a file, with its history in the preview.
+    local selected_file
+    selected_file=$(git ls-files | fzf "${_GIT_FZF_COMMON_OPTS[@]}" \
+      --header $'ENTER: inspect commits | ESC: quit\nSHIFT-UP/DOWN: scroll history | CTRL-/: view' \
+      --border-label=' File History Explorer ' \
+      --preview "git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | _shorten_git_date" \
+      --prompt='  File❯ ' \
+      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} History for [%s] ${_GIT_FZF_LBL_RESET}\" {}")
+
+    # If no file is selected (e.g., user pressed ESC), exit the loop.
+    if [[ -z "$selected_file" ]]; then
+      break
+    fi
+
+    # 3. If a file was selected, open a new fzf instance to inspect its commits.
+    # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
+    ( git log --follow --color=always \
+          --format="${_GIT_LOG_COMPACT_FORMAT}" -- "$selected_file" |
+          _shorten_git_date | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
+          --header $'ENTER: view diff | ESC: back to files\nCTRL-Y: print hash | CTRL-/: view' \
+          --border-label " History for $selected_file " \
+          --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
+          --bind 'ctrl-y:execute(echo {1})+abort' \
+          --preview "git show --color=always {1} -- \"$selected_file\"" \
+          --prompt='  Commit❯ ' \
+          --input-label ' Filter Commits ' \
+          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Diff for [%s] ${_GIT_FZF_LBL_RESET}\" {1}" )
+  done
+}
+
+# -------------------
 # System, Network & Packages
 # -------------------
 
@@ -229,6 +341,10 @@ la() {
 # Simple listing with file type indicators (e.g., / for directories).
 alias l='eza --group-directories-first -F'
 
+# -------------------
+# Session Management
+# -------------------
+
 alias tmux='tmux new-session -AD -s main'
 
 # -------------------
@@ -310,115 +426,3 @@ bind '"\exgh":"fzglfh \C-e\n"'
 
 # Bind Alt+x g g to 'lg' (lazygit).
 bind '"\exgg":"lg\n"'
-
-# -------------------
-# Git with FZF
-# -------------------
-
-# Interactively browse git logs with fzf.
-# Press 'enter' to view the full diff of a commit.
-# Press 'ctrl-y' to print the commit hash and exit.
-fgl() {
-  _require_git_repo || return 1
-  local current_branch
-  current_branch=$(git branch --show-current)
-
-  git log --color=always \
-      --format="${_GIT_LOG_COMPACT_FORMAT}" "$@" |
-      _shorten_git_date | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
-      --header $'ENTER: view diff | CTRL-Y: print hash\nSHIFT-UP/DOWN: scroll diff | CTRL-/: view' \
-      --border-label=" Git Log: $current_branch " \
-      --prompt='  Log❯ ' \
-      --bind 'enter:execute(git show --color=always {1} | less -R)' \
-      --bind 'ctrl-y:execute(echo {1})+abort' \
-      --preview 'git show --color=always {1}' \
-      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Diff for [%s] ${_GIT_FZF_LBL_RESET}\" {1}"
-}
-
-# fgb - fuzzy git branch checkout
-fgb() {
-  _require_git_repo || return 1
-  local current_branch
-  current_branch=$(git branch --show-current)
-
-  # Get all branches, color them, and format them nicely
-  local branches
-  branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ refs/remotes/ \
-    --format='%(color:green)%(refname:short)%(color:reset) - (%(color:blue)%(committerdate:relative)%(color:reset)) %(color:yellow)%(subject)%(color:reset)' \
-    | grep -v '/HEAD')
-
-  # Use fzf to select a branch
-  local branch
-  branch=$(echo "$branches" | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort \
-    --border-label=' Branch Manager ' \
-    --prompt='  Checkout❯ ' \
-    --preview "git log --oneline --graph --decorate --color=always \$(echo {} | cut -d\" \" -f1)" \
-    --header "Current: $current_branch"$'\nENTER: checkout | ESC: quit\nSHIFT-UP/DOWN: scroll log | CTRL-/: view' \
-    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Log for [%s] ${_GIT_FZF_LBL_RESET}\" \$(echo {} | cut -d\" \" -f1)"
-  )
-
-  if [[ -n "$branch" ]]; then
-    # Strip ANSI codes and extract the branch name
-    local clean_branch
-    clean_branch=$(echo "$branch" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
-
-    # If it's a local branch, checkout directly.
-    if git show-ref --verify --quiet "refs/heads/$clean_branch"; then
-      git checkout "$clean_branch"
-    else
-      # If it's a remote branch, strip the remote prefix (e.g. origin/) to checkout the local tracking branch.
-      local target="$clean_branch"
-      while read -r remote; do
-        if [[ "$clean_branch" == "$remote/"* ]]; then
-          target="${clean_branch#"$remote"/}"
-          break
-        fi
-      done < <(git remote)
-
-      # If the local branch already exists, switch to it.
-      if git show-ref --verify --quiet "refs/heads/$target"; then
-        git checkout "$target"
-      else
-        # Otherwise, create a new tracking branch.
-        # --track handles cases where the branch name might be ambiguous (multiple remotes).
-        git checkout --track "$clean_branch"
-      fi
-    fi
-  fi
-}
-
-# fzglfh - fuzzy git log file history
-fzglfh() {
-  # 1. Check if we are in a git repository
-  _require_git_repo || return 1
-
-  while true; do
-    # 2. Use fzf to select a file, with its history in the preview.
-    local selected_file
-    selected_file=$(git ls-files | fzf "${_GIT_FZF_COMMON_OPTS[@]}" \
-      --header $'ENTER: inspect commits | ESC: quit\nSHIFT-UP/DOWN: scroll history | CTRL-/: view' \
-      --border-label=' File History Explorer ' \
-      --preview "git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | _shorten_git_date" \
-      --prompt='  File❯ ' \
-      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} History for [%s] ${_GIT_FZF_LBL_RESET}\" {}")
-
-    # If no file is selected (e.g., user pressed ESC), exit the loop.
-    if [[ -z "$selected_file" ]]; then
-      break
-    fi
-
-    # 3. If a file was selected, open a new fzf instance to inspect its commits.
-    # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
-    ( git log --follow --color=always \
-          --format="${_GIT_LOG_COMPACT_FORMAT}" -- "$selected_file" |
-          _shorten_git_date | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
-          --header $'ENTER: view diff | ESC: back to files\nCTRL-Y: print hash | CTRL-/: view' \
-          --border-label " History for $selected_file " \
-          --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
-          --bind 'ctrl-y:execute(echo {1})+abort' \
-          --preview "git show --color=always {1} -- \"$selected_file\"" \
-          --prompt='  Commit❯ ' \
-          --input-label ' Filter Commits ' \
-          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Diff for [%s] ${_GIT_FZF_LBL_RESET}\" {1}" )
-  done
-}
