@@ -19,7 +19,6 @@ T_BOLD=$'\033[1m'
 T_ULINE=$'\033[4m'
 T_CURSOR_HIDE=$'\033[?25l'
 T_CURSOR_SHOW=$'\033[?25h'
-T_CLEAR_LINE=$'\033[K'
 
 # Icons
 T_ERR_ICON="[${T_BOLD}${C_RED}✗${T_RESET}]"
@@ -264,7 +263,8 @@ _setup_local_bin_path() {
     printMsg "" # Add a newline for spacing
     if prompt_yes_no "Add '${local_bin_path}' to your '${bashrc_path}'?" "y"; then
         if prompt_yes_no "Create a backup of '${bashrc_path}' before modifying?" "y"; then
-            local backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
+            local backup_file
+            backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
             cp "$bashrc_path" "$backup_file"
             printOkMsg "Backup created at: ${backup_file}"
         fi
@@ -498,7 +498,8 @@ _setup_go_path() {
     fi
 
     if prompt_yes_no "Create a backup of '${bashrc_path}' before modifying?" "y"; then
-        local backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
+        local backup_file
+        backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
         cp "$bashrc_path" "$backup_file"
         printOkMsg "Backup created at: ${backup_file}"
     fi
@@ -570,7 +571,8 @@ setup_bash_aliases() {
 
     if [[ -f "$dest_aliases_path" ]]; then
         if prompt_yes_no "File '~/.bash_aliases' already exists. Back it up and overwrite it?" "n"; then
-            local backup_file="${dest_aliases_path}.bak_$(date +"%Y%m%d_%H%M%S")"
+            local backup_file
+            backup_file="${dest_aliases_path}.bak_$(date +"%Y%m%d_%H%M%S")"
             printInfoMsg "Backing up current file to ${backup_file}..."
             cp "$dest_aliases_path" "$backup_file"
             cp "$source_aliases_path" "$dest_aliases_path"
