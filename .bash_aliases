@@ -61,6 +61,20 @@ _shorten_git_date() {
 # Export the function so it's available to subshells, like those used by fzf's preview.
 export -f _shorten_git_date
 
+# Shared styles and options for FZF Git functions (fgb, fzglfh)
+_GIT_FZF_LBL_STYLE=$'\033[38;2;255;255;255;48;2;45;63;118m'
+_GIT_FZF_LBL_RESET=$'\033[0m'
+
+_GIT_FZF_COMMON_OPTS=(
+  --ansi --reverse --tiebreak=index --header-first --border=top
+  --preview-window 'right,60%,border,wrap'
+  --border-label-pos='3'
+  --preview-label-pos='3'
+  --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
+  --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
+  --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
+)
+
 # A compact and graphical view of commit history.
 # Using a function for better readability and to handle arguments.
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
@@ -337,22 +351,6 @@ fgb() {
   local current_branch
   current_branch=$(git branch --show-current)
 
-  # Define label style: White text on #2d3f76 background
-  local lbl_style=$'\033[38;2;255;255;255;48;2;45;63;118m'
-  local lbl_reset=$'\033[0m'
-
-  # Define common fzf options for consistency and readability
-  local fzf_opts=(
-    --ansi --no-sort --reverse --tiebreak=index --header-first --border top
-    --preview-window 'right,60%,border,wrap'
-    --border-label=' Branch Manager '
-    --border-label-pos='3'
-    --preview-label-pos='3'
-    --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
-    --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
-    --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
-  )
-
   # Get all branches, color them, and format them nicely
   local branches
   branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ refs/remotes/ \
@@ -361,11 +359,12 @@ fgb() {
 
   # Use fzf to select a branch
   local branch
-  branch=$(echo "$branches" | fzf "${fzf_opts[@]}" \
+  branch=$(echo "$branches" | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort \
+    --border-label=' Branch Manager ' \
     --prompt='  Checkout❯ ' \
     --preview 'git log --oneline --graph --decorate --color=always $(echo {} | cut -d" " -f1)' \
     --header "Current: $current_branch"$'\nENTER: checkout | ESC: quit\nSHIFT-UP/DOWN: scroll log | CTRL-/: view' \
-    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} Log for [%s] ${lbl_reset}\" \$(echo {} | cut -d\" \" -f1)"
+    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Log for [%s] ${_GIT_FZF_LBL_RESET}\" \$(echo {} | cut -d\" \" -f1)"
   )
 
   if [[ -n "$branch" ]]; then
@@ -406,30 +405,15 @@ fzglfh() {
     return 1
   fi
 
-  # Define label style: White text on #2d3f76 background
-  local lbl_style=$'\033[38;2;255;255;255;48;2;45;63;118m'
-  local lbl_reset=$'\033[0m'
-
-  # Define common fzf options to avoid duplication
-  local common_opts=(
-    --ansi --reverse --tiebreak=index --header-first --border top
-    --preview-window 'right,60%,border,wrap'
-    --border-label-pos='3'
-    --preview-label-pos='3'
-    --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
-    --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
-    --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
-  )
-
   while true; do
     # 2. Use fzf to select a file, with its history in the preview.
     local selected_file
-    selected_file=$(git ls-files | fzf "${common_opts[@]}" \
+    selected_file=$(git ls-files | fzf "${_GIT_FZF_COMMON_OPTS[@]}" \
       --header $'ENTER: inspect commits | ESC: quit\nSHIFT-UP/DOWN: scroll history | CTRL-/: view' \
       --border-label=' File History Explorer ' \
       --preview "git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | _shorten_git_date" \
       --prompt='  File❯ ' \
-      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} History for [%s] ${lbl_reset}\" {}")
+      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} History for [%s] ${_GIT_FZF_LBL_RESET}\" {}")
 
     # If no file is selected (e.g., user pressed ESC), exit the loop.
     if [[ -z "$selected_file" ]]; then
@@ -440,7 +424,7 @@ fzglfh() {
     # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
     ( git log --follow --color=always \
           --format="${_GIT_LOG_COMPACT_FORMAT}" -- "$selected_file" |
-          _shorten_git_date | fzf "${common_opts[@]}" --no-sort --no-hscroll \
+          _shorten_git_date | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
           --header $'ENTER: view diff | ESC: back to files\nCTRL-Y: print hash | CTRL-/: view' \
           --border-label " History for $selected_file " \
           --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
@@ -448,6 +432,6 @@ fzglfh() {
           --preview "git show --color=always {1} -- \"$selected_file\"" \
           --prompt='  Commit❯ ' \
           --input-label ' Filter Commits ' \
-          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} Diff for [%s] ${lbl_reset}\" {1}" )
+          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Diff for [%s] ${_GIT_FZF_LBL_RESET}\" {1}" )
   done
 }
