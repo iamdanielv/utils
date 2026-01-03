@@ -207,20 +207,23 @@ alias tmux='tmux new-session -AD -s main'
 # Interactive Tools & Keybindings
 # -------------------
 
-# Bind Ctrl+X Ctrl+X to the standard 'clear-screen' readline command.
-bind '"\C-x\C-x":clear-screen'
+# Bind Alt+x Alt+x to the standard 'clear-screen' readline command.
+bind '"\ex\ex":clear-screen'
 
-# Bind Ctrl+X Ctrl+K to the fzfkill function for interactive process killing.
-bind '"\C-x\C-k":"fzfkill\n"'
+# Bind Alt+x k to the fzfkill function.
+bind '"\exk":"fzfkill\n"'
 
-# Bind Ctrl+X Ctrl+G Ctrl+L to the fgl function for interactive git log browsing.
-bind '"\C-x\C-g\C-l":"fgl\n"'
+# Bind Alt+x g l to the fgl function.
+bind '"\exgl":"fgl\n"'
 
-# Bind Ctrl+X Ctrl+G Ctrl+B to the fgb function for interactive git branch checkout.
-bind '"\C-x\C-g\C-b":"fgb\n"'
+# Bind Alt+x g b to the fgb function.
+bind '"\exgb":"fgb\n"'
 
-# Bind Ctrl+X Ctrl+G Ctrl+H to the fzglfh function for interactive file history browsing.
-bind '"\C-x\C-g\C-h":"fzglfh \C-e\n"'
+# Bind Alt+x g h to the fzglfh function.
+bind '"\exgh":"fzglfh \C-e\n"'
+
+# Bind Alt+x g g to 'lg' (lazygit).
+bind '"\exgg":"lg\n"'
 
 # -------------------
 # Git with FZF
