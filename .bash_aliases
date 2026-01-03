@@ -350,7 +350,7 @@ fgb() {
     --preview-label-pos='3'
     --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
     --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
-    --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030'
+    --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
   )
 
   # Get all branches, color them, and format them nicely
@@ -362,7 +362,7 @@ fgb() {
   # Use fzf to select a branch
   local branch
   branch=$(echo "$branches" | fzf "${fzf_opts[@]}" \
-    --prompt='Checkout> ' \
+    --prompt='  Checkout❯ ' \
     --preview 'git log --oneline --graph --decorate --color=always $(echo {} | cut -d" " -f1)' \
     --header "Current: $current_branch"$'\nENTER: checkout | ESC: quit\nSHIFT-UP/DOWN: scroll log | CTRL-/: view' \
     --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} Log for [%s] ${lbl_reset}\" \$(echo {} | cut -d\" \" -f1)"
