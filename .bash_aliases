@@ -240,21 +240,21 @@ show_keybinding_cheatsheet() {
   local c_reset=$'\033[0m'
   # Define base options
   local fzf_opts=(
-    --ansi 
-    --border=rounded 
-    --border-label=' Bindings Cheatsheet (Prefix: Alt+x) ' 
+    --ansi
+    --border=rounded
+    --border-label=' Bindings Cheatsheet (Prefix: Alt+x) '
     --border-label-pos='3'
-    --layout=reverse 
-    --prompt="Run> " 
-    --delimiter=":" 
-    --with-nth=1,2
+    --layout=reverse
+    --prompt="Run> "
+    --delimiter=":"
+    "--with-nth=1,2"
   )
   
   # Add tmux popup options if in tmux, otherwise fallback to height
   if [[ -n "$TMUX" ]]; then
-    fzf_opts+=(--tmux center,60%,60%)
+    fzf_opts+=(--tmux "center,60%,60%")
   else
-    fzf_opts+=(--height=80%)
+    fzf_opts+=(--height='80%')
   fi
 
   # Define the list of bindings and commands
@@ -368,7 +368,7 @@ fgb() {
       local target="$clean_branch"
       while read -r remote; do
         if [[ "$clean_branch" == "$remote/"* ]]; then
-          target="${clean_branch#$remote/}"
+          target="${clean_branch#"$remote"/}"
           break
         fi
       done < <(git remote)
