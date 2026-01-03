@@ -63,7 +63,7 @@ _truncate_string() {
 
 generate_banner_string() {
     local text="$1"; local total_width=70; local prefix="┏"; local line
-    printf -v line '%*s' "$((total_width - 1))"; line="${line// /━}"; printf '%s' "${C_L_BLUE}${prefix}${line}${T_RESET}"; printf '\r'
+    printf -v line '%*s' "$((total_width - 1))" ""; line="${line// /━}"; printf '%s' "${C_L_BLUE}${prefix}${line}${T_RESET}"; printf '\r'
     local text_to_print; text_to_print=$(_truncate_string "$text" $((total_width - 3)))
     printf '%s' "${C_L_BLUE}${prefix} ${text_to_print} ${T_RESET}"
 }
