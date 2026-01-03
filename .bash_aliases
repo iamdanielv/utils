@@ -334,35 +334,67 @@ fgb() {
     echo "Error: Not a git repository."
     return 1
   fi
-  local branches branch current_branch
+  local current_branch
   current_branch=$(git branch --show-current)
-  export current_branch
+
+  # Define label style: White text on #2d3f76 background
+  local lbl_style=$'\033[38;2;255;255;255;48;2;45;63;118m'
+  local lbl_reset=$'\033[0m'
+
+  # Define common fzf options for consistency and readability
+  local fzf_opts=(
+    --ansi --no-sort --reverse --tiebreak=index --header-first --border top
+    --preview-window 'right,60%,border,wrap'
+    --border-label=' Branch Manager '
+    --border-label-pos='3'
+    --preview-label-pos='3'
+    --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
+    --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
+    --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030'
+  )
+
   # Get all branches, color them, and format them nicely
-  branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ --format='%(color:green)%(refname:short)%(color:reset) - (%(color:blue)%(committerdate:relative)%(color:reset)) %(color:yellow)%(subject)%(color:reset)')
-  
+  local branches
+  branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ refs/remotes/ \
+    --format='%(color:green)%(refname:short)%(color:reset) - (%(color:blue)%(committerdate:relative)%(color:reset)) %(color:yellow)%(subject)%(color:reset)' \
+    | grep -v '/HEAD')
+
   # Use fzf to select a branch
-  branch=$(echo "$branches" | fzf --ansi --no-sort --reverse --tiebreak=index --prompt='Checkout> ' \
+  local branch
+  branch=$(echo "$branches" | fzf "${fzf_opts[@]}" \
+    --prompt='Checkout> ' \
     --preview 'git log --oneline --graph --decorate --color=always $(echo {} | cut -d" " -f1)' \
-    --header 'ENTER: checkout | SHIFT-UP/DOWN: scroll log' \
-    --preview-window 'down,70%,border-top' --header-first \
-    --style=full \
-    --input-label ' Filter Branches ' --header-label ' Branches ' \
-    --bind 'result:transform-list-label:
-        if [[ -z $FZF_QUERY ]]; then
-          echo " Current: $current_branch "
-        else
-          echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "
-        fi
-        ' \
-    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " Log for [%s] " $(echo {} | cut -d" " -f1)' \
-    --color 'border:#6699cc,label:#99ccff,preview-border:#9999cc,preview-label:#ccccff' \
-    --color 'list-border:#669966,list-label:#99cc99,input-border:#996666,input-label:#ffcccc' \
-    --color 'header-border:#6699cc,header-label:#99ccff'
+    --header "Current: $current_branch"$'\nENTER: checkout | ESC: quit\nSHIFT-UP/DOWN: scroll log | CTRL-/: view' \
+    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} Log for [%s] ${lbl_reset}\" \$(echo {} | cut -d\" \" -f1)"
   )
 
   if [[ -n "$branch" ]]; then
-    # Extract branch name (the first word) and checkout
-    git checkout "$(echo "$branch" | cut -d' ' -f1)"
+    # Strip ANSI codes and extract the branch name
+    local clean_branch
+    clean_branch=$(echo "$branch" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
+
+    # If it's a local branch, checkout directly.
+    if git show-ref --verify --quiet "refs/heads/$clean_branch"; then
+      git checkout "$clean_branch"
+    else
+      # If it's a remote branch, strip the remote prefix (e.g. origin/) to checkout the local tracking branch.
+      local target="$clean_branch"
+      for remote in $(git remote); do
+        if [[ "$clean_branch" == "$remote/"* ]]; then
+          target="${clean_branch#$remote/}"
+          break
+        fi
+      done
+
+      # If the local branch already exists, switch to it.
+      if git show-ref --verify --quiet "refs/heads/$target"; then
+        git checkout "$target"
+      else
+        # Otherwise, create a new tracking branch.
+        # --track handles cases where the branch name might be ambiguous (multiple remotes).
+        git checkout --track "$clean_branch"
+      fi
+    fi
   fi
 }
 
