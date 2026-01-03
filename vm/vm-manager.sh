@@ -534,7 +534,7 @@ show_help() {
 
 	body+=$(printBannerMiddle "Management" "${C_ORANGE}")
 	body+="\n"
-	body+="${border}   ${C_YELLOW}I${T_RESET}              Show Details (IP, Disk, Network)\n"
+	body+="${border}   ${C_YELLOW}I/Enter${T_RESET}        Show Details (IP, Disk, Network)\n"
 	body+="${border}   ${C_CYAN}C${T_RESET}              Clone VM\n"
 	body+="${border}   ${C_RED}D${T_RESET}              Delete VM\n"
 
@@ -817,7 +817,7 @@ draw_footer() {
 	local sep="${C_CYAN}│${C_GRAY}"
 
 	printf "${C_CYAN}│${C_GRAY} [${T_BOLD}${C_CYAN}↓↑${C_GRAY}]Select ${sep} [${T_BOLD}${C_GREEN}S${C_GRAY}]tart/Stop ${sep} [${T_BOLD}${C_YELLOW}R${C_GRAY}]eboot ${sep} [${T_BOLD}${C_RED}F${C_GRAY}]orce Stop        ${sep} [${T_BOLD}${C_CYAN}?${C_GRAY}]Help${T_CLEAR_LINE}\n"
-	printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Select ${sep} [${T_BOLD}${C_YELLOW}I${C_GRAY}]nfo       ${sep} [${T_BOLD}${C_CYAN}C${C_GRAY}]lone  ${sep} [${T_BOLD}${C_RED}D${C_GRAY}]elete            ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}"
+	printf "${C_CYAN}╰${C_GRAY} [${T_BOLD}${C_CYAN}jk${C_GRAY}]Select ${sep} [${T_BOLD}${C_YELLOW}I${C_GRAY}]nfo/${C_YELLOW}Enter${C_GRAY} ${sep} [${T_BOLD}${C_CYAN}C${C_GRAY}]lone  ${sep} [${T_BOLD}${C_RED}D${C_GRAY}]elete            ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit${T_CLEAR_LINE}"
 }
 
 # Function to render the main UI
@@ -957,7 +957,7 @@ while true; do
 		;;
 	"$KEY_UP" | k | K) ((SELECTED--)) ;;
 	"$KEY_DOWN" | j | J) ((SELECTED++)) ;;
-	i | I)
+	i | I | "$KEY_ENTER")
 		require_vm_selected && show_vm_details "${VM_NAMES[$SELECTED]}"
 		;;
 	\? | / | h | H)
