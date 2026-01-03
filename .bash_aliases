@@ -319,27 +319,17 @@ fgl() {
   fi
   local current_branch
   current_branch=$(git branch --show-current)
-  export current_branch
 
   git log --color=always \
       --format="${_GIT_LOG_COMPACT_FORMAT}" "$@" |
-      _shorten_git_date | fzf --ansi --no-sort --reverse --tiebreak=index --no-hscroll \
-      --header 'ENTER: view diff | CTRL-Y: print hash | SHIFT-UP/DOWN: scroll diff' \
-      --preview-window 'down,70%,border-top,wrap' \
+      _shorten_git_date | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
+      --header $'ENTER: view diff | CTRL-Y: print hash\nSHIFT-UP/DOWN: scroll diff | CTRL-/: view' \
+      --border-label=" Git Log: $current_branch " \
+      --prompt='  Log❯ ' \
       --bind 'enter:execute(git show --color=always {1} | less -R)' \
       --bind 'ctrl-y:execute(echo {1})+abort' \
       --preview 'git show --color=always {1}' \
-      --header-first \
-      --style=full --prompt='Log> ' \
-      --input-label ' Filter Commits ' --header-label ' Git Log ' \
-      --bind 'result:transform-list-label:
-          if [[ -z $FZF_QUERY ]]; then
-            echo " Branch: $current_branch "
-          else
-            echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "
-          fi' \
-      --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " Diff for [%s] " {1}' \
-      --color 'border:#6699cc,label:#99ccff,preview-border:#9999cc,preview-label:#ccccff,header-border:#6699cc,header-label:#99ccff'
+      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Diff for [%s] ${_GIT_FZF_LBL_RESET}\" {1}"
 }
 
 # fgb - fuzzy git branch checkout
