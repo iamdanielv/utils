@@ -350,7 +350,7 @@ fgb() {
   branch=$(echo "$branches" | fzf "${_GIT_FZF_COMMON_OPTS[@]}" --no-sort \
     --border-label=' Branch Manager ' \
     --prompt='  Checkout❯ ' \
-    --preview 'git log --oneline --graph --decorate --color=always $(echo {} | cut -d" " -f1)' \
+    --preview "git log --oneline --graph --decorate --color=always \$(echo {} | cut -d\" \" -f1)" \
     --header "Current: $current_branch"$'\nENTER: checkout | ESC: quit\nSHIFT-UP/DOWN: scroll log | CTRL-/: view' \
     --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_GIT_FZF_LBL_STYLE} Log for [%s] ${_GIT_FZF_LBL_RESET}\" \$(echo {} | cut -d\" \" -f1)"
   )
