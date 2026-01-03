@@ -185,14 +185,14 @@ fzfkill() {
     --preview '_fzfkill_preview {2}' --preview-window 'down,40%,border-top,wrap' \
     --style=full --prompt='Filter> ' \
     --input-label ' Filter Processes ' --header-label ' Process Killer ' \
-    --bind 'enter:execute(echo {} | awk "{print \$2}" | xargs -r kill -s TERM)+abort' \
-    --bind 'ctrl-k:execute(echo {} | awk "{print \$2}" | xargs -r kill -s KILL)+abort' \
-    --bind 'result:transform-list-label:
-        if [[ -z $FZF_QUERY ]]; then
-          echo " All Processes "
+    --bind "enter:execute(echo {} | awk '{print \$2}' | xargs -r kill -s TERM)+abort" \
+    --bind "ctrl-k:execute(echo {} | awk '{print \$2}' | xargs -r kill -s KILL)+abort" \
+    --bind "result:transform-list-label:
+        if [[ -z \$FZF_QUERY ]]; then
+          echo \" All Processes \"
         else
-          echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "
-        fi' \
+          echo \" \$FZF_MATCH_COUNT matches for [\$FZF_QUERY] \"
+        fi" \
     --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " Details for PID [%s] " {2}' \
     --color 'border:#cc6666,label:#ff9999,preview-border:#cc9999,preview-label:#ffcccc' \
     --color 'header-border:#cc6666,header-label:#ff9999'
