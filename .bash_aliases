@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # -------------------
 # General Purpose
 # -------------------
@@ -168,8 +169,9 @@ fzfkill() {
   # Exclude the current fzfkill process and its children from the list.
   # Highlight processes run by the 'root' user.
   local processes
-  processes=$(ps -eo user,pid,cmd --no-headers | grep -v -e "fzfkill" -e "ps -eo" | \
+  processes=$(ps -eo user,pid,cmd --no-headers | \
     awk '{
+      if (/fzfkill/ || /ps -eo/) next;
       if ($1 == "root") {
         # Color only username for root processes
         printf "\033[38;5;11m%s\033[0m%s\n", $1, substr($0, length($1) + 1);
