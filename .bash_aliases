@@ -418,7 +418,7 @@ fzglfh() {
     --preview-label-pos='3'
     --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)'
     --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
-    --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030'
+    --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
   )
 
   while true; do
@@ -428,7 +428,7 @@ fzglfh() {
       --header $'ENTER: inspect commits | ESC: quit\nSHIFT-UP/DOWN: scroll history | CTRL-/: view' \
       --border-label=' File History Explorer ' \
       --preview "git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | _shorten_git_date" \
-      --prompt='File> ' \
+      --prompt='  File❯ ' \
       --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} History for [%s] ${lbl_reset}\" {}")
 
     # If no file is selected (e.g., user pressed ESC), exit the loop.
@@ -446,7 +446,7 @@ fzglfh() {
           --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
           --bind 'ctrl-y:execute(echo {1})+abort' \
           --preview "git show --color=always {1} -- \"$selected_file\"" \
-          --prompt='Commit> ' \
+          --prompt='  Commit❯ ' \
           --input-label ' Filter Commits ' \
           --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${lbl_style} Diff for [%s] ${lbl_reset}\" {1}" )
   done
