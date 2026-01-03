@@ -75,15 +75,22 @@ _GIT_FZF_COMMON_OPTS=(
   --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
 )
 
+# Helper to ensure the current directory is a git repository.
+_require_git_repo() {
+  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
+    local c_err='\033[38;2;243;139;168m' # Catppuccin Red
+    local c_reset='\033[0m'
+    printf "${c_err}✗ Error:${c_reset} Not a git repository\n"
+    return 1
+  fi
+}
+
 # A compact and graphical view of commit history.
 # Using a function for better readability and to handle arguments.
 # We unalias 'gl' first to prevent conflicts with any pre-existing alias.
 unalias gl 2>/dev/null
 gl() {
-  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-    echo "Error: Not a git repository."
-    return 1
-  fi
+  _require_git_repo || return 1
   git log --graph --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" "$@"
 }
 
@@ -91,10 +98,7 @@ gl() {
 # Usage: glf <file_path>
 unalias glf 2>/dev/null
 glf() {
-  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-    echo "Error: Not a git repository."
-    return 1
-  fi
+  _require_git_repo || return 1
   # The '--' separates log options from file paths.
   git log --follow --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" -- "$@"
 }
@@ -313,10 +317,7 @@ bind '"\exgg":"lg\n"'
 # Press 'enter' to view the full diff of a commit.
 # Press 'ctrl-y' to print the commit hash and exit.
 fgl() {
-  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-    echo "Error: Not a git repository."
-    return 1
-  fi
+  _require_git_repo || return 1
   local current_branch
   current_branch=$(git branch --show-current)
 
@@ -334,10 +335,7 @@ fgl() {
 
 # fgb - fuzzy git branch checkout
 fgb() {
-  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-    echo "Error: Not a git repository."
-    return 1
-  fi
+  _require_git_repo || return 1
   local current_branch
   current_branch=$(git branch --show-current)
 
@@ -390,10 +388,7 @@ fgb() {
 # fzglfh - fuzzy git log file history
 fzglfh() {
   # 1. Check if we are in a git repository
-  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-    echo "Error: Not a git repository."
-    return 1
-  fi
+  _require_git_repo || return 1
 
   while true; do
     # 2. Use fzf to select a file, with its history in the preview.
