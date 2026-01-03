@@ -242,36 +242,40 @@ alias psa='ps -eo user,pid,pcpu,pmem,command'
 # Interactively find and kill a process using fzf.
 # We define a helper function for the preview to keep the main command clean.
 _fzfkill_preview() {
+  local pid=$1
+  # Define colors for awk, inherit the terminal's theme
+  local c_blue="\033[1;34m"
+  local c_green="\033[32m"
+  local c_cyan="\033[36m"
+  local c_bold="\033[1m"
+  local c_reset="\033[0m"
+  local c_warn="\033[38;5;11m"   # ANSI Yellow (Color 11)
+  local c_line="\033[38;5;237m"  # xterm-256 Color 237 (Dark Gray: #3A3A3A)
+
   # Get detailed process info. -ww ensures the command isn't truncated.
-  ps -ww -o pid=,user=,pcpu=,pmem=,cmd= -p "$1" | awk '{
-    # Assign fields to variables for clarity
-    pid=$1; user=$2; pcpu=$3; pmem=$4;
+  ps -ww -o pid=,user=,pcpu=,pmem=,cmd= -p "$pid" | \
+    awk -v cb="$c_blue" -v cg="$c_green" -v cc="$c_cyan" \
+        -v cbo="$c_bold" -v cr="$c_reset" -v cw="$c_warn" -v cl="$c_line" '
+    {
+      pid=$1; user=$2; cpu=$3; mem=$4;
 
-    # Reconstruct the full command string, which starts at the 5th field
-    cmd_start_index = index($0, $5);
-    cmd = substr($0, cmd_start_index);
+      # Reconstruct command (handle spaces)
+      cmd_start = index($0, $5);
+      cmd = substr($0, cmd_start);
 
-    # Define ANSI color codes for a prettier output
-    c_blue="\033[1;34m"; # Bold Blue
-    c_green="\033[32m";
-    c_cyan="\033[36m";
-    c_bold="\033[1m";
-    c_reset="\033[0m";
-    c_light_red="\033[38;5;11m";
-    c_line="\033[38;5;237m"; # A dim gray for the separator line
+      # Determine user color
+      uc = (user == "root") ? cw : cbo;
 
-    # Highlight the user if it is root
-    user_color = c_bold;
-    if (user == "root") {
-      user_color = c_light_red;
-    }
-
-    # Print the formatted, colorful output
-    printf "%sPID:%s %s%-6s%s %sUser:%s %s%s%s \t", c_blue, c_reset, c_bold, pid, c_reset, c_blue, c_reset, user_color, user, c_reset;
-    printf "%sCPU:%s %s%-6s%s %sMem:%s %s%s%s\n", c_green, c_reset, c_bold, pcpu, c_reset, c_green, c_reset, c_bold, pmem, c_reset;
-    printf "%s──────────────────────────────────%s\n", c_line, c_reset;
-    printf "%s%s%s\n", c_bold, c_cyan, cmd;
-  }'
+      # Format Output
+      # PID & User
+      printf "%sPID:%s %s%-6s%s %sUser:%s %s%s%s \t", cb, cr, cbo, pid, cr, cb, cr, uc, user, cr;
+      # CPU & Mem
+      printf "%sCPU:%s %s%-6s%s %sMem:%s %s%s%s\n", cg, cr, cbo, cpu, cr, cg, cr, cbo, mem, cr;
+      # Separator
+      printf "%s──────────────────────────────────%s\n", cl, cr;
+      # Command
+      printf "%s%s%s\n", cbo, cc, cmd;
+    }'
 }
 # Export the function so fzf's subshell can access it.
 export -f _fzfkill_preview
