@@ -207,8 +207,66 @@ alias tmux='tmux new-session -AD -s main'
 # Interactive Tools & Keybindings
 # -------------------
 
+# Interactive cheatsheet for custom keybindings
+show_keybinding_cheatsheet() {
+  local selected
+  local c_key='\033[1;33m'
+  local c_reset='\033[0m'
+  # Define base options
+  local fzf_opts=(
+    --ansi 
+    --border=rounded 
+    --border-label=' Bindings Cheatsheet (Prefix: Alt+x) ' 
+    --border-label-pos='3'
+    --layout=reverse 
+    --prompt="Run> " 
+    --delimiter=":" 
+    --with-nth=1,2
+  )
+  
+  # Add tmux popup options if in tmux, otherwise fallback to height
+  if [[ -n "$TMUX" ]]; then
+    fzf_opts+=(--tmux center,60%,60%)
+  else
+    fzf_opts+=(--height=80%)
+  fi
+
+  # Define the list of bindings and commands
+  # Key Sequence : Description (Command)
+  local menu_items
+  menu_items=$(cat <<EOF
+${c_key}/${c_reset}       : Show this Cheatsheet (show_keybinding_cheatsheet)
+${c_key}Alt+x${c_reset}   : Clear Screen (clear)
+${c_key}k${c_reset}       : Process Killer (fzfkill)
+${c_key}g g${c_reset}     : Git GUI (lazygit)
+${c_key}g l${c_reset}     : Git Log (fgl)
+${c_key}g b${c_reset}     : Git Branch (fgb)
+${c_key}g h${c_reset}     : Git File History (fzglfh)
+EOF
+)
+
+  selected=$(echo -e "$menu_items" | \
+  fzf "${fzf_opts[@]}" \
+      --color=bg+:#2d3f76,bg:#1e2030,gutter:#1e2030 \
+      --color=fg:#c8d3f5,query:#c8d3f5:regular \
+      --color=border:#f9e2af,label:#f9e2af:reverse \
+      --color=header:#ff966c,separator:#ff966c \
+      --color=info:#545c7e,scrollbar:#589ed7 \
+      --color=marker:#ff007c,pointer:#ff007c,spinner:#ff007c \
+      --color=prompt:#65bcff)
+
+  if [[ -n "$selected" ]]; then
+    local cmd
+    cmd=$(echo "$selected" | sed -n 's/.*(\(.*\))/\1/p')
+    eval "$cmd"
+  fi
+}
+
 # Bind Alt+x Alt+x to the standard 'clear-screen' readline command.
 bind '"\ex\ex":clear-screen'
+
+# Bind Alt+x / to the cheatsheet.
+bind '"\ex/":"show_keybinding_cheatsheet\n"'
 
 # Bind Alt+x k to the fzfkill function.
 bind '"\exk":"fzfkill\n"'
