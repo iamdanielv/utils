@@ -136,9 +136,9 @@ glf() {
 # Git with FZF
 # -------------------
 
-# Interactively browse git logs with fzf.
-# Press 'enter' to view the full diff of a commit.
-# Press 'ctrl-y' to print the commit hash and exit.
+# fgl - Fuzzy Git Log
+# Purpose: Interactively browse git commit history
+# Usage: fgl [git log options]
 fgl() {
   _require_git_repo || return 1
   local current_branch
@@ -156,7 +156,9 @@ fgl() {
       --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}"
 }
 
-# fgb - fuzzy git branch checkout
+# fgb - Fuzzy Git Branch
+# Purpose: Interactively checkout local or remote git branches
+# Usage: fgb
 fgb() {
   _require_git_repo || return 1
   local current_branch
@@ -208,7 +210,9 @@ fgb() {
   fi
 }
 
-# fzglfh - fuzzy git log file history
+# fzglfh - Fuzzy Git Log File History
+# Purpose: Interactively browse commit history of a specific file
+# Usage: fzglfh
 fzglfh() {
   # 1. Check if we are in a git repository
   _require_git_repo || return 1
@@ -248,7 +252,9 @@ fzglfh() {
 # System, Network & Packages
 # -------------------
 
-# Update system packages, upgrade, and clean up
+# update
+# Purpose: Update system packages and check if a reboot is required
+# Usage: update
 unalias update 2>/dev/null
 update() {
   sudo apt update && \
@@ -258,7 +264,9 @@ update() {
   check-reboot
 }
 
-# Check if a system reboot is required.
+# check-reboot
+# Purpose: Check if the system requires a reboot (Debian/Ubuntu specific).
+# Usage: check-reboot
 unalias check-reboot 2>/dev/null
 check-reboot() {
   local color="${_C_GREEN}"
@@ -274,8 +282,9 @@ check-reboot() {
 # Get public IP address from ipinfo.io.
 alias myip='curl -s ipinfo.io/ip'
 
-# List all listening TCP and UDP ports.
-# Replaces 'netstat -tulpn' with a prettier 'ss' output.
+# ports
+# Purpose: List listening TCP/UDP ports with process info in a table
+# Usage: ports
 unalias ports 2>/dev/null
 ports() {
   # Header
@@ -343,7 +352,9 @@ alias psa='ps -eo user,pid,pcpu,pmem,command'
 # Process Management
 # -------------------
 
-# Helper function for fzfkill preview window.
+# _fzfkill_preview (Internal)
+# Purpose: Generate the preview content for fzfkill
+# Usage: _fzfkill_preview <PID>
 _fzfkill_preview() {
   local pid=$1
 
@@ -375,7 +386,9 @@ _fzfkill_preview() {
 # Export the function so fzf's subshell can access it.
 export -f _fzfkill_preview
 
-# Interactively find and kill a process using fzf.
+# fzfkill
+# Purpose: Interactively find and kill processes
+# Usage: fzfkill
 fzfkill() {
   # Get a process list with only User, PID, and Command, without headers.
   # Exclude the current fzfkill process and its children from the list.
@@ -447,13 +460,19 @@ fi
 # Session Management
 # -------------------
 
+# tmux
+# Purpose: Connect to a session named 'main', creating it if it doesn't exist.
+#          -A: Attach to existing session.
+#          -D: Detach other clients.
 alias tmux='tmux new-session -AD -s main'
 
 # -------------------
 # Interactive Tools & Keybindings
 # -------------------
 
-# Interactive cheatsheet for custom keybindings
+# show_keybinding_cheatsheet
+# Purpose: Display a cheatsheet of custom keybindings defined in this file
+# Usage: Bound to Alt+x /
 show_keybinding_cheatsheet() {
   local selected
   # Define base options
