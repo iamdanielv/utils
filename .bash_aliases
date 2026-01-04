@@ -8,7 +8,13 @@ _C_RESET=$'\033[0m'
 _C_RED=$'\033[1;31m'
 _C_GREEN=$'\033[1;32m'
 _C_YELLOW=$'\033[1;33m'
+_C_BLUE=$'\033[1;34m'
+_C_MAGENTA=$'\033[1;35m'
+_C_CYAN=$'\033[1;36m'
+_C_BOLD=$'\033[1m'
+_C_ULINE=$'\033[4m'
 _C_CAT_RED=$'\033[38;2;243;139;168m' # Catppuccin Red
+_C_DARK_GRAY=$'\033[38;5;237m' # xterm-256 Color 237
 
 # -------------------
 # General Purpose
