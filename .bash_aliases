@@ -545,8 +545,11 @@ if command -v eza &>/dev/null; then
   # Long format listing with block size, Git status, and file indicators.
   alias ll='eza -lbGF --group-directories-first'
 
-  # Tree view of the current directory, one level deep, with icons.
-  alias lt='eza --tree --level=1 --icons --group-directories-first'
+  # Use eza as a modern replacement for tree
+  alias tree='eza --tree --icons --group-directories-first'
+
+  # Tree view of the current directory, one level deep.
+  alias lt='tree --level=1'
 
   # Detailed listing, sorted by size, with Git status (using eza).
   # This is a function to improve readability and handle arguments correctly.
