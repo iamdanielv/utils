@@ -341,19 +341,11 @@ alias psa='ps -eo user,pid,pcpu,pmem,command'
 # Helper function for fzfkill preview window.
 _fzfkill_preview() {
   local pid=$1
-  # Define colors for awk, inherit the terminal's theme
-  local c_blue="\033[1;34m"
-  local c_green="\033[32m"
-  local c_cyan="\033[36m"
-  local c_bold="\033[1m"
-  local c_reset="\033[0m"
-  local c_warn="\033[38;5;11m"   # ANSI Yellow (Color 11)
-  local c_line="\033[38;5;237m"  # xterm-256 Color 237 (Dark Gray: #3A3A3A)
 
   # Get detailed process info. -ww ensures the command isn't truncated.
   ps -ww -o pid=,user=,pcpu=,pmem=,cmd= -p "$pid" | \
-    awk -v cb="$c_blue" -v cg="$c_green" -v cc="$c_cyan" \
-        -v cbo="$c_bold" -v cr="$c_reset" -v cw="$c_warn" -v cl="$c_line" '
+    awk -v cb="${_C_BLUE}" -v cg="${_C_GREEN}" -v cc="${_C_CYAN}" \
+        -v cbo="${_C_BOLD}" -v cr="${_C_RESET}" -v cw="${_C_YELLOW}" -v cl="${_C_DARK_GRAY}" '
     {
       pid=$1; user=$2; cpu=$3; mem=$4;
 
@@ -385,11 +377,11 @@ fzfkill() {
   # Highlight processes run by the 'root' user.
   local processes
   processes=$(ps -eo user,pid,cmd --no-headers | \
-    awk '{
+    awk -v c_warn="${_C_YELLOW}" -v c_reset="${_C_RESET}" '{
       if (/fzfkill/ || /ps -eo/) next;
       if ($1 == "root") {
         # Color only username for root processes
-        printf "\033[38;5;11m%s\033[0m%s\n", $1, substr($0, length($1) + 1);
+        printf "%s%s%s%s\n", c_warn, $1, c_reset, substr($0, length($1) + 1);
       } else {
         print $0;
       }
@@ -397,7 +389,11 @@ fzfkill() {
 
   # The fzf command now directly executes the kill command.
   # This allows us to bind different signals to different keys.
-  printf "%s" "$processes" | fzf -m --no-hscroll "${_FZF_COMMON_OPTS[@]}" \
+  printf "%s" "$processes" | \
+    _C_BLUE="${_C_BLUE}" _C_GREEN="${_C_GREEN}" _C_CYAN="${_C_CYAN}" \
+    _C_BOLD="${_C_BOLD}" _C_RESET="${_C_RESET}" _C_YELLOW="${_C_YELLOW}" \
+    _C_DARK_GRAY="${_C_DARK_GRAY}" \
+    fzf -m --no-hscroll "${_FZF_COMMON_OPTS[@]}" \
     --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL) | TAB: mark | SHIFT-UP/DOWN: scroll details' \
     --preview '_fzfkill_preview {2}' \
     --prompt='Filter> ' \
