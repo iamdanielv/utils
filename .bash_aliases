@@ -164,16 +164,36 @@ fgl() {
   local current_branch
   current_branch=$(git branch --show-current)
 
-  git log --color=always \
+  local selected
+  selected=$(git log --color=always \
       --format="${_GIT_LOG_COMPACT_FORMAT}" "$@" |
       _shorten_git_date | fzf "${_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
-      --header $'ENTER: view diff | CTRL-Y: print hash\nSHIFT-UP/DOWN: scroll diff | CTRL-/: view' \
+      --header $'ENTER: view diff | CTRL-Y: pick hash\nSHIFT-UP/DOWN: scroll diff | CTRL-/: view' \
       --border-label=" Git Log: $current_branch " \
       --prompt='  Log❯ ' \
       --bind 'enter:execute(git show --color=always {1} | less -R)' \
-      --bind 'ctrl-y:execute(echo {1})+abort' \
+      --bind 'ctrl-y:accept' \
       --preview 'git show --color=always {1}' \
-      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}"
+      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}")
+
+  if [[ -n "$selected" ]]; then
+    local hash
+    # Strip ANSI codes and extract the first field (hash)
+    hash=$(echo "$selected" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
+
+    if [[ -v READLINE_LINE ]]; then
+      # If called via bind -x, append to the command line
+      if [[ -n "$READLINE_LINE" && "$READLINE_LINE" != *" " ]]; then
+        READLINE_LINE="${READLINE_LINE} "
+      fi
+      READLINE_LINE="${READLINE_LINE}${hash}"
+      READLINE_POINT=${#READLINE_LINE}
+    else
+      # If called directly, add to history and print a message
+      history -s "$hash"
+      printf "Added to history: %s (Press Up-Arrow to use)\n" "$hash"
+    fi
+  fi
 }
 
 # fgb - Fuzzy Git Branch
@@ -254,17 +274,34 @@ fzglfh() {
 
     # 3. If a file was selected, open a new fzf instance to inspect its commits.
     # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
-    ( git log --follow --color=always \
+    local selected_commit
+    selected_commit=$(git log --follow --color=always \
           --format="${_GIT_LOG_COMPACT_FORMAT}" -- "$selected_file" |
           _shorten_git_date | fzf "${_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
           --header $'ENTER: view diff | ESC: back to files\nCTRL-Y: print hash | CTRL-/: view' \
           --border-label " History for $selected_file " \
           --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
-          --bind 'ctrl-y:execute(echo {1})+abort' \
+          --bind 'ctrl-y:accept' \
           --preview "git show --color=always {1} -- \"$selected_file\"" \
           --prompt='  Commit❯ ' \
           --input-label ' Filter Commits ' \
-          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}" )
+          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}")
+
+    if [[ -n "$selected_commit" ]]; then
+      local hash
+      hash=$(echo "$selected_commit" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
+
+      if [[ -v READLINE_LINE ]]; then
+        if [[ -n "$READLINE_LINE" && "$READLINE_LINE" != *" " ]]; then
+          READLINE_LINE="${READLINE_LINE} "
+        fi
+        READLINE_LINE="${READLINE_LINE}${hash}"
+        READLINE_POINT=${#READLINE_LINE}
+      else
+        history -s "$hash"
+        printf "Added to history: %s (Press Up-Arrow to use)\n" "$hash"
+      fi
+    fi
   done
 }
 
