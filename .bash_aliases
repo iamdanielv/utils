@@ -91,6 +91,55 @@ _FZF_CHEATSHEET_OPTS=(
   "--with-nth=2.."
 )
 
+# --- FZF Environment & Bindings ---
+
+# Use fd as the default command for fzf to use for finding files.
+export FZF_DEFAULT_COMMAND='fd --hidden --follow --exclude ".git"'
+
+# Options for CTRL-T (insert file path in command line)
+export FZF_CTRL_T_OPTS="--style full \
+    --input-label ' Input ' --header-label ' File Type ' \
+    --preview 'fzf-preview.sh {}' \
+    --layout reverse \
+    --bind 'result:transform-list-label: \
+        if [[ -z \$FZF_QUERY ]]; then \
+          echo \" \$FZF_MATCH_COUNT items \" \
+        else \
+          echo \" \$FZF_MATCH_COUNT matches for [\$FZF_QUERY] \" \
+        fi \
+        ' \
+    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf \" Previewing [%s] \" {}' \
+    --bind 'focus:+transform-header:file --brief {} || echo \"No file selected\"' \
+    --color 'border:#aaaaaa,label:#cccccc,preview-border:#9999cc,preview-label:#ccccff' \
+    --color 'list-border:#669966,list-label:#99cc99,input-border:#996666,input-label:#ffcccc' \
+    --color 'header-border:#6699cc,header-label:#99ccff'"
+
+# Options for ALT-C (cd into a directory)
+export FZF_ALT_C_OPTS="--exact --style full \
+                        --bind 'focus:transform-header:file --brief {}' \
+                        --preview 'tree -L 1 -C {}'"
+
+# --- FZF Completion Overrides ---
+# Use fd to power fzf's path and directory completion (**<TAB>).
+_fzf_compgen_path() {
+  fd --hidden --follow --exclude ".git" . "$1"
+}
+_fzf_compgen_dir() {
+  fd --type d --hidden --follow --exclude ".git" . "$1"
+}
+
+# --- Custom FZF Functions ---
+# Custom function to find a file and open it in Neovim.
+fzf_nvim() {
+  fzf "${_FZF_COMMON_OPTS[@]}" --exact \
+    --border-label=' File Finder ' \
+    --prompt='  Open❯ ' \
+    --header $'ENTER: open | ESC: quit\nCTRL-/: view' \
+    --preview 'fzf-preview.sh {}' \
+    --bind "enter:become(nvim {})" \
+    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Previewing [%s] ${_FZF_LBL_RESET}\" {}"
+}
+
 # -------------------
 # Git
 # -------------------
@@ -546,15 +595,13 @@ show_alias_cheatsheet() {
   local selected
   selected=$(cat <<EOF | fzf "${fzf_opts[@]}" "${_FZF_CHEATSHEET_THEME[@]}"
 .. :${_C_YELLOW}..${_C_RESET}       : Go up one directory (cd ..)
-ag :${_C_YELLOW}ag${_C_RESET}       : Search with ag (ag --pager='less -XFR')
-cat :${_C_YELLOW}cat${_C_RESET}      : Cat with syntax highlighting (batcat/bat)
+cat :${_C_YELLOW}cat${_C_RESET}      : Replaced with (batcat/bat)
 ga :${_C_YELLOW}ga${_C_RESET}       : Git Add (git add)
 gb:${_C_YELLOW}gb${_C_RESET}       : Git Show Branches (git branch -a)
 gc :${_C_YELLOW}gc${_C_RESET}       : Git Commit (git commit -m)
 gl:${_C_YELLOW}gl${_C_RESET}       : Git Log Graph (git log --graph ...)
 glf :${_C_YELLOW}glf${_C_RESET}      : Git Log File (git log --follow ...)
 gp:${_C_YELLOW}gp${_C_RESET}       : Git Push (git push)
-grep :${_C_YELLOW}grep${_C_RESET}     : Grep with color (grep --color=auto -i)
 gs:${_C_YELLOW}gs${_C_RESET}       : Git Status (git status -sb)
 ip :${_C_YELLOW}ip${_C_RESET}       : IP with color (ip -c)
 l:${_C_YELLOW}l${_C_RESET}        : List simple (eza -F ...)
@@ -562,16 +609,16 @@ la:${_C_YELLOW}la${_C_RESET}       : List All detailed (eza -al ...)
 ld:${_C_YELLOW}ld${_C_RESET}       : List Directories (eza -Dhal ...)
 lg:${_C_YELLOW}lg${_C_RESET}       : Lazygit (lazygit)
 ll:${_C_YELLOW}ll${_C_RESET}       : List Long (eza -lbGF ...)
-ls:${_C_YELLOW}ls${_C_RESET}       : List (eza ...)
+ls:${_C_YELLOW}ls${_C_RESET}       : Replaced with eza
 lt:${_C_YELLOW}lt${_C_RESET}       : List Tree (eza --tree ...)
 myip:${_C_YELLOW}myip${_C_RESET}     : Public IP (curl ipinfo.io/ip)
-nano :${_C_YELLOW}nano${_C_RESET}     : Nano replacement (micro)
+nano :${_C_YELLOW}nano${_C_RESET}     : Replaced with micro
 ports:${_C_YELLOW}ports${_C_RESET}    : List Ports (ss -tulpn ...)
 psa:${_C_YELLOW}psa${_C_RESET}      : Process List (ps -eo ...)
 rm :${_C_YELLOW}rm${_C_RESET}       : Safe RM (rm -i)
 tmux:${_C_YELLOW}tmux${_C_RESET}     : Tmux Session (tmux_launch)
 update:${_C_YELLOW}update${_C_RESET}   : System Update (apt update ...)
-vim :${_C_YELLOW}vim${_C_RESET}      : Vim replacement (nvim)
+vim :${_C_YELLOW}vim${_C_RESET}      : Replaced with Neovim
 EOF
   )
 
@@ -613,6 +660,7 @@ show_keybinding_cheatsheet() {
 show_keybinding_cheatsheet:${_C_YELLOW}/${_C_RESET}       : Show this Cheatsheet
 show_alias_cheatsheet:${_C_YELLOW}?${_C_RESET}       : Show Alias Cheatsheet
 clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (clear)
+fzf_nvim:${_C_YELLOW}Alt+f${_C_RESET}   : Find File (nvim)
 fzfkill:${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
 lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
@@ -631,6 +679,12 @@ EOF
 
 # Bind Alt+x Alt+x to the standard 'clear-screen' readline command.
 bind '"\ex\ex":clear-screen'
+
+# Bind Ctrl+x to clear the screen (executes 'clear').
+bind -x '"\C-x":clear'
+
+# Bind Alt+f to fzf_nvim (find file and open in nvim).
+bind -x '"\ef":fzf_nvim'
 
 # Bind Alt+x / to the key bind cheatsheet.
 bind -x '"\ex/": show_keybinding_cheatsheet'
