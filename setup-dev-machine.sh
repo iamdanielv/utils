@@ -538,13 +538,15 @@ install_core_tools() {
     install_package "net-tools" "netstat"
     # For 'ls', 'll', 'lt', etc. aliases
     install_package "eza"
-    
     # Replacement for nano
     install_package "micro"
+    # Terminal Multiplexer
+    install_package "tmux"
     # For parsing JSON in scripts
     install_package "jq"
-    # For extracting archives and directory trees (used by fzf preview)
+    # For extracting archives
     install_package "unzip"
+    # For directory trees (used by fzf preview)
     install_package "tree"
 
     # For 'lg' alias (lazygit) and docker management (lazydocker)
