@@ -501,7 +501,7 @@ if command -v eza &>/dev/null; then
   # Detailed listing, sorted by size, with Git status (using eza).
   # This is a function to improve readability and handle arguments correctly.
   unalias la 2>/dev/null
-  la() {
+  function la {
     eza -al --git --smart-group --color=auto --icons \
       --sort=size --group-directories-first "$@"
   }
