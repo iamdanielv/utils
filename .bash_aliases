@@ -30,7 +30,7 @@ fi
 
 # Use micro as a modern replacement for nano
 if command -v micro &>/dev/null; then
-  alias nano="micro"
+  alias nano='micro'
 fi
 
 # Use 'batcat' (or 'bat') for a 'cat' with syntax highlighting.
@@ -44,10 +44,10 @@ fi
 alias ag="ag --pager='less -XFR'"
 
 # Add color to the output of the 'ip' command.
-alias ip="ip -c"
+alias ip='ip -c'
 
 # Always use color and case-insensitive matching for 'grep'.
-alias grep="grep --color=auto -i"
+alias grep='grep --color=auto -i'
 
 # Go up one directory.
 alias ..='cd ..'
