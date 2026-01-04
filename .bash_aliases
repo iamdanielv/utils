@@ -536,20 +536,26 @@ fzfkill() {
 #       installed.
 
 if command -v eza &>/dev/null; then
+  # --- Core Replacements ---
   # Default 'ls' replacement, grouping directories first.
   alias ls='eza --group-directories-first'
 
-  # List only directories in a detailed, human-readable format.
-  alias ld='eza -Dhal --no-filesize --smart-group --icons'
+  # Simple listing with file type indicators (e.g., / for directories).
+  alias l='ls -F'
 
   # Long format listing with block size, Git status, and file indicators.
   alias ll='eza -lbGF --group-directories-first'
 
+  # --- Tree Views ---
   # Use eza as a modern replacement for tree
   alias tree='eza --tree --icons --group-directories-first'
 
   # Tree view of the current directory, one level deep.
   alias lt='tree --level=1'
+
+  # --- Specialized Views ---
+  # List only directories in a detailed, human-readable format.
+  alias ld='eza -Dhal --no-filesize --smart-group --icons'
 
   # Detailed listing, sorted by size, with Git status (using eza).
   # This is a function to improve readability and handle arguments correctly.
@@ -558,9 +564,6 @@ if command -v eza &>/dev/null; then
     eza -al --git --smart-group --color=auto --icons \
       --sort=size --group-directories-first "$@"
   }
-
-  # Simple listing with file type indicators (e.g., / for directories).
-  alias l='eza --group-directories-first -F'
 fi
 
 # -------------------
