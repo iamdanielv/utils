@@ -308,10 +308,13 @@ fzglfh() {
 # Usage: update
 unalias update 2>/dev/null
 update() {
-  sudo apt update && \
-  sudo apt upgrade -y && \
+  printf "%s%sUpdate%s apt sources...\n" "${_C_BOLD}" "${_C_BLUE}" "${_C_RESET}"
+  sudo apt update || return 1
+  printf "\n%s%sUpgrade%s apt packages...\n" "${_C_BOLD}" "${_C_MAGENTA}" "${_C_RESET}"
+  sudo apt upgrade -y
+  printf "\n%s%sAutoremove%s apt packages...\n" "${_C_BOLD}" "${_C_CYAN}" "${_C_RESET}"
   sudo apt autoremove -y
-  echo ""
+  printf "\n"
   check-reboot
 }
 
