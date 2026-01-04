@@ -51,7 +51,7 @@ alias ..='cd ..'
 # Shared styles and options for FZF functions.
 # Includes layout, keybindings for preview toggling, and the default "Blue" color theme.
 _FZF_LBL_STYLE=$'\033[38;2;255;255;255;48;2;45;63;118m'
-_FZF_LBL_RESET=$'\033[0m'
+_FZF_LBL_RESET="${_C_RESET}"
 
 _FZF_COMMON_OPTS=(
   --ansi --reverse --tiebreak=index --header-first --border=top
@@ -273,16 +273,13 @@ ports() {
   # Header
   printf "${_C_BOLD}${_C_ULINE}%-1s %-6s %21s %21s %s${_C_RESET}\n" "P" "STATUS" "LOCAL:Port " "REMOTE:Port " "PROGRAM/PID"
   
-  ss -tulpn | awk '
-    BEGIN {
-      # Colors
-      c_reset="\033[0m"
-      c_green="\033[1;32m"
-      c_yellow="\033[1;33m"
-      c_blue="\033[1;34m"
-      c_magenta="\033[1;35m"
-      c_cyan="\033[36m"
-    }
+  ss -tulpn | awk \
+    -v c_reset="${_C_RESET}" \
+    -v c_green="${_C_GREEN}" \
+    -v c_yellow="${_C_YELLOW}" \
+    -v c_blue="${_C_BLUE}" \
+    -v c_magenta="${_C_MAGENTA}" \
+    -v c_cyan="${_C_CYAN}" '
 
     function split_addr(addr, parts) {
       match(addr, /:[^:]*$/)
