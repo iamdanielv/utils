@@ -24,13 +24,21 @@ _C_DARK_GRAY=$'\033[38;5;237m' # xterm-256 Color 237
 alias rm='rm -i'
 
 # Use Neovim instead of Vim for a better editing experience.
-alias vim='nvim'
+if command -v nvim &>/dev/null; then
+  alias vim='nvim'
+fi
 
 # Use micro as a modern replacement for nano
-alias nano="micro"
+if command -v micro &>/dev/null; then
+  alias nano="micro"
+fi
 
 # Use 'batcat' (or 'bat') for a 'cat' with syntax highlighting.
-alias cat='batcat'
+if command -v batcat &>/dev/null; then
+  alias cat='batcat'
+elif command -v bat &>/dev/null; then
+  alias cat='bat'
+fi
 
 # Use 'less' as a pager for 'ag' search results.
 alias ag="ag --pager='less -XFR'"
@@ -410,28 +418,30 @@ fzfkill() {
 # NOTE: These aliases require 'eza', a modern 'ls' replacement, to be
 #       installed.
 
-# Default 'ls' replacement, grouping directories first.
-alias ls='eza --group-directories-first'
+if command -v eza &>/dev/null; then
+  # Default 'ls' replacement, grouping directories first.
+  alias ls='eza --group-directories-first'
 
-# List only directories in a detailed, human-readable format.
-alias ld='eza -Dhal --no-filesize --smart-group --icons'
+  # List only directories in a detailed, human-readable format.
+  alias ld='eza -Dhal --no-filesize --smart-group --icons'
 
-# Long format listing with block size, Git status, and file indicators.
-alias ll='eza -lbGF --group-directories-first'
+  # Long format listing with block size, Git status, and file indicators.
+  alias ll='eza -lbGF --group-directories-first'
 
-# Tree view of the current directory, one level deep, with icons.
-alias lt='eza --tree --level=1 --icons --group-directories-first'
+  # Tree view of the current directory, one level deep, with icons.
+  alias lt='eza --tree --level=1 --icons --group-directories-first'
 
-# Detailed listing, sorted by size, with Git status (using eza).
-# This is a function to improve readability and handle arguments correctly.
-unalias la 2>/dev/null
-la() {
-  eza -al --git --smart-group --color=auto --icons \
-    --sort=size --group-directories-first "$@"
-}
+  # Detailed listing, sorted by size, with Git status (using eza).
+  # This is a function to improve readability and handle arguments correctly.
+  unalias la 2>/dev/null
+  la() {
+    eza -al --git --smart-group --color=auto --icons \
+      --sort=size --group-directories-first "$@"
+  }
 
-# Simple listing with file type indicators (e.g., / for directories).
-alias l='eza --group-directories-first -F'
+  # Simple listing with file type indicators (e.g., / for directories).
+  alias l='eza --group-directories-first -F'
+fi
 
 # -------------------
 # Session Management
