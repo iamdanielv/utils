@@ -207,7 +207,7 @@ install_jesseduffield_tool() {
         return
     fi
 
-    printInfoMsg "Latest available ${tool_name} version: ${C_L_GREEN}${latest_version}${T_RESET}"
+    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
     local installed_version_string="Not installed"
     if command -v "$tool_name" &>/dev/null; then
@@ -222,7 +222,7 @@ install_jesseduffield_tool() {
             installed_version_string=$(echo "$raw_version_output" | sed "s/version/${C_L_GREEN}version${C_L_YELLOW}/g")
         fi
     fi
-    printInfoMsg "Currently installed version:      ${C_L_YELLOW}${installed_version_string}${T_RESET}"
+    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
 
     if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
         printInfoMsg "${tool_name} installation skipped."
@@ -301,14 +301,14 @@ install_golang() {
         printErrMsg "Could not determine the latest Go version from go.dev."
         return
     fi
-    printInfoMsg "Latest available Go version: ${C_L_GREEN}${latest_version}${T_RESET}"
+    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
     local installed_version="Not installed"
     if command -v go &>/dev/null; then
         # 'go version' output is like: go version go1.22.1 linux/amd64
         installed_version=$(go version | awk '{print $3}')
     fi
-    printInfoMsg "Currently installed version:   ${C_L_YELLOW}${installed_version}${T_RESET}"
+    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version}${T_RESET}"
 
     if [[ "$installed_version" == "$latest_version" ]]; then
         printOkMsg "You already have the latest version of Go. Skipping."
