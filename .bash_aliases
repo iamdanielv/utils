@@ -601,16 +601,16 @@ bind -x '"\ex/": show_keybinding_cheatsheet'
 bind -x '"\ex?": show_alias_cheatsheet'
 
 # Bind Alt+x k to the fzfkill function.
-bind '"\exk":"fzfkill\n"'
+bind -x '"\exk": fzfkill'
 
 # Bind Alt+x g l to the fgl function.
-bind '"\exgl":"fgl\n"'
+bind -x '"\exgl": fgl'
 
 # Bind Alt+x g b to the fgb function.
-bind '"\exgb":"fgb\n"'
+bind -x '"\exgb": fgb'
 
 # Bind Alt+x g h to the fzglfh function.
-bind '"\exgh":"fzglfh \C-e\n"'
+bind -x '"\exgh": fzglfh'
 
 # Bind Alt+x g g to 'lg' (lazygit).
-bind '"\exgg":"lg\n"'
+bind -x '"\exgg": lazygit'
