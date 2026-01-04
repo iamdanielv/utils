@@ -410,7 +410,7 @@ fzfkill() {
     fzf -m --no-hscroll "${_FZF_COMMON_OPTS[@]}" \
     --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL)\nTAB: mark | SHIFT-UP/DOWN: scroll details' \
     --preview '_fzfkill_preview {2}' \
-    --prompt='  Filter> ' \
+    --prompt='  Filter❯ ' \
     --border-label=' Process Killer ' --input-label ' Filter Processes ' \
     --bind "enter:execute(echo {+2} | xargs -r kill -s TERM)+abort" \
     --bind "ctrl-k:execute(echo {+2} | xargs -r kill -s KILL)+abort" \
@@ -482,7 +482,7 @@ show_keybinding_cheatsheet() {
     --border-label=' Bindings Cheatsheet (Prefix: Alt+x) '
     --border-label-pos='3'
     --layout=reverse
-    --prompt="Run> "
+    --prompt='  Run❯ '
     --delimiter=":"
     "--with-nth=1,2"
   )
