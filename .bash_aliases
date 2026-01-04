@@ -34,10 +34,13 @@ if command -v micro &>/dev/null; then
 fi
 
 # Use 'batcat' (or 'bat') for a 'cat' with syntax highlighting.
+_BAT_CMD="cat"
 if command -v batcat &>/dev/null; then
   alias cat='batcat'
+  _BAT_CMD="batcat"
 elif command -v bat &>/dev/null; then
   alias cat='bat'
+  _BAT_CMD="bat"
 fi
 
 # Use 'less' as a pager for 'ag' search results.
@@ -138,6 +141,27 @@ fzf_nvim() {
     --preview 'fzf-preview.sh {}' \
     --bind "enter:become(nvim {})" \
     --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Previewing [%s] ${_FZF_LBL_RESET}\" {}"
+}
+
+# fif - Find in Files
+# Purpose: Interactive search of file contents using ripgrep and fzf.
+# Usage: fif [query]
+fif() {
+  local initial_query="$1"
+  local rg_cmd="rg --column --line-number --no-heading --color=always --smart-case"
+
+  fzf "${_FZF_COMMON_OPTS[@]}" \
+    --disabled --ansi \
+    --bind "start:reload:$rg_cmd {q}" \
+    --bind "change:reload:sleep 0.1; $rg_cmd {q} || true" \
+    --delimiter : \
+    --header 'Type to search content | ENTER: open | CTRL-/: view' \
+    --border-label=' Find in Files ' \
+    --prompt='  Search❯ ' \
+    --preview "${_BAT_CMD} --style=numbers --color=always --highlight-line {2} {1}" \
+    --preview-window 'right,60%,border,wrap,+{2}-/2' \
+    --bind 'enter:become(nvim {1} +{2})' \
+    --query "$initial_query"
 }
 
 # -------------------
@@ -687,6 +711,7 @@ show_keybinding_cheatsheet:${_C_YELLOW}/${_C_RESET}       : Show this Cheatsheet
 show_alias_cheatsheet:${_C_YELLOW}?${_C_RESET}       : Show Alias Cheatsheet
 clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (this requires Alt+x twice)
 fzf_nvim:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
+fif:${_C_YELLOW}f${_C_RESET}       : Find text in Files (fif)
 fzfkill:${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
 lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
@@ -711,6 +736,9 @@ bind -x '"\C-x":clear'
 
 # Bind Alt+x e to fzf_nvim (find file and open in editor - nvim).
 bind -x '"\exe":fzf_nvim'
+
+# Bind Alt+x f to fif (find in files).
+bind -x '"\exf":fif'
 
 # Bind Alt+x / to the key bind cheatsheet.
 bind -x '"\ex/": show_keybinding_cheatsheet'
