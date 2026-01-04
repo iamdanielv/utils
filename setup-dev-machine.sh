@@ -224,6 +224,15 @@ install_jesseduffield_tool() {
     fi
     printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
 
+    # Normalize versions for comparison (remove leading 'v')
+    local norm_latest="${latest_version#v}"
+    local norm_installed="${installed_version_string#v}"
+
+    if [[ "$norm_latest" == "$norm_installed" ]]; then
+        printOkMsg "You already have the latest version of ${tool_name} (${latest_version}). Skipping."
+        return
+    fi
+
     if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
         printInfoMsg "${tool_name} installation skipped."
         return
