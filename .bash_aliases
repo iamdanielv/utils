@@ -271,7 +271,7 @@ alias myip='curl -s ipinfo.io/ip'
 unalias ports 2>/dev/null
 ports() {
   # Header
-  printf "\033[1;4m%-1s %-6s %21s %21s %s\033[0m\n" "P" "STATUS" "LOCAL:Port " "REMOTE:Port " "PROGRAM/PID"
+  printf "${_C_BOLD}${_C_ULINE}%-1s %-6s %21s %21s %s${_C_RESET}\n" "P" "STATUS" "LOCAL:Port " "REMOTE:Port " "PROGRAM/PID"
   
   ss -tulpn | awk '
     BEGIN {
