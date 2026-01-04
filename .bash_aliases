@@ -71,6 +71,26 @@ _FZF_COMMON_OPTS=(
   --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
 )
 
+_FZF_CHEATSHEET_THEME=(
+  --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030'
+  --color 'fg:#c8d3f5,query:#c8d3f5:regular'
+  --color 'border:#f9e2af,label:#f9e2af:reverse'
+  --color 'header:#ff966c,separator:#ff966c'
+  --color 'info:#545c7e,scrollbar:#589ed7'
+  --color 'marker:#ff007c,pointer:#ff007c,spinner:#ff007c'
+  --color 'prompt:#65bcff'
+)
+
+_FZF_CHEATSHEET_OPTS=(
+  --ansi
+  --border=rounded
+  --border-label-pos='3'
+  --layout=reverse
+  --prompt='  Run❯ '
+  --delimiter=":"
+  "--with-nth=2.."
+)
+
 # -------------------
 # Git
 # -------------------
@@ -470,22 +490,77 @@ alias tmux='tmux new-session -AD -s main'
 # Interactive Tools & Keybindings
 # -------------------
 
+# show_alias_cheatsheet
+# Purpose: Display a cheatsheet of aliases and functions defined in this file
+# Usage: Bound to Alt+x ?
+show_alias_cheatsheet() {
+  # Define base options
+  local fzf_opts=("${_FZF_CHEATSHEET_OPTS[@]}" --border-label=' Alias Cheatsheet ')
+  
+  # Add tmux popup options if in tmux, otherwise fallback to height
+  if [[ -n "$TMUX" ]]; then
+    fzf_opts+=(--tmux "center,60%,60%")
+  else
+    fzf_opts+=(--height='80%')
+  fi
+
+  # Define the list of aliases
+  # Alias : Description (Command)
+  local selected
+  selected=$(cat <<EOF | fzf "${fzf_opts[@]}" "${_FZF_CHEATSHEET_THEME[@]}"
+.. :${_C_YELLOW}..${_C_RESET}       : Go up one directory (cd ..)
+ag :${_C_YELLOW}ag${_C_RESET}       : Search with ag (ag --pager='less -XFR')
+cat :${_C_YELLOW}cat${_C_RESET}      : Cat with syntax highlighting (batcat/bat)
+ga :${_C_YELLOW}ga${_C_RESET}       : Git Add (git add)
+gb:${_C_YELLOW}gb${_C_RESET}       : Git Show Branches (git branch -a)
+gc :${_C_YELLOW}gc${_C_RESET}       : Git Commit (git commit -m)
+gl:${_C_YELLOW}gl${_C_RESET}       : Git Log Graph (git log --graph ...)
+glf :${_C_YELLOW}glf${_C_RESET}      : Git Log File (git log --follow ...)
+gp:${_C_YELLOW}gp${_C_RESET}       : Git Push (git push)
+grep :${_C_YELLOW}grep${_C_RESET}     : Grep with color (grep --color=auto -i)
+gs:${_C_YELLOW}gs${_C_RESET}       : Git Status (git status -sb)
+ip :${_C_YELLOW}ip${_C_RESET}       : IP with color (ip -c)
+l:${_C_YELLOW}l${_C_RESET}        : List simple (eza -F ...)
+la:${_C_YELLOW}la${_C_RESET}       : List All detailed (eza -al ...)
+ld:${_C_YELLOW}ld${_C_RESET}       : List Directories (eza -Dhal ...)
+lg:${_C_YELLOW}lg${_C_RESET}       : Lazygit (lazygit)
+ll:${_C_YELLOW}ll${_C_RESET}       : List Long (eza -lbGF ...)
+ls:${_C_YELLOW}ls${_C_RESET}       : List (eza ...)
+lt:${_C_YELLOW}lt${_C_RESET}       : List Tree (eza --tree ...)
+myip:${_C_YELLOW}myip${_C_RESET}     : Public IP (curl ipinfo.io/ip)
+nano :${_C_YELLOW}nano${_C_RESET}     : Nano replacement (micro)
+ports:${_C_YELLOW}ports${_C_RESET}    : List Ports (ss -tulpn ...)
+psa:${_C_YELLOW}psa${_C_RESET}      : Process List (ps -eo ...)
+rm :${_C_YELLOW}rm${_C_RESET}       : Safe RM (rm -i)
+tmux:${_C_YELLOW}tmux${_C_RESET}     : Tmux Session (tmux new-session ...)
+update:${_C_YELLOW}update${_C_RESET}   : System Update (apt update ...)
+vim :${_C_YELLOW}vim${_C_RESET}      : Vim replacement (nvim)
+EOF
+  )
+
+  if [[ -n "$selected" ]]; then
+    local cmd
+    cmd=${selected%%:*}
+
+    # Check if the command ends with a space (indicating input is required)
+    if [[ "$cmd" =~ \ $ ]]; then
+      # Input required: Paste to prompt for editing
+      READLINE_LINE="${cmd}"
+      READLINE_POINT=${#cmd}
+    else
+      # No input required: Execute immediately
+      eval "$cmd"
+      history -s "$cmd"
+    fi
+  fi
+}
+
 # show_keybinding_cheatsheet
 # Purpose: Display a cheatsheet of custom keybindings defined in this file
 # Usage: Bound to Alt+x /
 show_keybinding_cheatsheet() {
-  local selected
   # Define base options
-  local fzf_opts=(
-    --ansi
-    --border=rounded
-    --border-label=' Bindings Cheatsheet (Prefix: Alt+x) '
-    --border-label-pos='3'
-    --layout=reverse
-    --prompt='  Run❯ '
-    --delimiter=":"
-    "--with-nth=1,2"
-  )
+  local fzf_opts=("${_FZF_CHEATSHEET_OPTS[@]}" --border-label=' Bindings Cheatsheet (Prefix: Alt+x) ')
   
   # Add tmux popup options if in tmux, otherwise fallback to height
   if [[ -n "$TMUX" ]]; then
@@ -496,31 +571,22 @@ show_keybinding_cheatsheet() {
 
   # Define the list of bindings and commands
   # Key Sequence : Description (Command)
-  local menu_items
-  menu_items=$(cat <<EOF
-${_C_YELLOW}/${_C_RESET}       : Show this Cheatsheet (show_keybinding_cheatsheet)
-${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (clear)
-${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
-${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
-${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
-${_C_YELLOW}g b${_C_RESET}     : Git Branch (fgb)
-${_C_YELLOW}g h${_C_RESET}     : Git File History (fzglfh)
+  local selected
+  selected=$(cat <<EOF | fzf "${fzf_opts[@]}" "${_FZF_CHEATSHEET_THEME[@]}"
+show_keybinding_cheatsheet:${_C_YELLOW}/${_C_RESET}       : Show this Cheatsheet
+show_alias_cheatsheet:${_C_YELLOW}?${_C_RESET}       : Show Alias Cheatsheet
+clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (clear)
+fzfkill:${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
+lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
+fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
+fgb:${_C_YELLOW}g b${_C_RESET}     : Git Branch (fgb)
+fzglfh:${_C_YELLOW}g h${_C_RESET}     : Git File History (fzglfh)
 EOF
-)
-
-  selected=$(echo "$menu_items" | \
-  fzf "${fzf_opts[@]}" \
-      --color=bg+:#2d3f76,bg:#1e2030,gutter:#1e2030 \
-      --color=fg:#c8d3f5,query:#c8d3f5:regular \
-      --color=border:#f9e2af,label:#f9e2af:reverse \
-      --color=header:#ff966c,separator:#ff966c \
-      --color=info:#545c7e,scrollbar:#589ed7 \
-      --color=marker:#ff007c,pointer:#ff007c,spinner:#ff007c \
-      --color=prompt:#65bcff)
+  )
 
   if [[ -n "$selected" ]]; then
     local cmd
-    cmd=$(echo "$selected" | sed -n 's/.*(\(.*\))/\1/p')
+    cmd=${selected%%:*}
     eval "$cmd"
   fi
 }
@@ -528,8 +594,11 @@ EOF
 # Bind Alt+x Alt+x to the standard 'clear-screen' readline command.
 bind '"\ex\ex":clear-screen'
 
-# Bind Alt+x / to the cheatsheet.
-bind '"\ex/":"show_keybinding_cheatsheet\n"'
+# Bind Alt+x / to the key bind cheatsheet.
+bind -x '"\ex/": show_keybinding_cheatsheet'
+
+# Bind Alt+x ? to the alias cheatsheet.
+bind -x '"\ex?": show_alias_cheatsheet'
 
 # Bind Alt+x k to the fzfkill function.
 bind '"\exk":"fzfkill\n"'
