@@ -156,7 +156,7 @@ print_usage() {
     printMsg "  $(basename "$0") [-h]"
     printMsg "\n${T_ULINE}What it does:${T_RESET}"
     printMsg "  1. Checks for a compatible system (Debian/Ubuntu-based Linux)."
-    printMsg "  2. Installs essential CLI tools referenced in '.bash_aliases' (eza, ag, net-tools)."
+    printMsg "  2. Installs essential CLI tools referenced in '.bash_aliases'."
     printMsg "  3. Copies the '.bash_aliases' file from this repository to '~/.bash_aliases'."
     printMsg "  4. Executes the 'install-lazyvim.sh' script for a full Neovim setup."
     printMsg "  5. Installs the latest versions of Go, lazygit, and lazydocker."
@@ -474,8 +474,6 @@ install_core_tools() {
     fi
     install_bat_or_batcat
 
-    # For 'ports' alias (netstat)
-    install_package "net-tools" "netstat"
     # For 'ls', 'll', 'lt', etc. aliases
     install_package "eza"
     # Replacement for nano
@@ -486,8 +484,6 @@ install_core_tools() {
     install_package "jq"
     # For extracting archives
     install_package "unzip"
-    # For directory trees (used by fzf preview)
-    install_package "tree"
 
     # For 'lg' alias (lazygit) and docker management (lazydocker)
     install_jesseduffield_tool "lazygit"

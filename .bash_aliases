@@ -117,7 +117,7 @@ export FZF_CTRL_T_OPTS="--style full \
 # Options for ALT-C (cd into a directory)
 export FZF_ALT_C_OPTS="--exact --style full \
                         --bind 'focus:transform-header:file --brief {}' \
-                        --preview 'tree -L 1 -C {}'"
+                        --preview 'eza --tree --level=1 --color=always --icons --group-directories-first {}'"
 
 # --- FZF Completion Overrides ---
 # Use fd to power fzf's path and directory completion (**<TAB>).
