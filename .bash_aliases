@@ -152,6 +152,31 @@ glf() {
   git log --follow --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" -- "$@"
 }
 
+# Helper to handle the selection from fgl and fzglfh.
+_handle_git_hash_selection() {
+  local selected="$1"
+  [[ -z "$selected" ]] && return
+
+  # Strip ANSI codes and extract the first field (hash)
+  local hash
+  hash=$(echo "$selected" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
+
+  # Always add to history so it can be retrieved later
+  history -s "$hash"
+
+  if [[ -v READLINE_LINE ]]; then
+    # If called via bind -x, append to the command line
+    if [[ -n "$READLINE_LINE" && "$READLINE_LINE" != *" " ]]; then
+      READLINE_LINE="${READLINE_LINE} "
+    fi
+    READLINE_LINE="${READLINE_LINE}${hash}"
+    READLINE_POINT=${#READLINE_LINE}
+  else
+    # If called directly, print a message confirming the action
+    printf "Added hash to history (Press Up-Arrow to use)\n %s" "$hash"
+  fi
+}
+
 # -------------------
 # Git with FZF
 # -------------------
@@ -176,24 +201,7 @@ fgl() {
       --preview 'git show --color=always {1}' \
       --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}")
 
-  if [[ -n "$selected" ]]; then
-    local hash
-    # Strip ANSI codes and extract the first field (hash)
-    hash=$(echo "$selected" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
-
-    if [[ -v READLINE_LINE ]]; then
-      # If called via bind -x, append to the command line
-      if [[ -n "$READLINE_LINE" && "$READLINE_LINE" != *" " ]]; then
-        READLINE_LINE="${READLINE_LINE} "
-      fi
-      READLINE_LINE="${READLINE_LINE}${hash}"
-      READLINE_POINT=${#READLINE_LINE}
-    else
-      # If called directly, add to history and print a message
-      history -s "$hash"
-      printf "Added to history: %s (Press Up-Arrow to use)\n" "$hash"
-    fi
-  fi
+  _handle_git_hash_selection "$selected"
 }
 
 # fgb - Fuzzy Git Branch
@@ -287,21 +295,7 @@ fzglfh() {
           --input-label ' Filter Commits ' \
           --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}")
 
-    if [[ -n "$selected_commit" ]]; then
-      local hash
-      hash=$(echo "$selected_commit" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
-
-      if [[ -v READLINE_LINE ]]; then
-        if [[ -n "$READLINE_LINE" && "$READLINE_LINE" != *" " ]]; then
-          READLINE_LINE="${READLINE_LINE} "
-        fi
-        READLINE_LINE="${READLINE_LINE}${hash}"
-        READLINE_POINT=${#READLINE_LINE}
-      else
-        history -s "$hash"
-        printf "Added to history: %s (Press Up-Arrow to use)\n" "$hash"
-      fi
-    fi
+    _handle_git_hash_selection "$selected_commit"
   done
 }
 
