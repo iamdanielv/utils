@@ -659,8 +659,8 @@ show_keybinding_cheatsheet() {
   selected=$(cat <<EOF | fzf "${fzf_opts[@]}" "${_FZF_CHEATSHEET_THEME[@]}"
 show_keybinding_cheatsheet:${_C_YELLOW}/${_C_RESET}       : Show this Cheatsheet
 show_alias_cheatsheet:${_C_YELLOW}?${_C_RESET}       : Show Alias Cheatsheet
-clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (clear)
-fzf_nvim:${_C_YELLOW}Alt+f${_C_RESET}   : Find File (nvim)
+clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (this requires Alt+x twice)
+fzf_nvim:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
 fzfkill:${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
 lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
@@ -683,8 +683,8 @@ bind '"\ex\ex":clear-screen'
 # Bind Ctrl+x to clear the screen (executes 'clear').
 bind -x '"\C-x":clear'
 
-# Bind Alt+f to fzf_nvim (find file and open in nvim).
-bind -x '"\ef":fzf_nvim'
+# Bind Alt+x e to fzf_nvim (find file and open in editor - nvim).
+bind -x '"\exe":fzf_nvim'
 
 # Bind Alt+x / to the key bind cheatsheet.
 bind -x '"\ex/": show_keybinding_cheatsheet'
