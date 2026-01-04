@@ -95,9 +95,7 @@ export -f _shorten_git_date
 # Helper to ensure the current directory is a git repository.
 _require_git_repo() {
   if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-    local c_err='\033[38;2;243;139;168m' # Catppuccin Red
-    local c_reset='\033[0m'
-    printf "%b✗ Error:%b Not a git repository\n" "${c_err}" "${c_reset}"
+    printf "%b✗ Error:%b Not a git repository\n" "${_C_CAT_RED}" "${_C_RESET}"
     return 1
   fi
 }
@@ -436,8 +434,6 @@ alias tmux='tmux new-session -AD -s main'
 # Interactive cheatsheet for custom keybindings
 show_keybinding_cheatsheet() {
   local selected
-  local c_key=$'\033[1;33m'
-  local c_reset=$'\033[0m'
   # Define base options
   local fzf_opts=(
     --ansi
@@ -461,13 +457,13 @@ show_keybinding_cheatsheet() {
   # Key Sequence : Description (Command)
   local menu_items
   menu_items=$(cat <<EOF
-${c_key}/${c_reset}       : Show this Cheatsheet (show_keybinding_cheatsheet)
-${c_key}Alt+x${c_reset}   : Clear Screen (clear)
-${c_key}k${c_reset}       : Process Killer (fzfkill)
-${c_key}g g${c_reset}     : Git GUI (lazygit)
-${c_key}g l${c_reset}     : Git Log (fgl)
-${c_key}g b${c_reset}     : Git Branch (fgb)
-${c_key}g h${c_reset}     : Git File History (fzglfh)
+${_C_YELLOW}/${_C_RESET}       : Show this Cheatsheet (show_keybinding_cheatsheet)
+${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (clear)
+${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
+${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
+${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
+${_C_YELLOW}g b${_C_RESET}     : Git Branch (fgb)
+${_C_YELLOW}g h${_C_RESET}     : Git File History (fzglfh)
 EOF
 )
 
