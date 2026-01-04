@@ -211,10 +211,15 @@ install_jesseduffield_tool() {
 
     local installed_version_string="Not installed"
     if command -v "$tool_name" &>/dev/null; then
-        if [[ "$tool_name" == "lazygit" ]]; then
-            installed_version_string=$($tool_name --version)
-        else
-            installed_version_string=$($tool_name --version | grep -o 'Version: [^,]*' | sed 's/Version: //')
+        local raw_version_output
+        raw_version_output=$($tool_name --version)
+
+        # Attempt to extract just the version number (handles "version=..." and "Version: ...")
+        installed_version_string=$(echo "$raw_version_output" | grep -oE '(version=|Version: )[^,]*' | head -n 1 | sed -E 's/(version=|Version: )//')
+
+        # Fallback to full output with highlighting if extraction fails
+        if [[ -z "$installed_version_string" ]]; then
+            installed_version_string=$(echo "$raw_version_output" | sed "s/version/${C_L_GREEN}version${C_L_YELLOW}/g")
         fi
     fi
     printInfoMsg "Currently installed version:      ${C_L_YELLOW}${installed_version_string}${T_RESET}"
