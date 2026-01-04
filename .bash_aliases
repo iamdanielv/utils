@@ -1,5 +1,16 @@
 # shellcheck shell=bash
 # -------------------
+# Colors & Styling
+# -------------------
+
+# ANSI Color Codes
+_C_RESET=$'\033[0m'
+_C_RED=$'\033[1;31m'
+_C_GREEN=$'\033[1;32m'
+_C_YELLOW=$'\033[1;33m'
+_C_CAT_RED=$'\033[38;2;243;139;168m' # Catppuccin Red
+
+# -------------------
 # General Purpose
 # -------------------
 
