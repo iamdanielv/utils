@@ -540,30 +540,50 @@ if command -v eza &>/dev/null; then
   # Default 'ls' replacement, grouping directories first.
   alias ls='eza --group-directories-first'
 
-  # Simple listing with file type indicators (e.g., / for directories).
+  # Simple listing with file type indicators.
+  # -F: Appends indicators (e.g., / for dirs, * for execs).
   alias l='ls -F'
 
-  # Long format listing with block size, Git status, and file indicators.
-  alias ll='eza -lbGF --group-directories-first'
+  # Long format listing
+  # -l: Long listing format (permissions, size, user, date)
+  # -b: Binary file sizes (k, M, G) instead of bytes
+  # -G: Grid view (columns) even in long format (saves vertical space)
+  # --icons: Show icons
+  # --smart-group: Only show group if different from user
+  # Note: Add --no-time to hide the date column
+  alias ll='eza -lbG --icons --smart-group --group-directories-first'
 
   # --- Tree Views ---
   # Use eza as a modern replacement for tree
+  # --tree: Tree view
+  # --icons: Show icons
   alias tree='eza --tree --icons --group-directories-first'
 
   # Tree view of the current directory, one level deep.
-  alias lt='tree --level=1'
+  # --level=1: Limit tree depth to 1 level.
+  # -h: Show header row.
+  # -a: All files (including hidden).
+  # -l: Long listing format.
+  # --smart-group: Only show group if different from user.
+  # --no-time: Hide the date column.
+  alias lt='tree --level=1 -hal --smart-group --no-time'
 
   # --- Specialized Views ---
-  # List only directories in a detailed, human-readable format.
-  alias ld='eza -Dhal --no-filesize --smart-group --icons'
+  # List only directories
+  # -D: List only directories
+  # -h: Show header row
+  # -a: All files (including hidden)
+  # --no-filesize: Hides size column (dirs usually 4kb, not useful)
+  # --smart-group: Only show group if different from user
+  # --no-time to hide the date column
+  alias ld='eza -Dhal --no-filesize --smart-group --icons --no-time'
 
   # Detailed listing, sorted by size, with Git status (using eza).
-  # This is a function to improve readability and handle arguments correctly.
-  unalias la 2>/dev/null
-  function la {
-    eza -al --git --smart-group --color=auto --icons \
-      --sort=size --group-directories-first "$@"
-  }
+  # -a: All files (including hidden).
+  # -l: Long format.
+  # --git: Show git status column.
+  # --sort=size: Sort by file size.
+  alias la='eza -al --git --smart-group --icons --sort=size --group-directories-first'
 fi
 
 # -------------------
