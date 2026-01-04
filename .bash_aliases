@@ -235,7 +235,69 @@ alias check-reboot='if [ -f /var/run/reboot-required ]; then echo -e "\033[1;31m
 alias myip='curl -s ipinfo.io/ip'
 
 # List all listening TCP and UDP ports.
-alias ports='netstat -tulpn'
+# Replaces 'netstat -tulpn' with a prettier 'ss' output.
+unalias ports 2>/dev/null
+ports() {
+  # Header
+  printf "\033[1;4m%-1s %-6s %21s %21s %s\033[0m\n" "P" "STATUS" "LOCAL:Port " "REMOTE:Port " "PROGRAM/PID"
+  
+  ss -tulpn | awk '
+    BEGIN {
+      # Colors
+      c_reset="\033[0m"
+      c_green="\033[1;32m"
+      c_yellow="\033[1;33m"
+      c_blue="\033[1;34m"
+      c_magenta="\033[1;35m"
+      c_cyan="\033[36m"
+    }
+
+    function split_addr(addr, parts) {
+      match(addr, /:[^:]*$/)
+      if (RSTART > 0) {
+        parts[1] = substr(addr, 1, RSTART-1)
+        parts[2] = substr(addr, RSTART)
+      } else {
+        parts[1] = addr
+        parts[2] = ""
+      }
+    }
+
+    NR > 1 {
+      # Shorten Protocol: udp -> U, tcp -> T
+      proto=toupper(substr($1, 1, 1))
+      c_proto = (proto == "T") ? c_green : c_yellow
+      
+      state=$2
+      if (state == "LISTEN") c_state = c_green
+      else if (state == "UNCONN") c_state = c_yellow
+      else if (state == "ESTAB") c_state = c_blue
+      else c_state = c_magenta
+
+      split_addr($5, l_parts)
+      split_addr($6, r_parts)
+
+      # Reconstruct process info from $7 onwards
+      proc_info=""
+      for (i=7; i<=NF; i++) proc_info = proc_info $i " "
+      
+      # Clean up: users:(("nginx",pid=123,fd=4))... -> "nginx",pid=123
+      sub(/users:\(\(/, "", proc_info)
+      sub(/(\),|\)\)).*/, "", proc_info)
+      sub(/,fd=[0-9]+/, "", proc_info)
+      sub(/ +$/, "", proc_info)
+      
+      if (proc_info == "") proc_info = "-"
+
+      printf "%s%-1s%s %s%-6s%s %15s%s%-6s%s %15s%s%-6s%s %s%s\n", 
+        c_proto, proto, c_reset,
+        c_state, state, c_reset,
+        l_parts[1], c_cyan, l_parts[2], c_reset,
+        r_parts[1], c_cyan, r_parts[2], c_reset,
+        c_reset, proc_info
+    }
+  '
+}
 
 # List all running processes with essential columns.
 alias psa='ps -eo user,pid,pcpu,pmem,command'
