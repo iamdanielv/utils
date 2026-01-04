@@ -462,6 +462,7 @@ fzfkill() {
     _C_BOLD="${_C_BOLD}" _C_RESET="${_C_RESET}" _C_YELLOW="${_C_YELLOW}" \
     _C_DARK_GRAY="${_C_DARK_GRAY}" \
     fzf -m --no-hscroll "${_FZF_COMMON_OPTS[@]}" \
+    --preview-label-pos='2' \
     --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL)\nTAB: mark | SHIFT-UP/DOWN: scroll details' \
     --preview '_fzfkill_preview {2}' \
     --prompt='  Filter❯ ' \
