@@ -375,8 +375,8 @@ fzfkill() {
   # Get a process list with only User, PID, and Command, without headers.
   # Exclude the current fzfkill process and its children from the list.
   # Highlight processes run by the 'root' user.
-  local processes
-  processes=$(ps -eo user,pid,cmd --no-headers | \
+  # Pipe directly to fzf to avoid storing large output in a variable.
+  ps -eo user,pid,cmd --no-headers | \
     awk -v c_warn="${_C_YELLOW}" -v c_reset="${_C_RESET}" '{
       if (/fzfkill/ || /ps -eo/) next;
       if ($1 == "root") {
@@ -385,21 +385,17 @@ fzfkill() {
       } else {
         print $0;
       }
-    }')
-
-  # The fzf command now directly executes the kill command.
-  # This allows us to bind different signals to different keys.
-  printf "%s" "$processes" | \
+    }' | \
     _C_BLUE="${_C_BLUE}" _C_GREEN="${_C_GREEN}" _C_CYAN="${_C_CYAN}" \
     _C_BOLD="${_C_BOLD}" _C_RESET="${_C_RESET}" _C_YELLOW="${_C_YELLOW}" \
     _C_DARK_GRAY="${_C_DARK_GRAY}" \
     fzf -m --no-hscroll "${_FZF_COMMON_OPTS[@]}" \
-    --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL) | TAB: mark | SHIFT-UP/DOWN: scroll details' \
+    --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL)\nTAB: mark | SHIFT-UP/DOWN: scroll details' \
     --preview '_fzfkill_preview {2}' \
-    --prompt='Filter> ' \
+    --prompt='  Filter> ' \
     --border-label=' Process Killer ' --input-label ' Filter Processes ' \
-    --bind "enter:execute(echo {} | awk '{print \$2}' | xargs -r kill -s TERM)+abort" \
-    --bind "ctrl-k:execute(echo {} | awk '{print \$2}' | xargs -r kill -s KILL)+abort" \
+    --bind "enter:execute(echo {+2} | xargs -r kill -s TERM)+abort" \
+    --bind "ctrl-k:execute(echo {+2} | xargs -r kill -s KILL)+abort" \
     --bind "result:transform-list-label:
         if [[ -z \$FZF_QUERY ]]; then
           echo \" All Processes \"
