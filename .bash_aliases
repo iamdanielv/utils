@@ -238,7 +238,17 @@ fzglfh() {
 alias update='sudo apt-get update && sudo apt-get upgrade -y && echo "" && check-reboot'
 
 # Check if a system reboot is required.
-alias check-reboot='if [ -f /var/run/reboot-required ]; then echo -e "\033[1;31m Reboot Required\033[0m"; else echo -e "\033[1;32m✓ No reboot required\033[0m"; fi'
+unalias check-reboot 2>/dev/null
+check-reboot() {
+  local color="${_C_GREEN}"
+  local msg="✓ No Reboot Required"
+
+  if [ -f /var/run/reboot-required ]; then
+    color="${_C_RED}"
+    msg=" Reboot Required"
+  fi
+  printf "%s%s%s\n" "${color}" "${msg}" "${_C_RESET}"
+}
 
 # Get public IP address from ipinfo.io.
 alias myip='curl -s ipinfo.io/ip'
