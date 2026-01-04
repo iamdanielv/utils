@@ -234,8 +234,15 @@ fzglfh() {
 # System, Network & Packages
 # -------------------
 
-# Update and upgrade all packages (for Debian/Ubuntu-based systems).
-alias update='sudo apt-get update && sudo apt-get upgrade -y && echo "" && check-reboot'
+# Update system packages, upgrade, and clean up
+unalias update 2>/dev/null
+update() {
+  sudo apt update && \
+  sudo apt upgrade -y && \
+  sudo apt autoremove -y
+  echo ""
+  check-reboot
+}
 
 # Check if a system reboot is required.
 unalias check-reboot 2>/dev/null
