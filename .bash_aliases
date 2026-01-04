@@ -515,10 +515,12 @@ fi
 # -------------------
 
 # tmux
-# Purpose: Connect to a session named 'main', creating it if it doesn't exist.
+# Purpose: Connect to a session named 'main', creating it if it doesn't exist
 #          -A: Attach to existing session.
-#          -D: Detach other clients.
-alias tmux='tmux new-session -AD -s main'
+tmux_launch() {
+  command tmux new-session -A -s main
+}
+alias tmux='tmux_launch'
 
 # -------------------
 # Interactive Tools & Keybindings
@@ -566,7 +568,7 @@ nano :${_C_YELLOW}nano${_C_RESET}     : Nano replacement (micro)
 ports:${_C_YELLOW}ports${_C_RESET}    : List Ports (ss -tulpn ...)
 psa:${_C_YELLOW}psa${_C_RESET}      : Process List (ps -eo ...)
 rm :${_C_YELLOW}rm${_C_RESET}       : Safe RM (rm -i)
-tmux:${_C_YELLOW}tmux${_C_RESET}     : Tmux Session (tmux new-session ...)
+tmux:${_C_YELLOW}tmux${_C_RESET}     : Tmux Session (tmux_launch)
 update:${_C_YELLOW}update${_C_RESET}   : System Update (apt update ...)
 vim :${_C_YELLOW}vim${_C_RESET}      : Vim replacement (nvim)
 EOF
@@ -615,6 +617,7 @@ lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
 fgb:${_C_YELLOW}g b${_C_RESET}     : Git Branch (fgb)
 fzglfh:${_C_YELLOW}g h${_C_RESET}     : Git File History (fzglfh)
+tmux_launch:${_C_YELLOW}t${_C_RESET}       : Launch Tmux (main)
 EOF
   )
 
@@ -648,3 +651,6 @@ bind -x '"\exgh": fzglfh'
 
 # Bind Alt+x g g to 'lg' (lazygit).
 bind -x '"\exgg": lazygit'
+
+# Bind Alt+x t to tmux_launch.
+bind -x '"\ext": tmux_launch'
