@@ -56,6 +56,28 @@ alias grep='grep --color=auto -i'
 alias ..='cd ..'
 
 # -------------------
+# Man Pages
+# -------------------
+
+# Configure colored man pages.
+# Prefer 'bat' if available, otherwise use 'less' with termcap colors.
+# Force 'man' to use legacy formatting (no ANSI SGR) so tools can process it.
+export MANROFFOPT="-c"
+
+if [[ "$_BAT_CMD" != "cat" ]]; then
+  export MANPAGER="sh -c 'col -bx | $_BAT_CMD -l man -p'"
+else
+  unset MANPAGER
+  export LESS_TERMCAP_mb=$'\E[1;31m'     # begin blinking
+  export LESS_TERMCAP_md=$'\E[1;31m'     # begin bold
+  export LESS_TERMCAP_me=$'\E[0m'        # end mode
+  export LESS_TERMCAP_se=$'\E[0m'        # end standout-mode
+  export LESS_TERMCAP_so=$'\E[1;44;33m'  # begin standout-mode - info box
+  export LESS_TERMCAP_ue=$'\E[0m'        # end underline
+  export LESS_TERMCAP_us=$'\E[1;32m'     # begin underline
+fi
+
+# -------------------
 # FZF Configuration
 # -------------------
 
