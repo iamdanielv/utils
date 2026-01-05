@@ -175,6 +175,53 @@ fif() {
     --query "$initial_query"
 }
 
+# fhistory - Fuzzy History
+# Purpose: Interactively search and select commands from history.
+# Usage: fhistory
+fhistory() {
+  local output
+  local cmd
+  local key
+  local line
+
+  # Get history, reverse it (newest first), and feed to fzf.
+  # HISTTIMEFORMAT="" ensures no timestamps in output.
+  # --expect=ctrl-e allows distinguishing between Execute (Enter) and Edit (Ctrl-E).
+  output=$(HISTTIMEFORMAT="" history | tac | fzf "${_FZF_COMMON_OPTS[@]}" \
+    --no-sort \
+    --border-label=' Command History ' \
+    --prompt='  History❯ ' \
+    --header 'ENTER: Select | CTRL-E: Execute | CTRL-/: View' \
+    --expect=ctrl-e \
+    --preview 'echo {} | sed -E "s/^[ ]*[0-9]+[ ]*//"' \
+    --preview-window='down,20%,border,wrap,hidden' \
+    --bind 'ctrl-/:change-preview-window(down,20%,border,wrap|hidden)' \
+    --query "$READLINE_LINE")
+
+  key=$(head -1 <<< "$output")
+  line=$(tail -n +2 <<< "$output")
+
+  if [[ -n "$line" ]]; then
+    # Remove the history number (e.g., "  123  cmd" -> "cmd")
+    cmd=$(echo "$line" | sed -E 's/^[ ]*[0-9]+[ ]*//')
+
+    if [[ "$key" == "ctrl-e" ]]; then
+      # Execute mode: Run the command immediately
+      # Add to history so it appears as the most recent command
+      history -s "$cmd"
+      printf "❯ %s\n" "$cmd"
+      eval "$cmd"
+      # Clear the buffer
+      READLINE_LINE=""
+      READLINE_POINT=0
+    else
+      # Edit mode: Place command on the readline buffer
+      READLINE_LINE="$cmd"
+      READLINE_POINT=${#cmd}
+    fi
+  fi
+}
+
 # -------------------
 # Git
 # -------------------
@@ -723,6 +770,7 @@ show_alias_cheatsheet:${_C_YELLOW}?${_C_RESET}       : Show Alias Cheatsheet
 clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (this requires Alt+x twice)
 fzf_nvim:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
 fif:${_C_YELLOW}f${_C_RESET}       : Find text in Files (fif)
+fhistory:${_C_YELLOW}r${_C_RESET}       : (R)ecent Command History
 fzfkill:${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
 lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
@@ -750,6 +798,9 @@ bind -x '"\exe":fzf_nvim'
 
 # Bind Alt+x f to fif (find in files).
 bind -x '"\exf":fif'
+
+# Bind Alt+x r to fhistory.
+bind -x '"\exr":fhistory'
 
 # Bind Alt+x / to the key bind cheatsheet.
 bind -x '"\ex/": show_keybinding_cheatsheet'
