@@ -119,8 +119,19 @@ export FZF_CTRL_T_OPTS="--style full \
 
 # Options for ALT-C (cd into a directory)
 export FZF_ALT_C_OPTS="--exact --style full \
-                        --bind 'focus:transform-header:file --brief {}' \
-                        --preview 'eza --tree --level=1 --color=always --icons --group-directories-first {}'"
+    --input-label ' Change Directory ' \
+    --preview 'eza --tree --level=1 --color=always --icons --group-directories-first {}' \
+    --layout reverse \
+    --bind 'result:transform-list-label: \
+        if [[ -z \$FZF_QUERY ]]; then \
+          echo \" \$FZF_MATCH_COUNT items \" \
+        else \
+          echo \" \$FZF_MATCH_COUNT matches for [\$FZF_QUERY] \" \
+        fi \
+        ' \
+    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf \" Previewing [%s] \" {}' \
+    --color 'border:#aaaaaa,label:#cccccc,preview-border:#9999cc,preview-label:#ccccff' \
+    --color 'list-border:#669966,list-label:#99cc99,input-border:#996666,input-label:#ffcccc'"
 
 # --- FZF Completion Overrides ---
 # Use fd to power fzf's path and directory completion (**<TAB>).
