@@ -533,6 +533,40 @@ setup_bash_aliases() {
     fi
 }
 
+# Copies the tmux configuration to ~/.config/tmux/tmux.conf
+setup_tmux_config() {
+    printBanner "Setting up Tmux Configuration"
+    local source_conf_path="${SCRIPT_DIR}/.config/tmux/tmux.conf"
+    local dest_conf_dir="${HOME}/.config/tmux"
+    local dest_conf_path="${dest_conf_dir}/tmux.conf"
+
+    if [[ ! -f "$source_conf_path" ]]; then
+        printWarnMsg "Could not find 'tmux.conf' in: ${source_conf_path}"
+        return
+    fi
+
+    if [[ ! -d "$dest_conf_dir" ]]; then
+        printInfoMsg "Creating directory: ${dest_conf_dir}"
+        mkdir -p "$dest_conf_dir"
+    fi
+
+    if [[ -f "$dest_conf_path" ]]; then
+        if prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "n"; then
+            local backup_file
+            backup_file="${dest_conf_path}.bak_$(date +"%Y%m%d_%H%M%S")"
+            printInfoMsg "Backing up current file to ${backup_file}..."
+            cp "$dest_conf_path" "$backup_file"
+            cp "$source_conf_path" "$dest_conf_path"
+            printOkMsg "Backup created and 'tmux.conf' has been overwritten."
+        else
+            printInfoMsg "Skipping 'tmux.conf' setup."
+        fi
+    else
+        cp "$source_conf_path" "$dest_conf_path"
+        printOkMsg "Copied 'tmux.conf' to '${dest_conf_path}'."
+    fi
+}
+
 main() {
     if [[ "$1" == "-h" || "$1" == "--help" ]]; then
         print_usage
@@ -550,6 +584,7 @@ main() {
 
     install_core_tools
     setup_bash_aliases
+    setup_tmux_config
 
     # Install and configure fzf
     install_fzf_from_source
