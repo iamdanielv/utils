@@ -244,6 +244,24 @@ fhistory() {
   fi
 }
 
+# fman - Fuzzy Man Pages
+# Purpose: Interactively search and open man pages.
+# Usage: fman
+fman() {
+  man -k . | sort | \
+    fzf "${_FZF_COMMON_OPTS[@]}" \
+    --tiebreak=begin \
+    --border-label=' Manual Pages ' \
+    --prompt='  Man❯ ' \
+    --header 'ENTER: open | CTRL-/: view' \
+    --preview "sec=\$(echo {2} | tr -d '()'); \
+               MANWIDTH=\$FZF_PREVIEW_COLUMNS man -P cat \"\$sec\" {1} 2>/dev/null | \
+               col -bx | \
+               ${_BAT_CMD} -l man -p --color=always" \
+    --preview-window 'right,60%,border,wrap' \
+    --bind "enter:become(sec=\$(echo {2} | tr -d '()'); man \"\$sec\" {1})"
+}
+
 # -------------------
 # Git
 # -------------------
@@ -793,6 +811,7 @@ clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (this requires Alt+x twice)
 fzf_nvim:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
 fif:${_C_YELLOW}f${_C_RESET}       : Find text in Files (fif)
 fhistory:${_C_YELLOW}r${_C_RESET}       : (R)ecent Command History
+fman:${_C_YELLOW}m${_C_RESET}       : Find Manual Pages (fman)
 fzfkill:${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
 lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
@@ -823,6 +842,9 @@ bind -x '"\exf":fif'
 
 # Bind Alt+x r to fhistory.
 bind -x '"\exr":fhistory'
+
+# Bind Alt+x m to fman.
+bind -x '"\exm":fman'
 
 # Bind Alt+x / to the key bind cheatsheet.
 bind -x '"\ex/": show_keybinding_cheatsheet'
