@@ -69,7 +69,8 @@ panes=$(tmux list-panes -a -F "#{window_id}${tab}#{pane_id}${tab}#{session_name}
       done)
 
 if [ -z "$panes" ]; then
-    tmux display-message "No other panes found."
+    tmux display-popup -w 30 -h 5 -E \
+        "bash -c \"printf '\n  \033[1;33m  No other panes found\033[0m\n'; read -n 1 -s\""
     exit 0
 fi
 
