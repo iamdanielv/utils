@@ -565,6 +565,18 @@ setup_tmux_config() {
         cp "$source_conf_path" "$dest_conf_path"
         printOkMsg "Copied 'tmux.conf' to '${dest_conf_path}'."
     fi
+
+    # Setup Tmux Scripts
+    local source_scripts_dir="${SCRIPT_DIR}/.config/tmux/scripts/dv"
+    local dest_scripts_dir="${dest_conf_dir}/scripts/dv"
+
+    if [[ -d "$source_scripts_dir" ]]; then
+        mkdir -p "$dest_scripts_dir"
+        cp "${source_scripts_dir}"/* "$dest_scripts_dir" 2>/dev/null || true
+        chmod +x "${dest_scripts_dir}"/*.sh 2>/dev/null || true
+        printOkMsg "Installed/Updated tmux scripts in '${dest_scripts_dir}':"
+        ls "$dest_scripts_dir"
+    fi
 }
 
 main() {
