@@ -48,22 +48,24 @@ ansi_red=$(to_ansi "$thm_red")
 ansi_green=$(to_ansi "$thm_green")
 
 # 2. Generate Pane List
-# Format: pane_id|display_text
-# We use a separator '|' to handle parsing later.
+# Format: pane_id<tab>display_text<tab>session<tab>window_index<tab>window_name<tab>pane_index<tab>pane_title
+# We use a separator '\t' to handle parsing later.
 # Display format: [Session] Window: Pane - Title
-panes=$(tmux list-panes -a -F "#{window_id}|#{pane_id}|#{session_name}|#{window_index}|#{window_name}|#{pane_index}|#{pane_title}" \
-    | grep -v "^${current_window_id}|" \
-    | while IFS='|' read -r _wid id sn wi wn pi pt; do
+tab=$'\t'
+panes=$(tmux list-panes -a -F "#{window_id}${tab}#{pane_id}${tab}#{session_name}${tab}#{window_index}${tab}#{window_name}${tab}#{pane_index}${tab}#{pane_title}" \
+    | grep -v "^${current_window_id}${tab}" \
+    | while IFS="$tab" read -r _wid id sn wi wn pi pt; do
         # Sanitize fields to prevent delimiter collision
-        sn="${sn//$'\t'/ }"
-        wn="${wn//$'\t'/ }"
-        pt="${pt//$'\t'/ }"
-        printf "%s\t%s[%s]%s %s%s:%s%s %s%s - %s%s\t%s\t%s\t%s\t%s\t%s\n" \
-            "$id" \
-            "$ansi_blue" "$sn" "$ansi_fg" \
-            "$ansi_yellow" "$wi" "$wn" "$ansi_fg" \
-            "$ansi_cyan" "$pi" "$pt" "$ansi_fg" \
-            "$sn" "$wi" "$wn" "$pi" "$pt"
+        # Only pane_title needs sanitization as it's the last field and might contain tabs
+        pt="${pt//$tab/ }"
+
+        # create colored display string
+        # Format: [Session] Window: Pane - Title
+        display="${ansi_blue}[${sn}]${ansi_fg} ${ansi_yellow}${wi}:${wn}${ansi_fg} ${ansi_cyan}${pi} - ${pt}${ansi_fg}"
+
+        # Output: ID <tab> Display <tab> Raw Fields (for preview)
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+            "$id" "$display" "$sn" "$wi" "$wn" "$pi" "$pt"
       done)
 
 if [ -z "$panes" ]; then
