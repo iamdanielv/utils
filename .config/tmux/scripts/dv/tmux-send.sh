@@ -35,6 +35,8 @@ fi
 # Get current context
 src_pane=$(tmux display-message -p "#{pane_id}")
 cur_win_id=$(tmux display-message -p "#{window_id}")
+cur_sess=$(tmux display-message -p "#{session_name}")
+cur_win_panes=$(tmux display-message -p "#{window_panes}")
 
 # Helper for colors
 to_ansi() {
@@ -60,40 +62,55 @@ tab=$'\t'
 
 # 1. Existing Windows
 # Filter out current window
-windows=$(tmux list-windows -a -F "WIN${tab}#{window_id}${tab}#{session_name}${tab}#{window_name}" \
+windows=$(tmux list-windows -a -F "WIN${tab}#{window_id}${tab}#{session_name}${tab}#{window_index}${tab}#{window_name}" \
     | grep -v "${tab}${cur_win_id}${tab}" \
-    | while IFS="$tab" read -r type wid sn wn; do
-        display="${ansi_blue}[${sn}]${ansi_fg} ${wn}"
-        printf "%s\t%s\t%s\n" "$type" "$wid" "$display"
+    | while IFS="$tab" read -r type wid sn wi wn; do
+        # Sanitize window name to prevent tab collision
+        wn="${wn//$tab/ }"
+        display="${ansi_blue}[${sn}]${ansi_fg} ${ansi_yellow}${wi}:${wn}${ansi_fg}"
+        printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$type" "$wid" "$display" "$sn" "$wi" "$wn"
       done)
 
 # 2. New Window in Session
 sessions=$(tmux list-sessions -F "SES${tab}#{session_name}${tab}#{session_name}" \
     | while IFS="$tab" read -r type sn _display_sn; do
-        display="${ansi_blue}[${sn}]${ansi_fg} ${ansi_yellow}<New Window>${ansi_fg}"
-        printf "%s\t%s\t%s\n" "$type" "$sn" "$display"
+        # Filter out current session if it's the only pane in the window
+        if [ "$sn" = "$cur_sess" ] && [ "$cur_win_panes" -eq 1 ]; then
+            continue
+        fi
+        display="${ansi_blue}[${sn}]${ansi_fg} ${ansi_green}<New Window>${ansi_fg}"
+        printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$type" "$sn" "$display" "$sn" "+" "New Window"
       done)
 
 # 3. Scratchpad (if not exists)
 if ! tmux has-session -t scratch 2>/dev/null; then
-    display="${ansi_blue}[scratch]${ansi_fg} ${ansi_yellow}<New Window>${ansi_fg}"
-    scratch_item="SES${tab}scratch${tab}${display}"
+    display="${ansi_blue}[scratch]${ansi_fg} ${ansi_green}<New Window>${ansi_fg}"
+    scratch_item="SES${tab}scratch${tab}${display}${tab}scratch${tab}+${tab}New Window"
 else
     scratch_item=""
 fi
 
 # 4. New Session
 new_sess_display="${ansi_magenta}[NEW SESSION]${ansi_fg}"
-new_sess_item="NEW${tab}NEW${tab}${new_sess_display}"
+new_sess_item="NEW${tab}NEW${tab}${new_sess_display}${tab}NEW${tab}+${tab}New Session"
 
 # Combine list
 targets=$(printf "%s\n%s\n%s\n%s" "$windows" "$sessions" "$scratch_item" "$new_sess_item" | sed '/^$/d')
 
 # FZF Header
 fzf_header=$(printf "%s\n%s\n%s" \
-    "${ansi_green}ENTER: Move${ansi_fg}" \
+    "${ansi_green}ENTER: Send${ansi_fg}" \
     "${ansi_yellow}A-ENT: Follow${ansi_fg}" \
-    "${ansi_cyan}C-v/h: Split${ansi_fg}")
+    "${ansi_cyan}C-v/h: Send and Split V/H${ansi_fg}")
+
+# Preview Command
+preview_cmd="if [ {1} = 'WIN' ]; then \
+    tmux capture-pane -e -p -t {2}; \
+elif [ {1} = 'SES' ]; then \
+    printf '\n${ansi_green}Create New Window in ${ansi_blue}[%s]${ansi_fg}' '{2}'; \
+else \
+    printf '\n${ansi_magenta}Create a New Session${ansi_fg}'; \
+fi"
 
 # Select
 selected=$(printf '%s\n' "$targets" | fzf \
@@ -106,12 +123,18 @@ selected=$(printf '%s\n' "$targets" | fzf \
     --with-nth=3 \
     --prompt="Send To ❯ " \
     --expect=alt-enter,ctrl-v,ctrl-h \
-    --list-label=" 󰆏 Send Pane " \
+    --list-label=" 󰁜 Send Pane to: " \
+    --list-border="top" \
+    --list-label-pos='1' \
     --header="$fzf_header" \
+    --header-border="top" \
     --header-label=" Commands: " \
-    --preview="if [ {1} = 'WIN' ]; then tmux capture-pane -e -p -t {2}; else echo 'Create New Window/Session'; fi" \
+    --header-label-pos='1' \
+    --preview="$preview_cmd" \
     --preview-window="right:60%" \
-    --color "border:${thm_cyan},label:${thm_cyan}:reverse,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
+    --bind "focus:transform-preview-label:printf \"${ansi_blue}[%s]${ansi_fg} ${ansi_yellow}%s:%s${ansi_fg} \" {4} {5} {6}" \
+    --preview-label-pos='3' \
+    --color "border:${thm_cyan},label:${thm_cyan}:reverse,preview-border:${thm_gray},preview-label:white:regular,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
     --color "bg+:${thm_gray},bg:${thm_bg},gutter:${thm_bg},prompt:${thm_orange}")
 
 if [ $? -ne 0 ]; then
