@@ -20,6 +20,12 @@ thm_black4="#444a73"
 thm_mauve="#cba6f7"
 
 # --- Checks ---
+# Ensure we are in a tmux session
+if [ -z "$TMUX" ]; then
+    echo "Error: This script must be run within a tmux session."
+    exit 1
+fi
+
 if ! command -v fzf >/dev/null; then
     tmux display-message "Error: fzf is not installed."
     exit 1
