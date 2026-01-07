@@ -19,6 +19,32 @@ thm_orange="#ff966c"
 thm_black4="#444a73"
 thm_mauve="#cba6f7"
 
+# --- Callback Logic (New Session) ---
+if [ "$1" = "--new-session" ]; then
+    sess_name="$2"
+    src_pane="$3"
+    follow="$4"
+
+    if [ -z "$sess_name" ]; then exit 0; fi
+
+    if tmux has-session -t "$sess_name" 2>/dev/null; then
+        tmux break-pane -s "$src_pane" -t "$sess_name"
+        tmux display-popup -w 40 -h 6 -E \
+            "bash -c \"printf '\n  \033[1;33m!  Session Exists\033[0m\n\n  \033[1;34m%s\033[0m\n' '$sess_name'; read -n 1 -s\""
+    else
+        tmux new-session -d -s "$sess_name"
+        tmux join-pane -s "$src_pane" -t "$sess_name:"
+        tmux kill-pane -a -t "$src_pane"
+        tmux display-popup -w 40 -h 6 -E \
+            "bash -c \"printf '\n  \033[1;32m✓  Session Created\033[0m\n\n  \033[1;34m%s\033[0m\n' '$sess_name'; read -n 1 -s\""
+    fi
+
+    if [ "$follow" -eq 1 ]; then
+        tmux switch-client -t "$sess_name"
+    fi
+    exit 0
+fi
+
 # --- Checks ---
 if [ -z "$TMUX" ]; then
     echo "Error: This script must be run within a tmux session."
@@ -185,6 +211,8 @@ case "$type" in
         fi
         ;;
     NEW)
-        tmux display-message "New Session logic Not implemented yet"
+        script_path=$(readlink -f "$0")
+        tmux command-prompt -p "New Session Name: " \
+            "run-shell \"$script_path --new-session '%1' '$src_pane' '$follow'\""
         ;;
 esac
