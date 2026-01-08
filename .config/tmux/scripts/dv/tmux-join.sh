@@ -1,7 +1,11 @@
 #!/bin/bash
-
-# tmux-join.sh - Unified Join (Pull) Script
-# Goal: Bring a remote pane into the current window.
+# ===============
+# Script Name: tmux-join.sh
+# Description: Unified Join (Pull) - Bring a remote pane into the current window.
+# Keybinding:  Prefix + j
+# Config:      bind j run-shell -b "~/.config/tmux/scripts/dv/tmux-join.sh"
+# Dependencies: tmux > 3.2, fzf, grep, cut
+# ===============
 
 # --- Colors (Tokyo Night) ---
 thm_bg="#1e2030"
@@ -84,7 +88,7 @@ fi
 fzf_header=$(printf "%s\n%s\n%s\n%s" \
     "${ansi_green}ENTER: Join${ansi_fg}" \
     "${ansi_yellow}A-ENT: New Win${ansi_fg}" \
-    "${ansi_cyan}C-v/h: Split${ansi_fg}" \
+    "${ansi_cyan}C-v/h: Join and Split V/H${ansi_fg}" \
     "${ansi_red}C-x: Kill${ansi_fg}")
 
 # 3. FZF Selection
@@ -99,7 +103,7 @@ selected=$(printf '%s\n' "$panes" | fzf \
     --with-nth=2 \
     --prompt="Pane ❯ " \
     --expect=alt-enter,ctrl-v,ctrl-h,ctrl-x \
-    --list-label=" 󰆏 Join Pane " \
+    --list-label=" 󰁂 Join Pane From" \
     --list-border="top" \
     --list-label-pos='1' \
     --header="$fzf_header" \
