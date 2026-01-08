@@ -193,7 +193,7 @@ fi
 case "$type" in
     WIN)
         if [ -z "$split_args" ]; then split_args="-h"; fi
-        tmux join-pane $split_args -s "$src_pane" -t "$target"
+        tmux join-pane "$split_args" -s "$src_pane" -t "$target"
         if [ "$follow" -eq 1 ]; then
             tmux select-window -t "$target"
             tmux select-pane -t "$src_pane"
@@ -217,6 +217,6 @@ case "$type" in
     NEW)
         script_path=$(readlink -f "$0")
         tmux command-prompt -p "New Session Name: " \
-            "run-shell \"$script_path --new-session '%1' '$src_pane' '$follow'\""
+            "run-shell \"'$script_path' --new-session '%1' '$src_pane' '$follow'\""
         ;;
 esac
