@@ -3,7 +3,7 @@
 # Script Name: tmux-reload.sh
 # Description: Reloads the tmux configuration file.
 # Keybinding:  Prefix + r
-# Config:      bind r run-shell -b "~/.config/tmux/scripts/dv/tmux-reload.sh"
+# Config:      bind -N "Reload Tmux Configuration" r run-shell -b "~/.config/tmux/scripts/dv/tmux-reload.sh"
 # Dependencies: tmux
 # ==============================================================================
 
