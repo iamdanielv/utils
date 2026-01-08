@@ -1,7 +1,11 @@
 #!/bin/bash
-
-# tmux-send.sh - Unified Send (Push) Script
-# Goal: Move the current pane to another window or session.
+# ===============
+# Script Name: tmux-send.sh
+# Description: Unified Send (Push) - Move the current pane to another window or session.
+# Keybinding:  Prefix + k
+# Config:      bind k run-shell -b "~/.config/tmux/scripts/dv/tmux-send.sh"
+# Dependencies: tmux > 3.2, fzf, grep, sed, cut
+# ===============
 
 # --- Colors (Tokyo Night) ---
 thm_bg="#1e2030"
