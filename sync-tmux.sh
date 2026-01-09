@@ -3,10 +3,18 @@
 # Script Name: sync-tmux.sh
 # Description: Quickly syncs local tmux config and scripts to ~/.config/tmux
 #              for rapid development and testing.
-# Usage:       ./sync-tmux.sh
+# Usage:       ./sync-tmux.sh [-c|--cleanup]
 # ==============================================================================
 
 set -e
+
+# Parse Arguments
+CLEANUP=false
+for arg in "$@"; do
+    case $arg in
+        -c|--cleanup) CLEANUP=true ;;
+    esac
+done
 
 # Where are we running?
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
@@ -18,6 +26,19 @@ SRC_SCRIPTS="${SCRIPT_DIR}/.config/tmux/scripts/dv"
 DEST_CONF="${HOME}/.config/tmux/tmux.conf"
 DEST_SCRIPTS_DIR="${HOME}/.config/tmux/scripts/dv"
 DEST_BASE_DIR="${HOME}/.config/tmux"
+
+if [ "$CLEANUP" = true ]; then
+    echo "🧹 Cleaning up old backups..."
+    count=$(find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null | wc -l)
+
+    if [ "$count" -gt 0 ]; then
+        find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" -exec rm -rf {} + 2>/dev/null || true
+        echo "  ✅ Removed $count old backup(s)."
+    else
+        echo "  ✨ No old backups found."
+    fi
+    exit 0
+fi
 
 echo "🔄 Syncing Tmux Configuration..."
 
