@@ -3,16 +3,18 @@
 # Script Name: sync-tmux.sh
 # Description: Quickly syncs local tmux config and scripts to ~/.config/tmux
 #              for rapid development and testing.
-# Usage:       ./sync-tmux.sh [-c|--cleanup]
+# Usage:       ./sync-tmux.sh [-c|--cleanup] [-l|--list]
 # ==============================================================================
 
 set -e
 
 # Parse Arguments
 CLEANUP=false
+LIST_BACKUPS=false
 for arg in "$@"; do
     case $arg in
         -c|--cleanup) CLEANUP=true ;;
+        -l|--list)    LIST_BACKUPS=true ;;
     esac
 done
 
@@ -26,6 +28,22 @@ SRC_SCRIPTS="${SCRIPT_DIR}/.config/tmux/scripts/dv"
 DEST_CONF="${HOME}/.config/tmux/tmux.conf"
 DEST_SCRIPTS_DIR="${HOME}/.config/tmux/scripts/dv"
 DEST_BASE_DIR="${HOME}/.config/tmux"
+
+if [ "$LIST_BACKUPS" = true ]; then
+    echo "🔍 Existing backups in ${HOME}/.config:"
+    found_backups=$(find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null | sort)
+
+    if [ -n "$found_backups" ]; then
+        echo "$found_backups" | while read -r line; do
+            echo "  - $(basename "$line")"
+        done
+        count=$(echo "$found_backups" | wc -l)
+        echo "  📊 Total: $count"
+    else
+        echo "  ✨ No backups found."
+    fi
+    exit 0
+fi
 
 if [ "$CLEANUP" = true ]; then
     echo "🧹 Cleaning up old backups..."
