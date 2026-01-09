@@ -7,7 +7,7 @@
 awk_cmd='{
     key=substr($0,1,12);
     cmd=substr($0,13);
-    printf "%s\033[38;2;30;32;48m@@@%s\033[0m\n", key, cmd
+    printf "\033[1;34m%s\033[38;2;30;32;48m@@@%s\033[0m\n", key, cmd
 }'
 
 # --- 2. Preview Logic ---
@@ -18,6 +18,7 @@ preview_cmd='echo {} \
 
 # --- 3. FZF Options ---
 fzf_opts=(
+    "-e"
     "--tmux" "90%,80%"
     "--color" "hl:-1,hl+:-1"
     "--no-hscroll" "--ansi"
