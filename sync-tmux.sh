@@ -32,8 +32,14 @@ if [ "$CLEANUP" = true ]; then
     count=$(find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null | wc -l)
 
     if [ "$count" -gt 0 ]; then
-        find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" -exec rm -rf {} + 2>/dev/null || true
-        echo "  ✅ Removed $count old backup(s)."
+        read -p "  ❓ Are you sure you want to delete $count backup(s)? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" -exec rm -rf {} + 2>/dev/null || true
+            echo "  ✅ Removed $count old backup(s)."
+        else
+            echo "  ❌ Cleanup cancelled."
+        fi
     else
         echo "  ✨ No old backups found."
     fi
