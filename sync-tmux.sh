@@ -3,10 +3,28 @@
 # Script Name: sync-tmux.sh
 # Description: Quickly syncs local tmux config and scripts to ~/.config/tmux
 #              for rapid development and testing.
-# Usage:       ./sync-tmux.sh [-c|--cleanup] [-l|--list]
+# Usage:       ./sync-tmux.sh [-c|--cleanup] [-l|--list] [-h|--help]
 # ==============================================================================
 
 set -e
+
+# Colors
+C_L_BLUE=$'\033[34m'
+T_RESET=$'\033[0m'
+
+print_usage() {
+    cat <<EOF
+Usage: $(basename "$0") [options]
+
+Quickly syncs local tmux config and scripts to ~/.config/tmux
+for rapid development and testing.
+
+Options:
+  ${C_L_BLUE}-c, --cleanup${T_RESET}   Remove old backup directories (tmux.bak_*)
+  ${C_L_BLUE}-l, --list${T_RESET}      List existing backup directories
+  ${C_L_BLUE}-h, --help${T_RESET}      Show this help message
+EOF
+}
 
 # Parse Arguments
 CLEANUP=false
@@ -15,6 +33,8 @@ for arg in "$@"; do
     case $arg in
         -c|--cleanup) CLEANUP=true ;;
         -l|--list)    LIST_BACKUPS=true ;;
+        -h|--help)    print_usage; exit 0 ;;
+        *) print_usage; exit 1 ;;
     esac
 done
 
