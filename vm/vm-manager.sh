@@ -211,6 +211,10 @@ MSG_INPUT=""
 CMD_OUTPUT=""
 HAS_ERROR=false
 CURRENT_RENDER_CMD=(render_main_ui)
+CACHED_VM_NAME=""
+CACHED_NET_INFO=""
+CACHED_STORAGE_INFO=""
+CACHE_TIMESTAMP=0
 
 # Function to fetch VM data
 fetch_vms() {
@@ -513,8 +517,29 @@ render_vm_details() {
 		buffer+="$line"
 	fi
 
-	append_network_info "$vm" buffer
-	append_storage_info "$vm" buffer
+	# Caching Logic for Static Info (Network & Storage)
+	local current_time
+	current_time=$(date +%s)
+	local ttl=5
+
+	if [[ "$vm" == "$CACHED_VM_NAME" && -n "$CACHED_NET_INFO" && $((current_time - CACHE_TIMESTAMP)) -lt $ttl ]]; then
+		buffer+="$CACHED_NET_INFO"
+		buffer+="$CACHED_STORAGE_INFO"
+	else
+		local net_buf=""
+		append_network_info "$vm" net_buf
+		CACHED_NET_INFO="$net_buf"
+
+		local storage_buf=""
+		append_storage_info "$vm" storage_buf
+		CACHED_STORAGE_INFO="$storage_buf"
+
+		CACHED_VM_NAME="$vm"
+		CACHE_TIMESTAMP="$current_time"
+
+		buffer+="$CACHED_NET_INFO"
+		buffer+="$CACHED_STORAGE_INFO"
+	fi
 
 	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
 		render_status_overlay buffer
@@ -530,6 +555,9 @@ show_vm_details() {
 	local vm="$1"
 	local old_cmd=("${CURRENT_RENDER_CMD[@]}")
 	CURRENT_RENDER_CMD=(render_vm_details "$vm")
+
+	# Clear cache to force fresh load on entry
+	CACHED_VM_NAME=""
 
 	local separators=(":" " ")
 	local sep_idx=0
