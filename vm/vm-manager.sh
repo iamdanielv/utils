@@ -586,6 +586,12 @@ show_vm_details() {
 			continue
 		fi
 
+		STATUS_MSG=""
+		MSG_TITLE=""
+		MSG_COLOR=""
+		MSG_INPUT=""
+		HAS_ERROR=false
+
 		case "$key" in
 		"$KEY_ESC" | q | Q) break ;;
 		s | S)
