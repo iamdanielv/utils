@@ -616,6 +616,13 @@ show_vm_details() {
 		esac
 	done
 	
+	# Clear status messages to prevent leaking to the main menu
+	STATUS_MSG=""
+	MSG_TITLE=""
+	MSG_COLOR=""
+	MSG_INPUT=""
+	HAS_ERROR=false
+
 	CURRENT_RENDER_CMD=("${old_cmd[@]}")
 	clear_screen
 }
