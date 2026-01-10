@@ -210,6 +210,8 @@ MSG_COLOR=""
 MSG_INPUT=""
 CMD_OUTPUT=""
 HAS_ERROR=false
+CURRENT_RENDERER="render_main_ui"
+DETAIL_VM_NAME=""
 
 # Function to fetch VM data
 fetch_vms() {
@@ -418,14 +420,9 @@ append_storage_info() {
 	fi
 }
 
-# Function to show VM details
-show_vm_details() {
-	local vm="$1"
-
-	clear_screen
-
-	# show loading message
-	printBanner "VM Details: ${T_BOLD}${C_YELLOW}Loading..." "${C_CYAN}"
+render_vm_details() {
+	local vm="$DETAIL_VM_NAME"
+	local buffer=""
 
 	# Gather Info
 	local dominfo
@@ -476,7 +473,6 @@ show_vm_details() {
 	fi
 
 	local border="${C_CYAN}│${T_RESET}"
-	local buffer=""
 	buffer+=$(printBanner "VM Details: ${T_BOLD}${C_YELLOW}$vm${T_RESET} (${T_REVERSE}${state_color} ${state_icon} ${state} ${T_REVERSE}${T_RESET})" "$C_CYAN")
 	buffer+="\n"
 
@@ -494,9 +490,44 @@ show_vm_details() {
 	append_network_info "$vm" buffer
 	append_storage_info "$vm" buffer
 
-	buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
+	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
+		local title="${MSG_TITLE:-Message:}"
+		local color="${MSG_COLOR:-$C_YELLOW}"
+		buffer+=$(printBannerMiddle "$title" "$color")
+		buffer+="\n"
+		if [[ "$MSG_INPUT" == "true" ]]; then
+			buffer+="${color}╰${C_MAGENTA}❱${T_RESET} "
+		else
+			local first_line=true
+			while IFS= read -r line; do
+				if [[ "$first_line" == "true" ]]; then
+					buffer+="${color}╰${T_RESET} ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
+					first_line=false
+				else
+					buffer+="  ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
+				fi
+			done <<<"$STATUS_MSG"
+		fi
+	else
+		buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
+	fi
+
 	render_buffer "$buffer"
+}
+
+# Function to show VM details
+show_vm_details() {
+	DETAIL_VM_NAME="$1"
+	local previous_renderer="$CURRENT_RENDERER"
+	CURRENT_RENDERER="render_vm_details"
+
+	clear_screen
+	printBanner "VM Details: ${T_BOLD}${C_YELLOW}Loading..." "${C_CYAN}"
+
+	render_vm_details
 	read_single_char >/dev/null
+	
+	CURRENT_RENDERER="$previous_renderer"
 	clear_screen
 }
 
@@ -566,7 +597,7 @@ ask_confirmation() {
 	MSG_TITLE="Confirmation"
 	MSG_COLOR="$C_YELLOW"
 	STATUS_MSG="${question} ${prompt_suffix}"
-	render_main_ui
+	"$CURRENT_RENDERER"
 
 	local answer
 	while true; do
@@ -591,7 +622,7 @@ prompt_for_input() {
 	MSG_TITLE="Input - ${prompt_text} (${C_CYAN}esc${C_YELLOW} to cancel)"
 	MSG_COLOR="$C_YELLOW"
 	MSG_INPUT="true"
-	render_main_ui
+	"$CURRENT_RENDERER"
 
 	printMsgNoNewline "${T_CURSOR_SHOW}"
 
@@ -680,7 +711,7 @@ run_with_spinner() {
 	fi
 
 	STATUS_MSG="${message}"
-	render_main_ui
+	"$CURRENT_RENDERER"
 	local color="${MSG_COLOR:-$C_YELLOW}"
 
 	while kill -0 "$pid" 2>/dev/null; do
@@ -713,7 +744,7 @@ handle_clone_vm() {
 	local new_name="$default_name"
 
 	STATUS_MSG="" # Clear any previous status
-	render_main_ui
+	"$CURRENT_RENDERER"
 
 	if prompt_for_input "Name for Clone of ${VM_NAMES[$SELECTED]}" new_name "$default_name"; then
 		if [[ -n "$new_name" ]]; then
@@ -962,6 +993,51 @@ while true; do
 	\? | / | h | H)
 		show_help
 		;;
+	c | C)
+		handle_clone_vm
+		;;
+	d | D)
+		handle_delete_vm
+		;;
+	s | S)
+		if require_vm_selected; then
+			case "${VM_STATES[$SELECTED]}" in
+			"running")
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "shutdown" "shutdown" "$C_RED"
+				;;
+			"shut off")
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "start" "start" "$C_GREEN"
+				;;
+			"paused")
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "resume" "resume" "$C_GREEN"
+				;;
+			*)
+				STATUS_MSG="${C_YELLOW}Action unavailable for state: ${VM_STATES[$SELECTED]}${T_RESET}"
+				HAS_ERROR=true
+				;;
+			esac
+		fi
+		;;
+	f | F)
+		require_vm_selected && handle_vm_action "${VM_NAMES[$SELECTED]}" "force stop" "destroy" "$C_RED"
+		;;
+	r | R)
+		require_vm_selected && handle_vm_action "${VM_NAMES[$SELECTED]}" "reboot" "reboot" "$C_YELLOW"
+		;;
+	esac
+	if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
+		vm="${VM_NAMES[$SELECTED]}"
+		if run_with_spinner "Performing $action on $vm..." virsh "$cmd" "$vm"; then
+			fetch_vms
+			STATUS_MSG="Command '$action' sent to $vm"
+			MSG_TITLE="${ICON_OK} Success"
+			MSG_COLOR="$C_GREEN"
+		else
+			set_error_status "Error: " "$CMD_OUTPUT"
+		fi
+		cmd="" # Reset command
+	fi
+done
 	c | C)
 		handle_clone_vm
 		;;
