@@ -786,19 +786,18 @@ handle_delete_vm() {
 
 # Function to handle VM actions (Start, Stop, etc.)
 handle_vm_action() {
-	local color="$1"
-	local display_name="$2"
-	local action_name="$3"
-	local virsh_cmd="$4"
+	local vm_name="$1"
+	local action_name="$2"
+	local virsh_cmd="$3"
+	local color="$4"
+	local action_label="${action_name^^}"
 
-	require_vm_selected || return
-
-	if ask_confirmation "${color}${display_name}${T_RESET} ${VM_NAMES[$SELECTED]}?"; then
+	if ask_confirmation "${color}${action_label}${T_RESET} ${vm_name}?"; then
 		action="$action_name"
 		cmd="$virsh_cmd"
 	else
-		local cancel_name="${display_name,,}"
-		STATUS_MSG="${C_YELLOW}${cancel_name^} cancelled${T_RESET}"
+		local cancel_name="${action_name}"
+		STATUS_MSG="${C_YELLOW}${cancel_name^} cancelled for ${vm_name}${T_RESET}"
 		MSG_TITLE="${ICON_INFO} Info"
 		MSG_COLOR="$C_YELLOW"
 	fi
@@ -973,13 +972,13 @@ while true; do
 		if require_vm_selected; then
 			case "${VM_STATES[$SELECTED]}" in
 			"running")
-				handle_vm_action "$C_RED" "SHUTDOWN" "shutdown" "shutdown"
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "shutdown" "shutdown" "$C_RED"
 				;;
 			"shut off")
-				handle_vm_action "$C_GREEN" "START" "start" "start"
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "start" "start" "$C_GREEN"
 				;;
 			"paused")
-				handle_vm_action "$C_GREEN" "RESUME" "resume" "resume"
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "resume" "resume" "$C_GREEN"
 				;;
 			*)
 				STATUS_MSG="${C_YELLOW}Action unavailable for state: ${VM_STATES[$SELECTED]}${T_RESET}"
@@ -989,10 +988,10 @@ while true; do
 		fi
 		;;
 	f | F)
-		handle_vm_action "$C_RED" "FORCE STOP" "force stop" "destroy"
+		require_vm_selected && handle_vm_action "${VM_NAMES[$SELECTED]}" "force stop" "destroy" "$C_RED"
 		;;
 	r | R)
-		handle_vm_action "$C_YELLOW" "REBOOT" "reboot" "reboot"
+		require_vm_selected && handle_vm_action "${VM_NAMES[$SELECTED]}" "reboot" "reboot" "$C_YELLOW"
 		;;
 	esac
 	if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
