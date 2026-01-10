@@ -510,10 +510,10 @@ render_vm_details() {
 	printf -v line "${border}  CPU(s): ${C_CYAN}%s${T_RESET}\t Memory: ${C_CYAN}%s${T_RESET}\t Autostart: ${C_CYAN}%s${T_RESET}\n" "$cpus" "$mem_display" "$autostart"
 	buffer+="$line"
 	if [[ -n "$os_info" ]]; then
-		printf -v line "${border}  ${C_GREEN}Agent OS: ${C_CYAN}%s${T_RESET}\n" "$os_info"
+		printf -v line "${border}  ${C_GREEN}Agent OS: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}\n" "$os_info"
 		buffer+="$line"
 	else
-		printf -v line "${border}  Agent:  ${agent_color}%s${T_RESET}%s\n" "$agent_status" "$agent_hint"
+		printf -v line "${border}  Agent:  ${agent_color}%s${T_RESET}%s${T_CLEAR_LINE}\n" "$agent_status" "$agent_hint"
 		buffer+="$line"
 	fi
 
