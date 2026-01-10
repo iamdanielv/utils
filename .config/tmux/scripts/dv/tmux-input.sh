@@ -50,6 +50,18 @@ read_single_char() {
     echo "$char"
 }
 
+# --- Internal Message Mode ---
+run_internal_msg() {
+    local msg="$1"
+    # Clear screen
+    printf '\033[H\033[2J'
+    # Message (Yellow)
+    printf "\n\n  \033[1;33m%s\033[0m\n" "$msg"
+    # Footer
+    printf "\n  \033[90m(Press any key)\033[0m"
+    read_single_char >/dev/null
+}
+
 # --- Internal Mode (TUI Loop) ---
 run_internal() {
     local prompt="$1"
@@ -199,6 +211,11 @@ main() {
         exit 0
     fi
 
+    if [[ "$1" == "--internal-msg" ]]; then
+        run_internal_msg "$2"
+        exit 0
+    fi
+
     if [[ "$1" == "-i" ]]; then
         run_internal "$2" "$3" "$4" "$5" "$6"
         exit $?
@@ -215,6 +232,15 @@ main() {
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --message)
+                local msg="$2"
+                local script_path
+                script_path=$(readlink -f "$0")
+                local safe_msg=$(printf '%q' "$msg")
+                tmux display-popup -E -w 40 -h 6 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Info " \
+                    "$script_path --internal-msg $safe_msg"
+                exit 0
+                ;;
             --regex)
                 regex="$2"
                 shift 2
@@ -234,6 +260,32 @@ main() {
         esac
     done
 
+    if [[ -z "$prompt" ]]; then prompt="Input"; fi
+
+    local script_path
+    script_path=$(readlink -f "$0")
+    
+    # Escape arguments for the inner command line
+    local safe_prompt=$(printf '%q' "$prompt")
+    local safe_default=$(printf '%q' "$default")
+    local safe_tmp=$(printf '%q' "$tmp_file")
+    local safe_regex=$(printf '%q' "$regex")
+    local safe_val_error_msg=$(printf '%q' "$val_error_msg")
+
+    # Launch Popup calling this script in internal mode
+    if tmux display-popup -E -w 50 -h 8 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Input " \
+        "$script_path -i $safe_prompt $safe_default $safe_tmp $safe_regex $safe_val_error_msg"; then
+        
+        if [[ -s "$tmp_file" ]]; then
+            cat "$tmp_file"
+            exit 0
+        fi
+    fi
+    
+    exit 1
+}
+
+main "$@"
     if [[ -z "$prompt" ]]; then prompt="Input"; fi
 
     local script_path
