@@ -210,8 +210,7 @@ MSG_COLOR=""
 MSG_INPUT=""
 CMD_OUTPUT=""
 HAS_ERROR=false
-CURRENT_RENDERER="render_main_ui"
-DETAIL_VM_NAME=""
+CURRENT_RENDER_CMD=(render_main_ui)
 
 # Function to fetch VM data
 fetch_vms() {
@@ -420,8 +419,34 @@ append_storage_info() {
 	fi
 }
 
+# Helper to render the status overlay (messages, prompts, spinners)
+# Appends to the variable name passed as $1
+render_status_overlay() {
+	local -n buf_ref="$1"
+
+	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
+		local title="${MSG_TITLE:-Message:}"
+		local color="${MSG_COLOR:-$C_YELLOW}"
+		buf_ref+=$(printBannerMiddle "$title" "$color")
+		buf_ref+="\n"
+		if [[ "$MSG_INPUT" == "true" ]]; then
+			buf_ref+="${color}╰${C_MAGENTA}❱${T_RESET} "
+		else
+			local first_line=true
+			while IFS= read -r line; do
+				if [[ "$first_line" == "true" ]]; then
+					buf_ref+="${color}╰${T_RESET} ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
+					first_line=false
+				else
+					buf_ref+="  ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
+				fi
+			done <<<"$STATUS_MSG"
+		fi
+	fi
+}
+
 render_vm_details() {
-	local vm="$DETAIL_VM_NAME"
+	local vm="$1"
 	local buffer=""
 
 	# Gather Info
@@ -491,23 +516,7 @@ render_vm_details() {
 	append_storage_info "$vm" buffer
 
 	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
-		local title="${MSG_TITLE:-Message:}"
-		local color="${MSG_COLOR:-$C_YELLOW}"
-		buffer+=$(printBannerMiddle "$title" "$color")
-		buffer+="\n"
-		if [[ "$MSG_INPUT" == "true" ]]; then
-			buffer+="${color}╰${C_MAGENTA}❱${T_RESET} "
-		else
-			local first_line=true
-			while IFS= read -r line; do
-				if [[ "$first_line" == "true" ]]; then
-					buffer+="${color}╰${T_RESET} ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
-					first_line=false
-				else
-					buffer+="  ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
-				fi
-			done <<<"$STATUS_MSG"
-		fi
+		render_status_overlay buffer
 	else
 		buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
 	fi
@@ -517,17 +526,18 @@ render_vm_details() {
 
 # Function to show VM details
 show_vm_details() {
-	DETAIL_VM_NAME="$1"
-	local previous_renderer="$CURRENT_RENDERER"
-	CURRENT_RENDERER="render_vm_details"
+	local vm="$1"
+	local old_cmd=("${CURRENT_RENDER_CMD[@]}")
+	CURRENT_RENDER_CMD=(render_vm_details "$vm")
 
 	clear_screen
 	printBanner "VM Details: ${T_BOLD}${C_YELLOW}Loading..." "${C_CYAN}"
 
-	render_vm_details
+	# This will execute the render command
+	"${CURRENT_RENDER_CMD[@]}"
 	read_single_char >/dev/null
 	
-	CURRENT_RENDERER="$previous_renderer"
+	CURRENT_RENDER_CMD=("${old_cmd[@]}")
 	clear_screen
 }
 
@@ -597,7 +607,7 @@ ask_confirmation() {
 	MSG_TITLE="Confirmation"
 	MSG_COLOR="$C_YELLOW"
 	STATUS_MSG="${question} ${prompt_suffix}"
-	"$CURRENT_RENDERER"
+	"${CURRENT_RENDER_CMD[@]}"
 
 	local answer
 	while true; do
@@ -622,7 +632,7 @@ prompt_for_input() {
 	MSG_TITLE="Input - ${prompt_text} (${C_CYAN}esc${C_YELLOW} to cancel)"
 	MSG_COLOR="$C_YELLOW"
 	MSG_INPUT="true"
-	"$CURRENT_RENDERER"
+	"${CURRENT_RENDER_CMD[@]}"
 
 	printMsgNoNewline "${T_CURSOR_SHOW}"
 
@@ -711,7 +721,7 @@ run_with_spinner() {
 	fi
 
 	STATUS_MSG="${message}"
-	"$CURRENT_RENDERER"
+	"${CURRENT_RENDER_CMD[@]}"
 	local color="${MSG_COLOR:-$C_YELLOW}"
 
 	while kill -0 "$pid" 2>/dev/null; do
@@ -744,7 +754,7 @@ handle_clone_vm() {
 	local new_name="$default_name"
 
 	STATUS_MSG="" # Clear any previous status
-	"$CURRENT_RENDERER"
+	"${CURRENT_RENDER_CMD[@]}"
 
 	if prompt_for_input "Name for Clone of ${VM_NAMES[$SELECTED]}" new_name "$default_name"; then
 		if [[ -n "$new_name" ]]; then
@@ -916,23 +926,7 @@ render_main_ui() {
 	fi
 
 	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
-		local title="${MSG_TITLE:-Message:}"
-		local color="${MSG_COLOR:-$C_YELLOW}"
-		buffer+=$(printBannerMiddle "$title" "$color")
-		buffer+="\n"
-		if [[ "$MSG_INPUT" == "true" ]]; then
-			buffer+="${color}╰${C_MAGENTA}❱${T_RESET} "
-		else
-			local first_line=true
-			while IFS= read -r line; do
-				if [[ "$first_line" == "true" ]]; then
-					buffer+="${color}╰${T_RESET} ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
-					first_line=false
-				else
-					buffer+="  ${T_BOLD}${line}${T_RESET}${T_CLEAR_LINE}\n"
-				fi
-			done <<<"$STATUS_MSG"
-		fi
+		render_status_overlay buffer
 	else
 		buffer+=$(draw_footer)
 		buffer+="\n"
