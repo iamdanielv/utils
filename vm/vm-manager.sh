@@ -518,7 +518,7 @@ render_vm_details() {
 	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
 		render_status_overlay buffer
 	else
-		buffer+="\n${C_BLUE}Press any key to return...${T_RESET}\n"
+		buffer+="\n${C_BLUE}Press 'q' to return...${T_RESET}\n"
 	fi
 
 	render_buffer "$buffer"
@@ -533,9 +533,24 @@ show_vm_details() {
 	clear_screen
 	printBanner "VM Details: ${T_BOLD}${C_YELLOW}Loading..." "${C_CYAN}"
 
-	# This will execute the render command
-	"${CURRENT_RENDER_CMD[@]}"
-	read_single_char >/dev/null
+	while true; do
+		"${CURRENT_RENDER_CMD[@]}"
+
+		local key
+		if ! key=$(read_single_char 2); then
+			if [[ "$HAS_ERROR" != "true" ]]; then
+				STATUS_MSG=""
+				MSG_TITLE=""
+				MSG_COLOR=""
+				MSG_INPUT=""
+			fi
+			continue
+		fi
+
+		case "$key" in
+		"$KEY_ESC" | q | Q) break ;;
+		esac
+	done
 	
 	CURRENT_RENDER_CMD=("${old_cmd[@]}")
 	clear_screen
