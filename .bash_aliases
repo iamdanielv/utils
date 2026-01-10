@@ -212,6 +212,7 @@ fhistory() {
   output=$(HISTTIMEFORMAT="" history | tac | fzf "${_FZF_COMMON_OPTS[@]}" \
     --no-sort \
     --border-label=' Command History ' \
+    --border-label-pos='2' \
     --prompt='  History❯ ' \
     --header 'ENTER: Select | CTRL-E: Execute | CTRL-/: View' \
     --expect=ctrl-e \
@@ -744,6 +745,7 @@ show_alias_cheatsheet() {
   selected=$(cat <<EOF | fzf "${fzf_opts[@]}" "${_FZF_CHEATSHEET_THEME[@]}"
 .. :${_C_YELLOW}..${_C_RESET}       : Go up one directory (cd ..)
 cat :${_C_YELLOW}cat${_C_RESET}      : Replaced with (batcat/bat)
+check-reboot:${_C_YELLOW}check-reboot${_C_RESET} : Check Reboot Status
 ga :${_C_YELLOW}ga${_C_RESET}       : Git Add (git add)
 gb:${_C_YELLOW}gb${_C_RESET}       : Git Show Branches (git branch -a)
 gc :${_C_YELLOW}gc${_C_RESET}       : Git Commit (git commit -m)
