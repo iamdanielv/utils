@@ -93,9 +93,43 @@ run_internal() {
     done
 }
 
+# --- Test Mode ---
+run_color_test() {
+    local colors=("34" "1;34" "32" "33" "35" "36" "90" "37")
+    local names=("Blue" "Bold Blue" "Green" "Yellow" "Magenta" "Cyan" "Grey" "White")
+    local idx=0
+
+    # Hide cursor
+    printf '\033[?25l'
+    trap 'printf "\033[?25h"' EXIT
+
+    while true; do
+        local c="${colors[idx]}"
+        local n="${names[idx]}"
+        
+        printf '\033[H\033[2J'
+        printf "\n  \033[%sm%s\033[0m\n" "$c" "Prompt Text ($n)"
+        printf "  \033[90m(Enter to submit, Esc to cancel)\033[0m\n"
+        printf "\n  > User Input"
+        
+        printf "\n\n  \033[90m[SPACE] Next Color  [q] Quit\033[0m"
+        
+        local key
+        key=$(read_single_char)
+        
+        if [[ "$key" == "q" || "$key" == "$KEY_ESC" ]]; then break; fi
+        idx=$(( (idx + 1) % ${#colors[@]} ))
+    done
+}
+
 # --- Launcher Mode ---
 main() {
     # Check for internal flag to switch modes
+    if [[ "$1" == "--test-colors" ]]; then
+        run_color_test
+        exit 0
+    fi
+
     if [[ "$1" == "-i" ]]; then
         run_internal "$2" "$3" "$4"
         exit $?
