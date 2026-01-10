@@ -10,6 +10,13 @@
 KEY_ESC=$'\033'
 KEY_ENTER="ENTER"
 KEY_BACKSPACE=$'\x7f'
+KEY_LEFT=$'\033[D'
+KEY_RIGHT=$'\033[C'
+KEY_HOME=$'\033[H'
+KEY_END=$'\033[F'
+KEY_HOME_ALT=$'\033[1~'
+KEY_END_ALT=$'\033[4~'
+KEY_DELETE=$'\033[3~'
 
 # --- Functions ---
 
@@ -39,6 +46,7 @@ run_internal() {
     local default="$2"
     local out_file="$3"
     local input="$default"
+    local cursor_pos=${#input}
 
     # Hide cursor
     # printf '\033[?25l'
@@ -60,6 +68,12 @@ run_internal() {
     _draw_input() {
         # Restore cursor, clear line, print input
         printf "\033[u\033[K  ❯ %s" "${input}"
+        # Move cursor back to correct position if needed
+        local len=${#input}
+        local diff=$(( len - cursor_pos ))
+        if (( diff > 0 )); then
+            printf "\033[%dD" "$diff"
+        fi
     }
 
     _draw_input
@@ -77,15 +91,35 @@ run_internal() {
                 exit 1
                 ;;
             "$KEY_BACKSPACE")
-                if [[ -n "$input" ]]; then
-                    input="${input%?}"
+                if (( cursor_pos > 0 )); then
+                    input="${input:0:cursor_pos-1}${input:cursor_pos}"
+                    ((cursor_pos--))
                     _draw_input
                 fi
+                ;;
+            "$KEY_DELETE")
+                if (( cursor_pos < ${#input} )); then
+                    input="${input:0:cursor_pos}${input:cursor_pos+1}"
+                    _draw_input
+                fi
+                ;;
+            "$KEY_LEFT")
+                if (( cursor_pos > 0 )); then ((cursor_pos--)); _draw_input; fi
+                ;;
+            "$KEY_RIGHT")
+                if (( cursor_pos < ${#input} )); then ((cursor_pos++)); _draw_input; fi
+                ;;
+            "$KEY_HOME"|"$KEY_HOME_ALT")
+                cursor_pos=0; _draw_input
+                ;;
+            "$KEY_END"|"$KEY_END_ALT")
+                cursor_pos=${#input}; _draw_input
                 ;;
             *)
                 # Append if printable and length 1
                 if [[ ${#key} -eq 1 && "$key" =~ [[:print:]] ]]; then
-                    input+="$key"
+                    input="${input:0:cursor_pos}${key}${input:cursor_pos}"
+                    ((cursor_pos++))
                     _draw_input
                 fi
                 ;;
