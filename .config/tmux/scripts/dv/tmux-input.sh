@@ -4,6 +4,12 @@
 # Description: Modal input popup with custom event loop.
 # Usage:       result=$(tmux-input.sh "Prompt Text" ["Default Value"])
 # Exit Code:   0 on success, 1 on cancel.
+#
+# Common Validation Patterns (--regex):
+#   Digits only:       ^[0-9]+$
+#   No spaces:         ^[^ ]+$
+#   Alphanumeric:      ^[a-zA-Z0-9]+$
+#   Filename (safe):   ^[a-zA-Z0-9._-]+$
 # ===============
 
 # --- Constants ---
@@ -17,6 +23,10 @@ KEY_END=$'\033[F'
 KEY_HOME_ALT=$'\033[1~'
 KEY_END_ALT=$'\033[4~'
 KEY_DELETE=$'\033[3~'
+
+# --- Colors ---
+thm_bg="#1e2030"
+thm_yellow="#ffc777"
 
 # --- Functions ---
 
@@ -45,8 +55,11 @@ run_internal() {
     local prompt="$1"
     local default="$2"
     local out_file="$3"
+    local regex="$4"
+    local val_error_msg="$5"
     local input="$default"
     local cursor_pos=${#input}
+    local status_msg=""
 
     # Hide cursor
     # printf '\033[?25l'
@@ -68,11 +81,22 @@ run_internal() {
     _draw_input() {
         # Restore cursor, clear line, print input
         printf "\033[u\033[K  ❯ %s" "${input}"
-        # Move cursor back to correct position if needed
-        local len=${#input}
-        local diff=$(( len - cursor_pos ))
-        if (( diff > 0 )); then
-            printf "\033[%dD" "$diff"
+        
+        # Draw Status Line (Next line)
+        printf "\n\033[K"
+        if [[ -n "$status_msg" ]]; then
+            printf "  \033[31m%s\033[0m" "$status_msg"
+        fi
+
+        # Restore cursor to input position
+        # Move up 1 line (from status line)
+        printf "\033[1A"
+        
+        # Move to correct column: 2 spaces + 1 char (❯) + 1 space + cursor_pos + 1 (1-based)
+        # "  ❯ " is 4 visual columns
+        local col=$(( 4 + cursor_pos + 1 ))
+        if (( col > 1 )); then
+            printf "\033[%dG" "$col"
         fi
     }
 
@@ -84,6 +108,14 @@ run_internal() {
 
         case "$key" in
             "$KEY_ENTER")
+                # Validation
+                if [[ -n "$regex" ]]; then
+                    if ! [[ "$input" =~ $regex ]]; then
+                        status_msg="${val_error_msg:-Invalid input format.}"
+                        _draw_input
+                        continue
+                    fi
+                fi
                 printf "%s" "$input" > "$out_file"
                 exit 0
                 ;;
@@ -92,6 +124,7 @@ run_internal() {
                 ;;
             "$KEY_BACKSPACE")
                 if (( cursor_pos > 0 )); then
+                    status_msg=""
                     input="${input:0:cursor_pos-1}${input:cursor_pos}"
                     ((cursor_pos--))
                     _draw_input
@@ -99,6 +132,7 @@ run_internal() {
                 ;;
             "$KEY_DELETE")
                 if (( cursor_pos < ${#input} )); then
+                    status_msg=""
                     input="${input:0:cursor_pos}${input:cursor_pos+1}"
                     _draw_input
                 fi
@@ -118,6 +152,7 @@ run_internal() {
             *)
                 # Append if printable and length 1
                 if [[ ${#key} -eq 1 && "$key" =~ [[:print:]] ]]; then
+                    status_msg=""
                     input="${input:0:cursor_pos}${key}${input:cursor_pos}"
                     ((cursor_pos++))
                     _draw_input
@@ -165,15 +200,41 @@ main() {
     fi
 
     if [[ "$1" == "-i" ]]; then
-        run_internal "$2" "$3" "$4"
+        run_internal "$2" "$3" "$4" "$5" "$6"
         exit $?
     fi
 
-    local prompt="${1:-Input}"
-    local default="${2:-}"
+    local prompt=""
+    local default=""
+    local regex=""
+    local val_error_msg=""
     local tmp_file
     tmp_file=$(mktemp)
     trap 'rm -f "$tmp_file"' EXIT
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --regex)
+                regex="$2"
+                shift 2
+                ;;
+            --val-error-msg)
+                val_error_msg="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$prompt" ]]; then
+                    prompt="$1"
+                elif [[ -z "$default" ]]; then
+                    default="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$prompt" ]]; then prompt="Input"; fi
 
     local script_path
     script_path=$(readlink -f "$0")
@@ -182,10 +243,12 @@ main() {
     local safe_prompt=$(printf '%q' "$prompt")
     local safe_default=$(printf '%q' "$default")
     local safe_tmp=$(printf '%q' "$tmp_file")
+    local safe_regex=$(printf '%q' "$regex")
+    local safe_val_error_msg=$(printf '%q' "$val_error_msg")
 
     # Launch Popup calling this script in internal mode
     if tmux display-popup -E -w 50 -h 8 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Input " \
-        "$script_path -i $safe_prompt $safe_default $safe_tmp"; then
+        "$script_path -i $safe_prompt $safe_default $safe_tmp $safe_regex $safe_val_error_msg"; then
         
         if [[ -s "$tmp_file" ]]; then
             cat "$tmp_file"
