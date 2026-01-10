@@ -544,7 +544,9 @@ render_vm_details() {
 	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
 		render_status_overlay buffer
 	else
-		buffer+="\n${C_BLUE}Press 'q' to return...${T_RESET}\n"
+		buffer+=$(printBannerMiddle "Controls:" "$C_CYAN")
+		buffer+="\n"
+		buffer+="${C_CYAN}╰${T_RESET} ${C_BLUE}Press 'q' to return...${T_RESET}${T_CLEAR_LINE}\n"
 	fi
 
 	render_buffer "$buffer"
