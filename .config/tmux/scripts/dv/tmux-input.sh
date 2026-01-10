@@ -45,15 +45,26 @@ run_internal() {
     # Trap to restore cursor on exit
     # trap 'printf "\033[?25h"' EXIT
 
+    # --- Draw Static UI ---
+    # Clear screen
+    printf '\033[H\033[2J'
+    # Prompt (Blue)
+    printf "\n  \033[1;34m%s\033[0m\n" "${prompt}"
+    # Instructions (Grey)
+    printf "  \033[90m(Enter to submit, Esc to cancel)\033[0m\n"
+    # Spacer
+    printf "\n"
+    # Save cursor position for input line
+    printf "\033[s"
+
+    _draw_input() {
+        # Restore cursor, clear line, print input
+        printf "\033[u\033[K  ❯ %s" "${input}"
+    }
+
+    _draw_input
+
     while true; do
-        # Clear screen
-        printf '\033[H\033[2J'
-        
-        # Simple Render (Skeleton)
-        echo -e "\n  \033[1;34m$prompt\033[0m"
-        echo -e "  \033[90m(Enter to submit, Esc to cancel)\033[0m"
-        echo -ne "\n  > $input"
-        
         local key
         key=$(read_single_char)
 
@@ -68,12 +79,14 @@ run_internal() {
             "$KEY_BACKSPACE")
                 if [[ -n "$input" ]]; then
                     input="${input%?}"
+                    _draw_input
                 fi
                 ;;
             *)
                 # Append if printable and length 1
                 if [[ ${#key} -eq 1 && "$key" =~ [[:print:]] ]]; then
                     input+="$key"
+                    _draw_input
                 fi
                 ;;
         esac
