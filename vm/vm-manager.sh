@@ -362,13 +362,13 @@ append_network_info() {
 			local mac_disp="$mac"
 			[[ "$iface" == "-" ]] && iface_disp=""
 			[[ "$mac" == "-" ]] && mac_disp=""
-			printf -v line "${border}  ${C_CYAN}%-10s${T_RESET} ${C_BLUE}%-17s${T_RESET} ${C_YELLOW}%-4s${T_RESET} ${C_GREEN}%s${T_RESET}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
+			printf -v line "${border}  ${C_CYAN}%-10s${T_RESET} ${C_BLUE}%-17s${T_RESET} ${C_YELLOW}%-4s${T_RESET} ${C_GREEN}%s${T_RESET}${T_CLEAR_LINE}\n" "$iface_disp" "$mac_disp" "$proto" "$addr"
 			buf+="$line"
 		done <<<"$clean_net_info"
 	else
 		buf+=$(printBannerMiddle "Network Interfaces" "$C_CYAN")
 		buf+="\n"
-		buf+="${border}  ${C_YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${T_RESET}\n"
+		buf+="${border}  ${C_YELLOW}No IP address found (requires qemu-guest-agent or DHCP lease)${T_RESET}${T_CLEAR_LINE}\n"
 	fi
 }
 
@@ -383,22 +383,22 @@ append_storage_info() {
 	blklist=$(virsh domblklist "$vm" --details | tail -n +3)
 
 	if [[ -z "$blklist" ]]; then
-		buf+="${border}  No storage devices found.\n"
+		buf+="${border}  No storage devices found.${T_CLEAR_LINE}\n"
 	else
 		while read -r type device target source; do
 			[[ -z "$target" ]] && continue
 
 			if [[ "$source" == "-" && "$device" == "cdrom" ]]; then
-				buf+="${border}  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - ${C_CYAN}(Empty)${T_RESET}\n"
+				buf+="${border}  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - ${C_CYAN}(Empty)${T_RESET}${T_CLEAR_LINE}\n"
 				continue
 			fi
 
-			buf+="${border}  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - Type: ${C_CYAN}${type}${T_RESET}\n"
+			buf+="${border}  ${T_BOLD}Device: $target${T_RESET} (${C_YELLOW}$device${T_RESET}) - Type: ${C_CYAN}${type}${T_RESET}${T_CLEAR_LINE}\n"
 
 			if [[ "$source" == "-" ]]; then
 				source="(unknown or passthrough)"
 			fi
-			buf+="${border}    Host path: ${C_CYAN}$source${T_RESET}\n"
+			buf+="${border}    Host path: ${C_CYAN}$source${T_RESET}${T_CLEAR_LINE}\n"
 
 			local blk_info
 			blk_info=$(virsh domblkinfo "$vm" "$target" 2>/dev/null)
@@ -412,12 +412,12 @@ append_storage_info() {
 				if [[ -n "$cap" && -n "$alloc" ]]; then
 					local usage_str
 					usage_str=$(awk -v c="$cap" -v a="$alloc" 'BEGIN { printf "%.0f/%.0f GiB", a/1073741824, c/1073741824 }')
-					buf+="${border}    Capacity: $usage_str\n"
+					buf+="${border}    Capacity: $usage_str${T_CLEAR_LINE}\n"
 				else
-					buf+="${border}    (No info available)\n"
+					buf+="${border}    (No info available)${T_CLEAR_LINE}\n"
 				fi
 			else
-				buf+="${border}    (No info available)\n"
+				buf+="${border}    (No info available)${T_CLEAR_LINE}\n"
 			fi
 		done <<<"$blklist"
 	fi
@@ -507,7 +507,7 @@ render_vm_details() {
 	buffer+="\n"
 
 	local line
-	printf -v line "${border}  CPU(s): ${C_CYAN}%s${T_RESET}\t Memory: ${C_CYAN}%s${T_RESET}\t Autostart: ${C_CYAN}%s${T_RESET}\n" "$cpus" "$mem_display" "$autostart"
+	printf -v line "${border}  CPU(s): ${C_CYAN}%s${T_RESET}\t Memory: ${C_CYAN}%s${T_RESET}\t Autostart: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}\n" "$cpus" "$mem_display" "$autostart"
 	buffer+="$line"
 	if [[ -n "$os_info" ]]; then
 		printf -v line "${border}  ${C_GREEN}Agent OS: ${C_CYAN}%s${T_RESET}${T_CLEAR_LINE}\n" "$os_info"
