@@ -834,8 +834,14 @@ handle_vm_action() {
 	local action_label="${action_name^^}"
 
 	if ask_confirmation "${color}${action_label}${T_RESET} ${vm_name}?"; then
-		action="$action_name"
-		cmd="$virsh_cmd"
+		if run_with_spinner "Performing $action_name on $vm_name..." virsh "$virsh_cmd" "$vm_name"; then
+			fetch_vms
+			STATUS_MSG="Command '$action_name' sent to $vm_name"
+			MSG_TITLE="${ICON_OK} Success"
+			MSG_COLOR="$C_GREEN"
+		else
+			set_error_status "Error: " "$CMD_OUTPUT"
+		fi
 	else
 		local cancel_name="${action_name}"
 		STATUS_MSG="${C_YELLOW}${cancel_name^} cancelled for ${vm_name}${T_RESET}"
@@ -972,8 +978,6 @@ while true; do
 	HAS_ERROR=false
 
 	# Handle keys
-	cmd=""
-	action=""
 	case "$key" in
 	"$KEY_ESC" | q | Q)
 		clear_screen
@@ -1019,61 +1023,4 @@ while true; do
 		require_vm_selected && handle_vm_action "${VM_NAMES[$SELECTED]}" "reboot" "reboot" "$C_YELLOW"
 		;;
 	esac
-	if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
-		vm="${VM_NAMES[$SELECTED]}"
-		if run_with_spinner "Performing $action on $vm..." virsh "$cmd" "$vm"; then
-			fetch_vms
-			STATUS_MSG="Command '$action' sent to $vm"
-			MSG_TITLE="${ICON_OK} Success"
-			MSG_COLOR="$C_GREEN"
-		else
-			set_error_status "Error: " "$CMD_OUTPUT"
-		fi
-		cmd="" # Reset command
-	fi
-done
-	c | C)
-		handle_clone_vm
-		;;
-	d | D)
-		handle_delete_vm
-		;;
-	s | S)
-		if require_vm_selected; then
-			case "${VM_STATES[$SELECTED]}" in
-			"running")
-				handle_vm_action "${VM_NAMES[$SELECTED]}" "shutdown" "shutdown" "$C_RED"
-				;;
-			"shut off")
-				handle_vm_action "${VM_NAMES[$SELECTED]}" "start" "start" "$C_GREEN"
-				;;
-			"paused")
-				handle_vm_action "${VM_NAMES[$SELECTED]}" "resume" "resume" "$C_GREEN"
-				;;
-			*)
-				STATUS_MSG="${C_YELLOW}Action unavailable for state: ${VM_STATES[$SELECTED]}${T_RESET}"
-				HAS_ERROR=true
-				;;
-			esac
-		fi
-		;;
-	f | F)
-		require_vm_selected && handle_vm_action "${VM_NAMES[$SELECTED]}" "force stop" "destroy" "$C_RED"
-		;;
-	r | R)
-		require_vm_selected && handle_vm_action "${VM_NAMES[$SELECTED]}" "reboot" "reboot" "$C_YELLOW"
-		;;
-	esac
-	if [[ -n "$cmd" && -n "${VM_NAMES[$SELECTED]}" ]]; then
-		vm="${VM_NAMES[$SELECTED]}"
-		if run_with_spinner "Performing $action on $vm..." virsh "$cmd" "$vm"; then
-			fetch_vms
-			STATUS_MSG="Command '$action' sent to $vm"
-			MSG_TITLE="${ICON_OK} Success"
-			MSG_COLOR="$C_GREEN"
-		else
-			set_error_status "Error: " "$CMD_OUTPUT"
-		fi
-		cmd="" # Reset command
-	fi
 done
