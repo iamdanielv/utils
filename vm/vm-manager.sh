@@ -544,9 +544,11 @@ render_vm_details() {
 	if [[ -n "$STATUS_MSG" || -n "$MSG_TITLE" ]]; then
 		render_status_overlay buffer
 	else
-		buffer+=$(printBannerMiddle "Controls:" "$C_CYAN")
+		local banner_msg="Controls:──┬──────────────┬──────────┬─────────────────────┬──────────"
+		buffer+=$(printBannerMiddle "$banner_msg" "$C_CYAN")
 		buffer+="\n"
-		buffer+="${C_CYAN}╰${T_RESET} ${C_BLUE}Press 'q' to return...${T_RESET}${T_CLEAR_LINE}\n"
+		local sep="${C_CYAN}│${C_GRAY}"
+		buffer+="${C_CYAN}╰${C_GRAY}            ${sep} [${T_BOLD}${C_GREEN}S${C_GRAY}]tart/Stop ${sep} [${T_BOLD}${C_YELLOW}R${C_GRAY}]eboot ${sep} [${T_BOLD}${C_RED}F${C_GRAY}]orce Stop        ${sep} [${T_BOLD}${C_RED}Q${C_GRAY}]uit   ${T_CLEAR_LINE}\n"
 	fi
 
 	render_buffer "$buffer"
@@ -586,6 +588,31 @@ show_vm_details() {
 
 		case "$key" in
 		"$KEY_ESC" | q | Q) break ;;
+		s | S)
+			local current_state
+			current_state=$(virsh domstate "$vm" 2>/dev/null | tr -d '\n')
+			case "$current_state" in
+			"running")
+				handle_vm_action "$vm" "shutdown" "shutdown" "$C_RED" "n"
+				;;
+			"shut off")
+				handle_vm_action "$vm" "start" "start" "$C_GREEN" "y"
+				;;
+			"paused")
+				handle_vm_action "$vm" "resume" "resume" "$C_GREEN" "y"
+				;;
+			*)
+				STATUS_MSG="${C_YELLOW}Action unavailable for state: ${current_state}${T_RESET}"
+				HAS_ERROR=true
+				;;
+			esac
+			;;
+		r | R)
+			handle_vm_action "$vm" "reboot" "reboot" "$C_YELLOW"
+			;;
+		f | F)
+			handle_vm_action "$vm" "force stop" "destroy" "$C_RED"
+			;;
 		esac
 	done
 	
