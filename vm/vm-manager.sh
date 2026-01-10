@@ -447,6 +447,7 @@ render_status_overlay() {
 
 render_vm_details() {
 	local vm="$1"
+	local separator="${2:-:}"
 	local buffer=""
 
 	# Gather Info
@@ -498,7 +499,7 @@ render_vm_details() {
 	fi
 
 	local border="${C_CYAN}│${T_RESET}"
-	buffer+=$(printBanner "VM Details: ${T_BOLD}${C_YELLOW}$vm${T_RESET} (${T_REVERSE}${state_color} ${state_icon} ${state} ${T_REVERSE}${T_RESET})" "$C_CYAN")
+	buffer+=$(printBanner "VM Details${separator} ${T_BOLD}${C_YELLOW}$vm${T_RESET} (${T_REVERSE}${state_color} ${state_icon} ${state} ${T_REVERSE}${T_RESET})" "$C_CYAN")
 	buffer+="\n"
 
 	local line
@@ -530,11 +531,17 @@ show_vm_details() {
 	local old_cmd=("${CURRENT_RENDER_CMD[@]}")
 	CURRENT_RENDER_CMD=(render_vm_details "$vm")
 
+	local separators=(":" " ")
+	local sep_idx=0
+
 	clear_screen
 	printBanner "VM Details: ${T_BOLD}${C_YELLOW}Loading..." "${C_CYAN}"
 
 	while true; do
+		local sep="${separators[sep_idx]}"
+		CURRENT_RENDER_CMD=(render_vm_details "$vm" "$sep")
 		"${CURRENT_RENDER_CMD[@]}"
+		sep_idx=$(( (sep_idx + 1) % 2 ))
 
 		local key
 		if ! key=$(read_single_char 2); then
