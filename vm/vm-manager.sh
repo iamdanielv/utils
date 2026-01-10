@@ -831,9 +831,10 @@ handle_vm_action() {
 	local action_name="$2"
 	local virsh_cmd="$3"
 	local color="$4"
+	local default_answer="${5:-n}"
 	local action_label="${action_name^^}"
 
-	if ask_confirmation "${color}${action_label}${T_RESET} ${vm_name}?"; then
+	if ask_confirmation "${color}${action_label}${T_RESET} ${vm_name}?" "$default_answer"; then
 		if run_with_spinner "Performing $action_name on $vm_name..." virsh "$virsh_cmd" "$vm_name"; then
 			fetch_vms
 			STATUS_MSG="Command '$action_name' sent to $vm_name"
@@ -1001,13 +1002,13 @@ while true; do
 		if require_vm_selected; then
 			case "${VM_STATES[$SELECTED]}" in
 			"running")
-				handle_vm_action "${VM_NAMES[$SELECTED]}" "shutdown" "shutdown" "$C_RED"
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "shutdown" "shutdown" "$C_RED" "n"
 				;;
 			"shut off")
-				handle_vm_action "${VM_NAMES[$SELECTED]}" "start" "start" "$C_GREEN"
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "start" "start" "$C_GREEN" "y"
 				;;
 			"paused")
-				handle_vm_action "${VM_NAMES[$SELECTED]}" "resume" "resume" "$C_GREEN"
+				handle_vm_action "${VM_NAMES[$SELECTED]}" "resume" "resume" "$C_GREEN" "y"
 				;;
 			*)
 				STATUS_MSG="${C_YELLOW}Action unavailable for state: ${VM_STATES[$SELECTED]}${T_RESET}"
