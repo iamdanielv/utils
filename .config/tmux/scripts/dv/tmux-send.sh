@@ -42,18 +42,21 @@ if [ "$1" = "--new-session" ]; then
     }
 
     if tmux has-session -t "$sess_name" 2>/dev/null; then
+        if [ "$follow" -eq 1 ]; then
+            tmux switch-client -t "$sess_name"
+        fi
         tmux break-pane -s "$src_pane" -t "$sess_name"
         show_popup "\033[1;33m! Session Exists" "$sess_name"
     else
         tmux new-session -d -s "$sess_name"
+        if [ "$follow" -eq 1 ]; then
+            tmux switch-client -t "$sess_name"
+        fi
         tmux join-pane -s "$src_pane" -t "$sess_name:"
         tmux kill-pane -a -t "$src_pane"
         show_popup "\033[1;32m✓ Session Created" "$sess_name"
     fi
 
-    if [ "$follow" -eq 1 ]; then
-        tmux switch-client -t "$sess_name"
-    fi
     exit 0
 fi
 
