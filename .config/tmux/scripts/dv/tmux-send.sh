@@ -225,6 +225,8 @@ case "$type" in
         sess_name=$("$script_dir/tmux-input.sh" --title " New Session " "Enter Name")
         if [ $? -eq 0 ] && [ -n "$sess_name" ]; then
             "$script_path" --new-session "$sess_name" "$src_pane" "$follow"
+        else
+            tmux display-message "#[fg=${thm_yellow}]! Session creation cancelled"
         fi
         ;;
 esac
