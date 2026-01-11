@@ -500,6 +500,8 @@ install_core_tools() {
     install_package "jq"
     # For extracting archives
     install_package "unzip"
+    # For font management
+    install_package "fontconfig" "fc-cache"
 
     # For 'lg' alias (lazygit) and docker management (lazydocker)
     install_jesseduffield_tool "lazygit"
