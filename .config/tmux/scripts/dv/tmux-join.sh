@@ -57,6 +57,8 @@ ansi_cyan=$(to_ansi "$thm_cyan")
 ansi_red=$(to_ansi "$thm_red")
 ansi_green=$(to_ansi "$thm_green")
 
+script_dir=$(dirname "$(readlink -f "$0")")
+
 # 2. Generate Pane List
 # Format: pane_id<tab>display_text<tab>session<tab>window_index<tab>window_name<tab>pane_index<tab>pane_title
 # We use a separator '\t' to handle parsing later.
@@ -79,7 +81,6 @@ panes=$(tmux list-panes -a -F "#{window_id}${tab}#{pane_id}${tab}#{session_name}
       done)
 
 if [ -z "$panes" ]; then
-    script_dir=$(dirname "$(readlink -f "$0")")
     "$script_dir/tmux-input.sh" --message "  No other panes found"
     exit 0
 fi
@@ -129,6 +130,7 @@ selection=$(echo "$selected" | tail -n +2)
 
 # Extract pane ID
 target_pane_id=$(echo "$selection" | cut -f1)
+target_pane_display=$(echo "$selection" | cut -f2)
 
 if [ -n "$target_pane_id" ]; then
     perform_join() {
@@ -151,7 +153,12 @@ if [ -n "$target_pane_id" ]; then
             # Split Horizontal (top-bottom)
             perform_join "-v" ;;
         ctrl-x)
-            tmux kill-pane -t "$target_pane_id" ;;
+            if "$script_dir/tmux-input.sh" --confirm "Kill ${target_pane_display}?"; then
+                tmux kill-pane -t "$target_pane_id"
+                tmux display-message "#[fg=${thm_green}]✓ Pane ${target_pane_display} killed"
+            else
+                tmux display-message "#[fg=${thm_yellow}][i] Kill ${target_pane_display} cancelled"
+            fi ;;
         *)
             # Default (Enter) -> Join Horizontal
             perform_join "-h" ;;
