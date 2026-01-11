@@ -176,9 +176,10 @@ while true; do
         fi
         continue
     elif [[ "$key" == "ctrl-n" ]] || [[ "$target_session" == "NEW" ]]; then
+        unset sess_name
         sess_name=$("$script_dir/tmux-input.sh" --title " New Session " "Enter Name")
         if [ $? -eq 0 ] && [ -n "$sess_name" ]; then
-            if tmux has-session -t "$sess_name" 2>/dev/null; then
+            if tmux has-session -t "=${sess_name}" 2>/dev/null; then
                 "$script_dir/tmux-input.sh" --message "Session '$sess_name' already exists."
             else
                 tmux new-session -d -s "$sess_name"
@@ -191,11 +192,12 @@ while true; do
         if [[ "$target_session" == "NEW" ]]; then
             "$script_dir/tmux-input.sh" --message "Cannot rename the 'New Session' item."
         else
+            unset new_name
             new_name=$("$script_dir/tmux-input.sh" --title " Rename Session " "Enter New Name" "$target_session")
             if [ $? -eq 0 ] && [ -n "$new_name" ]; then
                 if [[ "$new_name" == "$target_session" ]]; then
                     continue
-                elif tmux has-session -t "$new_name" 2>/dev/null; then
+                elif tmux has-session -t "=${new_name}" 2>/dev/null; then
                     "$script_dir/tmux-input.sh" --message "Session '$new_name' already exists."
                 else
                     tmux rename-session -t "$target_session" "$new_name"

@@ -41,7 +41,7 @@ if [ "$1" = "--new-session" ]; then
             "bash -c \"printf ' $header\033[0m\n   \033[1;34m%s\033[0m\n\n Press any key to continue...' '$value'; read -n 1 -s\""
     }
 
-    if tmux has-session -t "$sess_name" 2>/dev/null; then
+    if tmux has-session -t "=${sess_name}" 2>/dev/null; then
         if [ "$follow" -eq 1 ]; then
             tmux switch-client -t "$sess_name"
         fi
@@ -140,7 +140,7 @@ sessions=$(tmux list-sessions -F "SES${tab}#{session_name}${tab}#{session_name}$
       done)
 
 # 3. Scratchpad (if not exists)
-if ! tmux has-session -t scratch 2>/dev/null; then
+if ! tmux has-session -t =scratch 2>/dev/null; then
     display="${ansi_blue}scratch${ansi_fg}: ${ansi_magenta} New Window${ansi_fg}"
     scratch_item="SES${tab}scratch${tab}${display}${tab}scratch${tab}+${tab}New Window"
 else
@@ -256,7 +256,7 @@ case "$type" in
         ;;
     SES)
         # Handle Scratchpad creation if it doesn't exist
-        if [ "$target" = "scratch" ] && ! tmux has-session -t scratch 2>/dev/null; then
+        if [ "$target" = "scratch" ] && ! tmux has-session -t =scratch 2>/dev/null; then
             tmux new-session -d -s scratch -n "temp"
             if [ "$follow" -eq 1 ]; then
                 tmux switch-client -t scratch
