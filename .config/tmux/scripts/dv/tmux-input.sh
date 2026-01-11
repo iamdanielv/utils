@@ -294,7 +294,7 @@ main() {
                 local script_path
                 script_path=$(readlink -f "$0")
                 local safe_msg=$(printf '%q' "$msg")
-                tmux display-popup -E -w 40 -h 6 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Info " \
+                tmux display-popup -E -w 60 -h 10 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Info " \
                     "$script_path --internal-msg $safe_msg"
                 exit 0
                 ;;
@@ -303,7 +303,7 @@ main() {
                 local script_path
                 script_path=$(readlink -f "$0")
                 local safe_msg=$(printf '%q' "$msg")
-                tmux display-popup -E -w 40 -h 6 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Confirm " \
+                tmux display-popup -E -w 60 -h 10 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Confirm " \
                     "$script_path --internal-confirm $safe_msg"
                 exit $?
                 ;;
