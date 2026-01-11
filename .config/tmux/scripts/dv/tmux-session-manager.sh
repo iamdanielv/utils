@@ -159,6 +159,9 @@ while true; do
         else
             if "$script_dir/tmux-input.sh" --confirm "Kill session '$target_session'?"; then
                 tmux kill-session -t "$target_session"
+                tmux display-message "#[fg=${thm_green}]✓ Session '$target_session' killed"
+            else
+                tmux display-message "#[fg=${thm_yellow}]! Kill cancelled"
             fi
         fi
         continue
