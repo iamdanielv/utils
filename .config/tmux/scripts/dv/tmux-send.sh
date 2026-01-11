@@ -31,16 +31,21 @@ if [ "$1" = "--new-session" ]; then
 
     if [ -z "$sess_name" ]; then exit 0; fi
 
+    show_popup() {
+        local header="$1"
+        local value="$2"
+        tmux display-popup -w 40 -h 6 -E \
+            "bash -c \"printf ' $header\033[0m\n   \033[1;34m%s\033[0m\n\n Press any key to continue...' '$value'; read -n 1 -s\""
+    }
+
     if tmux has-session -t "$sess_name" 2>/dev/null; then
         tmux break-pane -s "$src_pane" -t "$sess_name"
-        tmux display-popup -w 40 -h 6 -E \
-            "bash -c \"printf '\n  \033[1;33m!  Session Exists\033[0m\n\n  \033[1;34m%s\033[0m\n' '$sess_name'; read -n 1 -s\""
+        show_popup "\033[1;33m! Session Exists" "$sess_name"
     else
         tmux new-session -d -s "$sess_name"
         tmux join-pane -s "$src_pane" -t "$sess_name:"
         tmux kill-pane -a -t "$src_pane"
-        tmux display-popup -w 40 -h 6 -E \
-            "bash -c \"printf '\n  \033[1;32m✓  Session Created\033[0m\n\n  \033[1;34m%s\033[0m\n' '$sess_name'; read -n 1 -s\""
+        show_popup "\033[1;32m✓ Session Created" "$sess_name"
     fi
 
     if [ "$follow" -eq 1 ]; then
@@ -216,7 +221,10 @@ case "$type" in
         ;;
     NEW)
         script_path=$(readlink -f "$0")
-        tmux command-prompt -p "New Session Name: " \
-            "run-shell \"'$script_path' --new-session '%1' '$src_pane' '$follow'\""
+        script_dir=$(dirname "$script_path")
+        sess_name=$("$script_dir/tmux-input.sh" --title " New Session " "Enter Name")
+        if [ $? -eq 0 ] && [ -n "$sess_name" ]; then
+            "$script_path" --new-session "$sess_name" "$src_pane" "$follow"
+        fi
         ;;
 esac
