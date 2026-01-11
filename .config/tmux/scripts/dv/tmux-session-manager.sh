@@ -169,9 +169,9 @@ while true; do
                     fi
                 fi
                 tmux kill-session -t "=${target_session}"
-                tmux display-message "#[fg=${thm_green}]✓ Session '$target_session' killed"
+                "$script_dir/tmux-input.sh" --message "Session '$target_session' killed"
             else
-                tmux display-message "#[fg=${thm_yellow}]! Kill cancelled"
+                "$script_dir/tmux-input.sh" --message "Kill cancelled"
             fi
         fi
         continue
