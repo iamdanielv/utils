@@ -719,7 +719,7 @@ fi
 tmux_launch() {
   command tmux new-session -A -s main
 }
-alias tmux='tmux_launch'
+alias t='tmux_launch'
 
 # -------------------
 # Interactive Tools & Keybindings
@@ -766,7 +766,7 @@ nano :${_C_YELLOW}nano${_C_RESET}     : Replaced with micro
 ports:${_C_YELLOW}ports${_C_RESET}    : List Ports (ss -tulpn ...)
 psa:${_C_YELLOW}psa${_C_RESET}      : Process List (ps -eo ...)
 rm :${_C_YELLOW}rm${_C_RESET}       : Safe RM (rm -i)
-tmux:${_C_YELLOW}tmux${_C_RESET}     : Tmux Session (tmux_launch)
+t:${_C_YELLOW}t${_C_RESET}        : Tmux Session (tmux_launch)
 update:${_C_YELLOW}update${_C_RESET}   : System Update (apt update ...)
 vim :${_C_YELLOW}vim${_C_RESET}      : Replaced with Neovim
 EOF
