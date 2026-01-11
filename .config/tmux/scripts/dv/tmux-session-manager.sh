@@ -158,6 +158,16 @@ while true; do
             "$script_dir/tmux-input.sh" --message "Cannot kill the 'New Session' item."
         else
             if "$script_dir/tmux-input.sh" --confirm "Kill session '$target_session'?"; then
+                current_session=$(tmux display-message -p "#{session_name}")
+                if [[ "$target_session" == "$current_session" ]]; then
+                    other_session=$(tmux list-sessions -F "#{session_name}" 2>/dev/null | grep -v "^${target_session}$" | head -n 1)
+                    if [[ -n "$other_session" ]]; then
+                        tmux switch-client -t "$other_session"
+                        tmux kill-session -t "$target_session"
+                        "$script_dir/tmux-input.sh" --message "Session '$target_session' killed. Switched to '$other_session'."
+                        continue
+                    fi
+                fi
                 tmux kill-session -t "$target_session"
                 tmux display-message "#[fg=${thm_green}]✓ Session '$target_session' killed"
             else

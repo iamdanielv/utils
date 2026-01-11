@@ -37,7 +37,7 @@ if [ "$1" = "--new-session" ]; then
     show_popup() {
         local header="$1"
         local value="$2"
-        tmux display-popup -w 40 -h 6 -E \
+        tmux display-popup -w 60 -h 10 -E \
             "bash -c \"printf ' $header\033[0m\n   \033[1;34m%s\033[0m\n\n Press any key to continue...' '$value'; read -n 1 -s\""
     }
 
@@ -247,7 +247,11 @@ case "$type" in
             tmux select-pane -t "$src_pane"
         fi
         if [ "$forced_follow" -eq 1 ]; then
-            tmux display-message "#[fg=${thm_yellow}]! Source session ended; switched to target"
+            msg="${ansi_blue}${cur_sess}${ansi_yellow} has no more panes,"
+            msg+=$'\n'
+            msg+="  ${ansi_green}moving to ${target_sess}${ansi_yellow}."
+            "$script_dir/tmux-input.sh" --message "$msg"
+            tmux display-message "#[fg=${thm_yellow}][!] '${cur_sess}' ended; moved to '${target_sess}'"
         fi
         ;;
     SES)
@@ -267,7 +271,11 @@ case "$type" in
         fi
 
         if [ "$forced_follow" -eq 1 ]; then
-            tmux display-message "#[fg=${thm_yellow}]! Source session ended; switched to target"
+            msg="${ansi_blue}${cur_sess}${ansi_yellow} has no more panes,"
+            msg+=$'\n'
+            msg+="  ${ansi_green}moving to ${target}${ansi_yellow}."
+            "$script_dir/tmux-input.sh" --message "$msg"
+            tmux display-message "#[fg=${thm_yellow}][!] '${cur_sess}' ended; moved to '${target}'"
         fi
         ;;
     NEW)
@@ -275,7 +283,7 @@ case "$type" in
         if [ $? -eq 0 ] && [ -n "$sess_name" ]; then
             "$script_path" --new-session "$sess_name" "$src_pane" "$follow"
         else
-            tmux display-message "#[fg=${thm_yellow}]! Session creation cancelled"
+            tmux display-message "#[fg=${thm_yellow}][!] Session creation cancelled"
         fi
         ;;
 esac
