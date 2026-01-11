@@ -224,10 +224,10 @@ install_dependencies() {
 install_neovim() {
     printBanner "Installing/Updating Neovim (Latest Stable)"
 
-    local install_dir="${HOME}/.local"
-    local bin_dir="${install_dir}/bin"
-    local version_file="${install_dir}/nvim-version"
+    local bin_dir="${XDG_BIN_HOME}"
+    local version_file="${XDG_STATE_HOME}/nvim-version"
     mkdir -p "$bin_dir"
+    mkdir -p "$(dirname "$version_file")"
 
     printInfoMsg "Checking for latest Neovim version..."
     local latest_version
@@ -279,7 +279,7 @@ install_neovim() {
 # Checks if ~/.local/bin is in the user's PATH and provides instructions if not.
 check_local_bin_in_path() {
     printBanner "Checking PATH Environment Variable"
-    local local_bin_dir="${HOME}/.local/bin"
+    local local_bin_dir="${XDG_BIN_HOME}"
     local bashrc_path="${HOME}/.bashrc"
 
     # Check if the directory is in the PATH. The colons are important for matching.
@@ -335,7 +335,7 @@ install_nerd_fonts() {
         # Parse details: "GrepPattern|ZipFileName"
         IFS='|' read -r font_grep_pattern font_zip_name <<< "${font_map[$font_name]}"
         local font_dir_name="${font_zip_name}NerdFont"
-        local font_dir="${HOME}/.local/share/fonts/${font_dir_name}"
+        local font_dir="${XDG_DATA_HOME}/fonts/${font_dir_name}"
 
         # Use fc-list to check if the font is already installed and available system-wide.
         if fc-list | grep -q "$font_grep_pattern Nerd Font"; then
@@ -387,7 +387,7 @@ install_nerd_fonts() {
 setup_lazyvim() {
     printBanner "Setting up LazyVim"
     
-    local nvim_config_dir="${HOME}/.config/nvim"
+    local nvim_config_dir="${XDG_CONFIG_HOME}/nvim"
     local lazyvim_json_path="${nvim_config_dir}/lazyvim.json"
     
     # Check if LazyVim is already installed by looking for lazyvim.json
