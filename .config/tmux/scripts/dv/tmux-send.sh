@@ -7,6 +7,9 @@
 # Dependencies: tmux > 3.2, fzf, grep, sed, cut
 # ===============
 
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+
 # --- Colors (Tokyo Night) ---
 thm_bg="#1e2030"
 thm_fg="#c8d3f5"
@@ -220,8 +223,6 @@ case "$type" in
         fi
         ;;
     NEW)
-        script_path=$(readlink -f "$0")
-        script_dir=$(dirname "$script_path")
         sess_name=$("$script_dir/tmux-input.sh" --title " New Session " "Enter Name")
         if [ $? -eq 0 ] && [ -n "$sess_name" ]; then
             "$script_path" --new-session "$sess_name" "$src_pane" "$follow"

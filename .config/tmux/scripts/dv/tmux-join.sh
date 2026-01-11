@@ -7,6 +7,9 @@
 # Dependencies: tmux > 3.2, fzf, grep, cut
 # ===============
 
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+
 # --- Colors (Tokyo Night) ---
 thm_bg="#1e2030"
 thm_fg="#c8d3f5"
@@ -56,8 +59,6 @@ ansi_yellow=$(to_ansi "$thm_yellow")
 ansi_cyan=$(to_ansi "$thm_cyan")
 ansi_red=$(to_ansi "$thm_red")
 ansi_green=$(to_ansi "$thm_green")
-
-script_dir=$(dirname "$(readlink -f "$0")")
 
 # 2. Generate Pane List
 # Format: pane_id<tab>display_text<tab>session<tab>window_index<tab>window_name<tab>pane_index<tab>pane_title
