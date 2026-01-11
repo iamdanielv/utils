@@ -217,22 +217,37 @@ if [ "$key" = "alt-enter" ]; then
     follow=1
 fi
 
+# Debug logging
+# debug_log() {
+#     echo "[$(date '+%H:%M:%S')] $1" >> /tmp/tmux-send.log
+# }
+
 # Check for last pane in session to prevent client exit
-sess_pane_count=$(tmux display-message -p "#{session_panes}")
+sess_pane_count=$(tmux list-panes -s -t "$src_pane" | wc -l)
+# debug_log "Src: $src_pane | Type: $type | Target: $target | Count: $sess_pane_count | Follow: $follow"
+
 forced_follow=0
-if [ "$sess_pane_count" -eq 1 ] && [ "$follow" -eq 0 ]; then
+if [ "${sess_pane_count:-0}" -eq 1 ] && [ "$follow" -eq 0 ]; then
     follow=1
     forced_follow=1
+#     debug_log "Forced follow activated (Last pane)"
 fi
 
 case "$type" in
     WIN)
         if [ -z "$split_args" ]; then split_args="-h"; fi
+        if [ "$follow" -eq 1 ]; then
+            target_sess=$(tmux display-message -p -t "$target" "#{session_name}")
+#             debug_log "Switching client to session: $target_sess"
+            tmux switch-client -t "$target_sess"
+        fi
         tmux join-pane "$split_args" -s "$src_pane" -t "$target"
         if [ "$follow" -eq 1 ]; then
             tmux select-window -t "$target"
             tmux select-pane -t "$src_pane"
-            tmux switch-client -t "$target"
+        fi
+        if [ "$forced_follow" -eq 1 ]; then
+            tmux display-message "#[fg=${thm_yellow}]! Source session ended; switched to target"
         fi
         ;;
     SES)
