@@ -67,6 +67,18 @@ run_test "Complex Args (Default Value)" 0 "Complex Default" "$TMUX_INPUT" --titl
 # Expected output is empty string for cancellation
 run_test "Cancellation" 1 "" "$TMUX_INPUT" --title " Cancel Me " "Press ESC"
 
+# Test: Regex - Digits Only
+run_test "Regex: Digits Only" 0 "123" "$TMUX_INPUT" --regex "^[0-9]+$" --val-error-msg "Digits only!" "Type '123' and Enter"
+
+# Test: Regex - No Spaces
+run_test "Regex: No Spaces" 0 "nospace" "$TMUX_INPUT" --regex "^[^ ]+$" --val-error-msg "No spaces allowed!" "Type 'nospace' and Enter"
+
+# Test: Regex - Alphanumeric
+run_test "Regex: Alphanumeric" 0 "Alpha1" "$TMUX_INPUT" --regex "^[a-zA-Z0-9]+$" "Type 'Alpha1' and Enter"
+
+# Test: Regex - Filename Safe
+run_test "Regex: Filename Safe" 0 "my_file.txt" "$TMUX_INPUT" --regex "^[a-zA-Z0-9._-]+$" "Type 'my_file.txt' and Enter"
+
 # echo "Test: Color Test Mode"
 # echo "Action: Verify colors look correct. Press 'q' to exit."
 # "$TMUX_INPUT" --test-colors
