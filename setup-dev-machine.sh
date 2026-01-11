@@ -248,7 +248,7 @@ install_jesseduffield_tool() {
     local version_number_only="${latest_version#v}"
     local tarball_name="${tool_name}_${version_number_only}_Linux_${arch}.tar.gz"
     local download_url="https://github.com/${repo}/releases/download/${latest_version}/${tarball_name}"
-    local install_dir="${HOME}/.local/bin"
+    local install_dir="${XDG_BIN_HOME}"
     mkdir -p "$install_dir"
 
     local temp_dir; temp_dir=$(mktemp -d)
@@ -266,7 +266,7 @@ install_jesseduffield_tool() {
 
 # (Private) Checks and offers to add ~/.local/bin to ~/.bashrc.
 _setup_local_bin_path() {
-    local local_bin_path="${HOME}/.local/bin"
+    local local_bin_path="${XDG_BIN_HOME}"
     local bashrc_path="${HOME}/.bashrc"
     local path_export_line="export PATH=\"\$HOME/.local/bin:\$PATH\""
     local path_comment="# Add local bin to PATH (added by setup-dev-machine.sh)"
@@ -379,7 +379,7 @@ install_bat_or_batcat() {
 # Clones and installs fzf from the official GitHub repository.
 install_fzf_from_source() {
     printBanner "Installing fzf (from source)"
-    local fzf_dir="${HOME}/.local/share/fzf"
+    local fzf_dir="${XDG_DATA_HOME}/fzf"
     
     if [[ -d "$fzf_dir" ]]; then
         printInfoMsg "fzf is already installed. Updating..."
@@ -409,7 +409,7 @@ install_fzf_from_source() {
 setup_fzf_config() {
     printBanner "Setting up Custom FZF Configuration"
 
-    local bin_dir="${HOME}/.local/bin"
+    local bin_dir="${XDG_BIN_HOME}"
     mkdir -p "$bin_dir"
 
     # --- Download fzf-preview.sh script ---
@@ -485,8 +485,8 @@ install_core_tools() {
     # Symlink fd if needed (fdfind -> fd)
     if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
         printInfoMsg "Creating symlink for 'fd' from 'fdfind'..."
-        mkdir -p "${HOME}/.local/bin"
-        ln -sf "$(which fdfind)" "${HOME}/.local/bin/fd"
+        mkdir -p "${XDG_BIN_HOME}"
+        ln -sf "$(which fdfind)" "${XDG_BIN_HOME}/fd"
     fi
     install_bat_or_batcat
 
@@ -544,7 +544,7 @@ setup_bash_aliases() {
 setup_tmux_config() {
     printBanner "Setting up Tmux Configuration"
     local source_conf_path="${SCRIPT_DIR}/.config/tmux/tmux.conf"
-    local dest_conf_dir="${HOME}/.config/tmux"
+    local dest_conf_dir="${XDG_CONFIG_HOME}/tmux"
     local dest_conf_path="${dest_conf_dir}/tmux.conf"
 
     if [[ ! -f "$source_conf_path" ]]; then
