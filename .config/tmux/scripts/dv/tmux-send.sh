@@ -111,12 +111,12 @@ windows=$(tmux list-windows -a -F "WIN${tab}#{window_id}${tab}#{session_name}${t
         
         icon=""
         if [ "$sn" = "$cur_sess" ]; then
-            icon="${ansi_green}${ansi_fg}"
+            icon="${ansi_green}${ansi_fg} "
         elif [ "$attached" -ge 1 ]; then
-            icon="${ansi_yellow}${ansi_fg}"
+            icon="${ansi_yellow}${ansi_fg} "
         fi
 
-        display="${icon} ${ansi_blue}${sn}${ansi_fg}: ${ansi_yellow}${wi}:${wn}${ansi_fg}"
+        display="${icon}${ansi_blue}${sn}${ansi_fg}: ${ansi_yellow}${wi}:${wn}${ansi_fg}"
         printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$type" "$wid" "$display" "$sn" "$wi" "$wn"
       done)
 
@@ -130,12 +130,12 @@ sessions=$(tmux list-sessions -F "SES${tab}#{session_name}${tab}#{session_name}$
 
         icon=""
         if [ "$sn" = "$cur_sess" ]; then
-            icon="${ansi_green}${ansi_fg}"
+            icon="${ansi_green}${ansi_fg} "
         elif [ "$attached" -ge 1 ]; then
-            icon="${ansi_yellow}${ansi_fg}"
+            icon="${ansi_yellow}${ansi_fg} "
         fi
 
-        display="${icon} ${ansi_blue}${sn}${ansi_fg}: ${ansi_magenta} New Window${ansi_fg}"
+        display="${icon}${ansi_blue}${sn}${ansi_fg}: ${ansi_magenta} New Window${ansi_fg}"
         printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$type" "$sn" "$display" "$sn" "+" "New Window"
       done)
 
