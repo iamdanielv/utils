@@ -2,14 +2,26 @@
 # ===============
 # Script Name: tmux-input.sh
 # Description: Modal input popup with custom event loop.
-# Usage:       result=$(tmux-input.sh "Prompt Text" ["Default Value"])
+# Usage:       tmux-input.sh [OPTIONS] [PROMPT] [DEFAULT_VALUE]
 # Exit Code:   0 on success, 1 on cancel.
+#
+# Options:
+#   --title <text>         Set the popup title (default: " Input ")
+#   --width <num>          Set popup width (default: 50)
+#   --height <num>         Set popup height (default: 8)
+#   --regex <pattern>      Regex validation pattern
+#   --val-error-msg <msg>  Custom error message on validation failure
+#   --message <text>       Display a simple message popup (no input)
 #
 # Common Validation Patterns (--regex):
 #   Digits only:       ^[0-9]+$
 #   No spaces:         ^[^ ]+$
 #   Alphanumeric:      ^[a-zA-Z0-9]+$
 #   Filename (safe):   ^[a-zA-Z0-9._-]+$
+#
+# Examples:
+#   result=$(tmux-input.sh "Enter Name" "John Doe")
+#   tmux-input.sh --title " Rename " --width 30 "New Name"
 # ===============
 
 # --- Constants ---
@@ -225,6 +237,9 @@ main() {
     local default=""
     local regex=""
     local val_error_msg=""
+    local title=" Input "
+    local width="50"
+    local height="8"
     local tmp_file
     tmp_file=$(mktemp)
     trap 'rm -f "$tmp_file"' EXIT
@@ -247,6 +262,18 @@ main() {
                 ;;
             --val-error-msg)
                 val_error_msg="$2"
+                shift 2
+                ;;
+            --title)
+                title="$2"
+                shift 2
+                ;;
+            --width)
+                width="$2"
+                shift 2
+                ;;
+            --height)
+                height="$2"
                 shift 2
                 ;;
             *)
@@ -273,33 +300,7 @@ main() {
     local safe_val_error_msg=$(printf '%q' "$val_error_msg")
 
     # Launch Popup calling this script in internal mode
-    if tmux display-popup -E -w 50 -h 8 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Input " \
-        "$script_path -i $safe_prompt $safe_default $safe_tmp $safe_regex $safe_val_error_msg"; then
-        
-        if [[ -s "$tmp_file" ]]; then
-            cat "$tmp_file"
-            exit 0
-        fi
-    fi
-    
-    exit 1
-}
-
-main "$@"
-    if [[ -z "$prompt" ]]; then prompt="Input"; fi
-
-    local script_path
-    script_path=$(readlink -f "$0")
-    
-    # Escape arguments for the inner command line
-    local safe_prompt=$(printf '%q' "$prompt")
-    local safe_default=$(printf '%q' "$default")
-    local safe_tmp=$(printf '%q' "$tmp_file")
-    local safe_regex=$(printf '%q' "$regex")
-    local safe_val_error_msg=$(printf '%q' "$val_error_msg")
-
-    # Launch Popup calling this script in internal mode
-    if tmux display-popup -E -w 50 -h 8 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Input " \
+    if tmux display-popup -E -w "$width" -h "$height" -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}]${title}" \
         "$script_path -i $safe_prompt $safe_default $safe_tmp $safe_regex $safe_val_error_msg"; then
         
         if [[ -s "$tmp_file" ]]; then
