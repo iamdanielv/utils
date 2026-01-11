@@ -560,7 +560,7 @@ setup_tmux_config() {
     fi
 
     if [[ -f "$dest_conf_path" ]]; then
-        if prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "n"; then
+        if prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "y"; then
             local backup_file
             backup_file="${dest_conf_path}.bak_$(date +"%Y%m%d_%H%M%S")"
             printInfoMsg "Backing up current file to ${backup_file}..."
