@@ -120,12 +120,12 @@ get_session_list() {
 }
 
 # FZF Header
-fzf_header=$(printf "%s  %s" "${ansi_green}ENTER: Switch${ansi_fg}" "${ansi_red}C-x: Kill${ansi_fg}")
+fzf_header=$(printf "%s\n  %s  %s  %s" "${ansi_green}ENTER: Switch${ansi_fg}" "${ansi_magenta}C-n: New${ansi_fg}" "${ansi_blue}C-r: Rename${ansi_fg}" "${ansi_red}C-x: Kill${ansi_fg}")
 
 while true; do
     # FZF Execution
     selected=$(get_session_list | fzf \
-        --tmux 80%,70% \
+        --tmux 95%,90% \
         --ansi \
         --reverse \
         --layout=reverse-list \
@@ -143,7 +143,7 @@ while true; do
         --preview-label-pos='2' \
         --preview-window="right:60%" \
         --bind "focus:transform-preview-label:$script_path --preview-label {1}" \
-        --expect=ctrl-x \
+        --expect=ctrl-x,ctrl-n,ctrl-r \
         --color "border:${thm_cyan},label:${thm_cyan}:reverse,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
         --color "bg+:${thm_gray},bg:${thm_bg},gutter:${thm_bg},prompt:${thm_orange}")
 
@@ -175,8 +175,34 @@ while true; do
             fi
         fi
         continue
-    elif [[ "$target_session" == "NEW" ]]; then
-        exit 0 # Placeholder
+    elif [[ "$key" == "ctrl-n" ]] || [[ "$target_session" == "NEW" ]]; then
+        sess_name=$("$script_dir/tmux-input.sh" --title " New Session " "Enter Name")
+        if [ $? -eq 0 ] && [ -n "$sess_name" ]; then
+            if tmux has-session -t "$sess_name" 2>/dev/null; then
+                "$script_dir/tmux-input.sh" --message "Session '$sess_name' already exists."
+            else
+                tmux new-session -d -s "$sess_name"
+                tmux switch-client -t "$sess_name"
+                break
+            fi
+        fi
+        continue
+    elif [[ "$key" == "ctrl-r" ]]; then
+        if [[ "$target_session" == "NEW" ]]; then
+            "$script_dir/tmux-input.sh" --message "Cannot rename the 'New Session' item."
+        else
+            new_name=$("$script_dir/tmux-input.sh" --title " Rename Session " "Enter New Name" "$target_session")
+            if [ $? -eq 0 ] && [ -n "$new_name" ]; then
+                if [[ "$new_name" == "$target_session" ]]; then
+                    continue
+                elif tmux has-session -t "$new_name" 2>/dev/null; then
+                    "$script_dir/tmux-input.sh" --message "Session '$new_name' already exists."
+                else
+                    tmux rename-session -t "$target_session" "$new_name"
+                fi
+            fi
+        fi
+        continue
     elif [[ -n "$target_session" ]]; then
         tmux switch-client -t "$target_session"
         break
