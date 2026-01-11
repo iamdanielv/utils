@@ -303,10 +303,8 @@ main() {
     if tmux display-popup -E -w "$width" -h "$height" -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}]${title}" \
         "$script_path -i $safe_prompt $safe_default $safe_tmp $safe_regex $safe_val_error_msg"; then
         
-        if [[ -s "$tmp_file" ]]; then
-            cat "$tmp_file"
-            exit 0
-        fi
+        cat "$tmp_file"
+        exit 0
     fi
     
     exit 1

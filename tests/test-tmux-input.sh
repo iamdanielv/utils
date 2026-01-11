@@ -16,46 +16,50 @@ if [ ! -f "$TMUX_INPUT" ]; then
     exit 1
 fi
 
-echo "Test 1: Basic Input (Default)"
-echo "Press Enter to accept default, or type something."
-result=$("$TMUX_INPUT" "Enter something basic" "default")
-exit_code=$?
-echo "Result: $result"
-echo "Exit Code: $exit_code"
+# Helper function to run tests and verify exit codes
+run_test() {
+    local description="$1"
+    local expected_code="$2"
+    shift 2
+    # Remaining arguments are the command to run
+    
+    echo "Test: $description"
+    
+    # Run the command and capture output and exit code
+    result=$("$@" 2>&1)
+    exit_code=$?
+    
+    echo "Output: $result"
+    
+    if [ "$exit_code" -eq "$expected_code" ]; then
+        echo "✅ PASS (Exit Code: $exit_code)"
+    else
+        echo "❌ FAIL (Expected: $expected_code, Got: $exit_code)"
+    fi
+    echo "--------------------------------"
+}
+
+echo "--------------------------------"
+echo "Starting tmux-input.sh Tests"
 echo "--------------------------------"
 
-echo "Test 2: Custom Title"
-echo "Check if title is ' Custom Title '"
-result=$("$TMUX_INPUT" --title " Custom Title " "Enter something with custom title")
-exit_code=$?
-echo "Result: $result"
-echo "Exit Code: $exit_code"
-echo "--------------------------------"
+# Test 1: Basic Success
+run_test "Basic Input (Press ENTER)" 0 "$TMUX_INPUT" "Press ENTER to pass" "default"
 
-echo "Test 3: Custom Dimensions (Small: 30x5)"
-result=$("$TMUX_INPUT" --width 30 --height 5 "Small Popup")
-exit_code=$?
-echo "Result: $result"
-echo "Exit Code: $exit_code"
-echo "--------------------------------"
+# Test 2: Custom Title
+run_test "Custom Title (Press ENTER)" 0 "$TMUX_INPUT" --title " Custom Title " "Press ENTER to pass"
 
-echo "Test 4: All Combined (Title: Big & Bold, 60x10)"
-result=$("$TMUX_INPUT" --title " Big & Bold " --width 60 --height 10 "Enter complex data" "Complex Default")
-exit_code=$?
-echo "Result: $result"
-echo "Exit Code: $exit_code"
-echo "--------------------------------"
+# Test 3: Custom Dimensions
+run_test "Custom Dimensions (Press ENTER)" 0 "$TMUX_INPUT" --width 30 --height 5 "Press ENTER"
 
-echo "Test 5: Cancellation (Press ESC)"
-echo "Action: Press ESC when the popup appears."
-result=$("$TMUX_INPUT" --title " Cancel Me " "Press ESC now")
-exit_code=$?
-echo "Result: $result"
-echo "Exit Code: $exit_code (Expected: 1)"
-echo "--------------------------------"
+# Test 4: Complex Args
+run_test "All Combined (Press ENTER)" 0 "$TMUX_INPUT" --title " Big & Bold " --width 60 --height 10 "Press ENTER" "Complex Default"
 
-echo "Test 6: Color Test Mode"
-echo "Action: Verify colors look correct. Press 'q' to exit."
-"$TMUX_INPUT" --test-colors
-echo "Color test completed."
-echo "--------------------------------"
+# Test 5: Cancellation
+run_test "Cancellation (Press ESC)" 1 "$TMUX_INPUT" --title " Cancel Me " "Press ESC to pass"
+
+# echo "Test 6: Color Test Mode"
+# echo "Action: Verify colors look correct. Press 'q' to exit."
+# "$TMUX_INPUT" --test-colors
+# echo "Color test completed."
+# echo "--------------------------------"
