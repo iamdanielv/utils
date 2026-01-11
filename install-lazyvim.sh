@@ -337,9 +337,9 @@ install_nerd_fonts() {
         local font_dir_name="${font_zip_name}NerdFont"
         local font_dir="${XDG_DATA_HOME}/fonts/${font_dir_name}"
 
-        # Use fc-list to check if the font is already installed and available system-wide.
-        if fc-list | grep -q "$font_grep_pattern Nerd Font"; then
-            printInfoMsg "'${font_name}' is already installed. Skipping."
+        # Check if the font directory already exists
+        if [[ -d "$font_dir" ]]; then
+            printInfoMsg "'${font_name}' is already installed in '${font_dir}'. Skipping."
             continue
         fi
 
