@@ -588,6 +588,75 @@ setup_tmux_config() {
     fi
 }
 
+# Downloads and installs Nerd Fonts
+install_nerd_fonts() {
+    printBanner "Installing Nerd Fonts"
+
+    # An associative array mapping the font's display name to its ZipFileName.
+    declare -A font_map=(
+        ["FiraCode Nerd Font"]="FiraCode"
+        ["Meslo Nerd Font"]="Meslo"
+        ["CaskaydiaCove Nerd Font"]="CascadiaCode"
+    )
+
+    local fonts_installed=0
+    local latest_nerd_font_version=""
+
+    for font_name in "${!font_map[@]}"; do
+        local font_zip_name="${font_map[$font_name]}"
+        local font_dir_name="${font_zip_name}NerdFont"
+        local font_dir="${XDG_DATA_HOME}/fonts/${font_dir_name}"
+
+        if [[ -d "$font_dir" ]]; then
+            printInfoMsg "'${font_name}' is already installed in '${font_dir}'. Skipping."
+            continue
+        fi
+
+        if ! prompt_yes_no "Install '${font_name}'? (Recommended for icons)" "n"; then
+            printInfoMsg "Skipping '${font_name}' installation."
+            continue
+        fi
+
+        # Fetch version only once if needed
+        if [[ -z "$latest_nerd_font_version" ]]; then
+            printInfoMsg "Finding latest Nerd Fonts release..."
+            latest_nerd_font_version=$(curl -s "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest" | jq -r '.tag_name')
+            
+            if [[ -z "$latest_nerd_font_version" || "$latest_nerd_font_version" == "null" ]]; then
+                printErrMsg "Could not determine latest Nerd Fonts version from GitHub API. Skipping font installs."
+                return
+            fi
+            printInfoMsg "Latest version: ${C_L_GREEN}${latest_nerd_font_version}${T_RESET}"
+        fi
+
+        local font_url="https://github.com/ryanoasis/nerd-fonts/releases/download/${latest_nerd_font_version}/${font_zip_name}.zip"
+        local temp_dir; temp_dir=$(mktemp -d)
+        
+        if run_with_spinner "Downloading ${font_name}..." curl -L -f -o "${temp_dir}/${font_zip_name}.zip" "$font_url"; then
+            mkdir -p "$font_dir"
+            if run_with_spinner "Extracting to ${font_dir}..." unzip -o "${temp_dir}/${font_zip_name}.zip" -d "$font_dir"; then
+                fonts_installed=1
+                printOkMsg "'${font_name}' installed."
+            else
+                printErrMsg "Failed to extract '${font_name}'."
+                rm -rf "$font_dir"
+            fi
+        else
+            printErrMsg "Failed to download '${font_name}'."
+        fi
+        rm -rf "$temp_dir"
+    done
+
+    if [[ $fonts_installed -eq 1 ]]; then
+        printInfoMsg "Updating font cache... (this may take a moment)"
+        if run_with_spinner "Running fc-cache..." fc-cache -f -v; then
+            printOkMsg "Font cache updated."
+        else
+            printErrMsg "Failed to update font cache."
+        fi
+    fi
+}
+
 main() {
     if [[ "$1" == "-h" || "$1" == "--help" ]]; then
         print_usage
@@ -610,6 +679,9 @@ main() {
     # Install and configure fzf
     install_fzf_from_source
     setup_fzf_config
+
+    # Install Nerd Fonts
+    install_nerd_fonts
 
     # Execute the LazyVim installer script
     bash "${SCRIPT_DIR}/install-lazyvim.sh"
