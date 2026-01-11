@@ -82,6 +82,12 @@ run_test "Regex: Filename Safe" 0 "my_file.txt" "$TMUX_INPUT" --regex "^[a-zA-Z0
 # Test: Message Mode
 run_test "Message Mode" 0 "" "$TMUX_INPUT" --message "This is a test message. Press any key to close."
 
+# Test: Confirmation Mode (Yes)
+run_test "Confirmation (Yes)" 0 "" "$TMUX_INPUT" --confirm "Select Yes (Left Arrow + Enter)"
+
+# Test: Confirmation Mode (No)
+run_test "Confirmation (No)" 1 "" "$TMUX_INPUT" --confirm "Select No (Enter or Esc)"
+
 # echo "Test: Color Test Mode"
 # echo "Action: Verify colors look correct. Press 'q' to exit."
 # "$TMUX_INPUT" --test-colors

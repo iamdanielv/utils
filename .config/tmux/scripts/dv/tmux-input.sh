@@ -12,6 +12,7 @@
 #   --regex <pattern>      Regex validation pattern
 #   --val-error-msg <msg>  Custom error message on validation failure
 #   --message <text>       Display a simple message popup (no input)
+#   --confirm <text>       Display a Yes/No confirmation popup
 #
 # Common Validation Patterns (--regex):
 #   Digits only:       ^[0-9]+$
@@ -22,6 +23,7 @@
 # Examples:
 #   result=$(tmux-input.sh "Enter Name" "John Doe")
 #   tmux-input.sh --title " Rename " --width 30 "New Name"
+#   if tmux-input.sh --confirm "Are you sure?"; then echo "Yes"; fi
 # ===============
 
 # --- Constants ---
@@ -72,6 +74,41 @@ run_internal_msg() {
     # Footer
     printf "\n  \033[90m(Press any key)\033[0m"
     read_single_char >/dev/null
+}
+
+# --- Internal Confirmation Mode ---
+run_internal_confirm() {
+    local prompt="$1"
+    local selection=1 # 0=Yes, 1=No (Default to No for safety)
+
+    _draw_confirm() {
+        # Clear screen
+        printf '\033[H\033[2J'
+        # Prompt (Blue)
+        printf "\n  \033[1;34m%s\033[0m\n\n" "$prompt"
+        
+        local y_style="32" # Green
+        local n_style="31" # Red
+        
+        if [[ $selection -eq 0 ]]; then y_style="1;32;7"; fi # Highlight Yes (Reverse)
+        if [[ $selection -eq 1 ]]; then n_style="1;31;7"; fi # Highlight No (Reverse)
+        
+        printf "      \033[%sm ✓ Yes \033[0m      \033[%sm ✗ No \033[0m\n" "$y_style" "$n_style"
+    }
+
+    _draw_confirm
+
+    while true; do
+        local key
+        key=$(read_single_char)
+        case "$key" in
+            "$KEY_LEFT"|"$KEY_RIGHT"|"h"|"l") selection=$((1 - selection)); _draw_confirm ;;
+            "$KEY_ENTER") exit "$selection" ;;
+            "y"|"Y") exit 0 ;;
+            "n"|"N") exit 1 ;;
+            "$KEY_ESC"|"q") exit 1 ;;
+        esac
+    done
 }
 
 # --- Internal Mode (TUI Loop) ---
@@ -228,6 +265,11 @@ main() {
         exit 0
     fi
 
+    if [[ "$1" == "--internal-confirm" ]]; then
+        run_internal_confirm "$2"
+        exit $?
+    fi
+
     if [[ "$1" == "-i" ]]; then
         run_internal "$2" "$3" "$4" "$5" "$6"
         exit $?
@@ -255,6 +297,15 @@ main() {
                 tmux display-popup -E -w 40 -h 6 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Info " \
                     "$script_path --internal-msg $safe_msg"
                 exit 0
+                ;;
+            --confirm)
+                local msg="$2"
+                local script_path
+                script_path=$(readlink -f "$0")
+                local safe_msg=$(printf '%q' "$msg")
+                tmux display-popup -E -w 40 -h 6 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Confirm " \
+                    "$script_path --internal-confirm $safe_msg"
+                exit $?
                 ;;
             --regex)
                 regex="$2"
