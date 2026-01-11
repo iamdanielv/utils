@@ -201,6 +201,14 @@ if [ "$key" = "alt-enter" ]; then
     follow=1
 fi
 
+# Check for last pane in session to prevent client exit
+sess_pane_count=$(tmux display-message -p "#{session_panes}")
+forced_follow=0
+if [ "$sess_pane_count" -eq 1 ] && [ "$follow" -eq 0 ]; then
+    follow=1
+    forced_follow=1
+fi
+
 case "$type" in
     WIN)
         if [ -z "$split_args" ]; then split_args="-h"; fi
@@ -215,14 +223,20 @@ case "$type" in
         # Handle Scratchpad creation if it doesn't exist
         if [ "$target" = "scratch" ] && ! tmux has-session -t scratch 2>/dev/null; then
             tmux new-session -d -s scratch -n "temp"
+            if [ "$follow" -eq 1 ]; then
+                tmux switch-client -t scratch
+            fi
             tmux break-pane -s "$src_pane" -t scratch
             tmux kill-window -t scratch:temp
         else
+            if [ "$follow" -eq 1 ]; then
+                tmux switch-client -t "$target"
+            fi
             tmux break-pane -s "$src_pane" -t "$target"
         fi
 
-        if [ "$follow" -eq 1 ]; then
-            tmux switch-client -t "$target"
+        if [ "$forced_follow" -eq 1 ]; then
+            tmux display-message "#[fg=${thm_yellow}]! Source session ended; switched to target"
         fi
         ;;
     NEW)
