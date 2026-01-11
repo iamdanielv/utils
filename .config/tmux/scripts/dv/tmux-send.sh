@@ -43,16 +43,16 @@ if [ "$1" = "--new-session" ]; then
 
     if tmux has-session -t "=${sess_name}" 2>/dev/null; then
         if [ "$follow" -eq 1 ]; then
-            tmux switch-client -t "$sess_name"
+            tmux switch-client -t "=${sess_name}"
         fi
-        tmux break-pane -s "$src_pane" -t "$sess_name"
+        tmux break-pane -s "$src_pane" -t "=${sess_name}"
         show_popup "\033[1;33m! Session Exists" "$sess_name"
     else
         tmux new-session -d -s "$sess_name"
         if [ "$follow" -eq 1 ]; then
-            tmux switch-client -t "$sess_name"
+            tmux switch-client -t "=${sess_name}"
         fi
-        tmux join-pane -s "$src_pane" -t "$sess_name:"
+        tmux join-pane -s "$src_pane" -t "=${sess_name}:"
         tmux kill-pane -a -t "$src_pane"
         show_popup "\033[1;32m✓ Session Created" "$sess_name"
     fi
@@ -239,7 +239,7 @@ case "$type" in
         if [ "$follow" -eq 1 ]; then
             target_sess=$(tmux display-message -p -t "$target" "#{session_name}")
 #             debug_log "Switching client to session: $target_sess"
-            tmux switch-client -t "$target_sess"
+            tmux switch-client -t "=${target_sess}"
         fi
         tmux join-pane "$split_args" -s "$src_pane" -t "$target"
         if [ "$follow" -eq 1 ]; then
@@ -259,15 +259,15 @@ case "$type" in
         if [ "$target" = "scratch" ] && ! tmux has-session -t =scratch 2>/dev/null; then
             tmux new-session -d -s scratch -n "temp"
             if [ "$follow" -eq 1 ]; then
-                tmux switch-client -t scratch
+                tmux switch-client -t =scratch
             fi
-            tmux break-pane -s "$src_pane" -t scratch
+            tmux break-pane -s "$src_pane" -t =scratch
             tmux kill-window -t scratch:temp
         else
             if [ "$follow" -eq 1 ]; then
-                tmux switch-client -t "$target"
+                tmux switch-client -t "=${target}"
             fi
-            tmux break-pane -s "$src_pane" -t "$target"
+            tmux break-pane -s "$src_pane" -t "=${target}"
         fi
 
         if [ "$forced_follow" -eq 1 ]; then

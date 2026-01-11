@@ -162,13 +162,13 @@ while true; do
                 if [[ "$target_session" == "$current_session" ]]; then
                     other_session=$(tmux list-sessions -F "#{session_name}" 2>/dev/null | grep -v "^${target_session}$" | head -n 1)
                     if [[ -n "$other_session" ]]; then
-                        tmux switch-client -t "$other_session"
-                        tmux kill-session -t "$target_session"
+                        tmux switch-client -t "=${other_session}"
+                        tmux kill-session -t "=${target_session}"
                         "$script_dir/tmux-input.sh" --message "Session '$target_session' killed. Switched to '$other_session'."
                         continue
                     fi
                 fi
-                tmux kill-session -t "$target_session"
+                tmux kill-session -t "=${target_session}"
                 tmux display-message "#[fg=${thm_green}]✓ Session '$target_session' killed"
             else
                 tmux display-message "#[fg=${thm_yellow}]! Kill cancelled"
@@ -183,7 +183,7 @@ while true; do
                 "$script_dir/tmux-input.sh" --message "Session '$sess_name' already exists."
             else
                 tmux new-session -d -s "$sess_name"
-                tmux switch-client -t "$sess_name"
+                tmux switch-client -t "=${sess_name}"
                 break
             fi
         fi
@@ -200,13 +200,13 @@ while true; do
                 elif tmux has-session -t "=${new_name}" 2>/dev/null; then
                     "$script_dir/tmux-input.sh" --message "Session '$new_name' already exists."
                 else
-                    tmux rename-session -t "$target_session" "$new_name"
+                    tmux rename-session -t "=${target_session}" "$new_name"
                 fi
             fi
         fi
         continue
     elif [[ -n "$target_session" ]]; then
-        tmux switch-client -t "$target_session"
+        tmux switch-client -t "=${target_session}"
         break
     fi
 done
