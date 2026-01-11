@@ -1,5 +1,11 @@
 #!/bin/bash
-# FZF Keybinding Lookup
+# ===============
+# Script Name: tmux-list-keys.sh
+# Description: FZF Keybinding Lookup
+# Keybinding:  Prefix + ?
+# Config:      bind ? run-shell -b "~/.config/tmux/scripts/dv/tmux-list-keys.sh"
+# Dependencies: tmux, fzf, awk
+# ===============
 
 # --- 1. AWK Formatting Logic ---
 # Extracts key (first 12 chars) and command (rest), inserting a separator with color

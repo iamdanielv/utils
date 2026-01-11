@@ -2,6 +2,9 @@
 # ===============
 # Script Name: tmux-input.sh
 # Description: Modal input popup with custom event loop.
+# Keybinding:  None (Helper Script)
+# Config:      None
+# Dependencies: tmux
 # Usage:       tmux-input.sh [OPTIONS] [PROMPT] [DEFAULT_VALUE]
 # Exit Code:   0 on success, 1 on cancel.
 #
