@@ -34,7 +34,7 @@ if [ -z "$TMUX" ]; then
 fi
 
 if ! command -v fzf >/dev/null; then
-    tmux display-message "Error: fzf is not installed."
+    "$script_dir/tmux-input.sh" --message "Error: fzf is not installed."
     exit 1
 fi
 
