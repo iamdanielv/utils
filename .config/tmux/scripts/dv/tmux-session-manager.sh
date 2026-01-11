@@ -56,6 +56,44 @@ ansi_cyan=$(to_ansi "$thm_cyan")
 ansi_red=$(to_ansi "$thm_red")
 ansi_green=$(to_ansi "$thm_green")
 ansi_magenta=$(to_ansi "$thm_magenta")
+ansi_gray=$(to_ansi "$thm_gray")
+
+get_preview_label() {
+    local target="$1"
+    if [[ "$target" == "NEW" ]]; then
+        printf "%s  New Session " "${ansi_magenta}"
+    else
+        printf " 󰖲 Preview: %s " "$target"
+    fi
+}
+
+preview_session() {
+    local target="$1"
+    if [[ "$target" == "NEW" ]]; then
+        printf "\n  Select this option to\n"
+        printf "  %screate a new tmux session" "${ansi_green}"
+
+        return
+    fi
+
+    tmux list-windows -t "$target" -F "#{window_index}:#{window_active}:#{window_name}" 2>/dev/null | while IFS=: read -r idx active name; do
+        if [[ "$active" == "1" ]]; then
+            printf "%s├── [%s] %s (Active)%s\n" "${ansi_green}" "$idx" "$name" "${ansi_fg}"
+            tmux capture-pane -e -p -t "${target}:${idx}" 2>/dev/null | head -n 15 | sed "s/^/│  /"
+            printf "│  %s...%s\n" "${ansi_gray}" "${ansi_fg}"
+        else
+            printf "├── [%s] %s\n" "$idx" "$name"
+        fi
+    done
+}
+
+if [[ "$1" == "--preview" ]]; then
+    preview_session "$2"
+    exit 0
+elif [[ "$1" == "--preview-label" ]]; then
+    get_preview_label "$2"
+    exit 0
+fi
 
 get_session_list() {
     local tab=$'\t'
@@ -96,10 +134,14 @@ selected=$(get_session_list | fzf \
     --prompt="Session ❯ " \
     --header="$fzf_header" \
     --header-border="top" \
-    --header-label=" Commands: " \
+    --header-label="  Commands: " \
     --header-label-pos='1' \
     --border-label=" 󰖲 Session Manager " \
-    --border-label-pos='1' \
+    --border-label-pos='2' \
+    --preview="$script_path --preview {1}" \
+    --preview-label-pos='2' \
+    --preview-window="right:60%" \
+    --bind "focus:transform-preview-label:$script_path --preview-label {1}" \
     --color "border:${thm_cyan},label:${thm_cyan}:reverse,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
     --color "bg+:${thm_gray},bg:${thm_bg},gutter:${thm_bg},prompt:${thm_orange}")
 
