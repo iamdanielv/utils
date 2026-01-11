@@ -42,6 +42,7 @@ fi
 
 # 1. Get current window ID (to exclude panes from this window)
 current_window_id=$(tmux display-message -p "#{window_id}")
+current_session_name=$(tmux display-message -p "#{session_name}")
 
 # Helper to convert hex color to ANSI escape code
 to_ansi() {
@@ -65,16 +66,24 @@ ansi_green=$(to_ansi "$thm_green")
 # We use a separator '\t' to handle parsing later.
 # Display format: [Session] Window: Pane - Title
 tab=$'\t'
-panes=$(tmux list-panes -a -F "#{window_id}${tab}#{pane_id}${tab}#{session_name}${tab}#{window_index}${tab}#{window_name}${tab}#{pane_index}${tab}#{pane_title}" \
+panes=$(tmux list-panes -a -F "#{window_id}${tab}#{pane_id}${tab}#{session_name}${tab}#{window_index}${tab}#{window_name}${tab}#{pane_index}${tab}#{pane_title}${tab}#{session_attached}" \
     | grep -v "^${current_window_id}${tab}" \
-    | while IFS="$tab" read -r _wid id sn wi wn pi pt; do
+    | while IFS="$tab" read -r _wid id sn wi wn pi pt attached; do
         # Sanitize fields to prevent delimiter collision
         # Only pane_title needs sanitization as it's the last field and might contain tabs
         pt="${pt//$tab/ }"
 
+        # Icon Logic
+        icon=""
+        if [ "$sn" = "$current_session_name" ]; then
+             icon="${ansi_green}${ansi_fg} "
+        elif [ "$attached" -ge 1 ]; then
+             icon="${ansi_yellow}${ansi_fg} "
+        fi
+
         # create colored display string
-        # Format: [Session] Window: Pane - Title
-        display="${ansi_blue}[${sn}]${ansi_fg} ${ansi_yellow}${wi}:${wn}${ansi_fg} ${ansi_cyan}${pi} - ${pt}${ansi_fg}"
+        # Format: ICON [Session] Window: Pane - Title
+        display="${icon}${ansi_blue}[${sn}]${ansi_fg} ${ansi_yellow}${wi}:${wn}${ansi_fg} ${ansi_cyan}${pi} - ${pt}${ansi_fg}"
 
         # Output: ID <tab> Display <tab> Raw Fields (for preview)
         printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
