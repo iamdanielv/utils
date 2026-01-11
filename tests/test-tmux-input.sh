@@ -20,21 +20,25 @@ fi
 run_test() {
     local description="$1"
     local expected_code="$2"
-    shift 2
+    local expected_output="$3"
+    shift 3
     # Remaining arguments are the command to run
     
     echo "Test: $description"
     
     # Run the command and capture output and exit code
+    # We capture stderr too, just in case of script errors
     result=$("$@" 2>&1)
     exit_code=$?
     
     echo "Output: $result"
     
-    if [ "$exit_code" -eq "$expected_code" ]; then
-        echo "✅ PASS (Exit Code: $exit_code)"
+    if [ "$exit_code" -eq "$expected_code" ] && [ "$result" == "$expected_output" ]; then
+        echo "✅ PASS"
     else
-        echo "❌ FAIL (Expected: $expected_code, Got: $exit_code)"
+        echo "❌ FAIL"
+        echo "   Expected Code: $expected_code, Got: $exit_code"
+        echo "   Expected Output: '$expected_output', Got: '$result'"
     fi
     echo "--------------------------------"
 }
@@ -43,22 +47,27 @@ echo "--------------------------------"
 echo "Starting tmux-input.sh Tests"
 echo "--------------------------------"
 
-# Test 1: Basic Success
-run_test "Basic Input (Press ENTER)" 0 "$TMUX_INPUT" "Press ENTER to pass" "default"
+# Test: Basic Success (User types specific input)
+run_test "Basic Input" 0 "test" "$TMUX_INPUT" "Remove default and type 'test' then Enter" "default"
 
-# Test 2: Custom Title
-run_test "Custom Title (Press ENTER)" 0 "$TMUX_INPUT" --title " Custom Title " "Press ENTER to pass"
+# Test: Default Value
+run_test "Default Value" 0 "this is a test" "$TMUX_INPUT" "Press ENTER to accept default" "this is a test"
 
-# Test 3: Custom Dimensions
-run_test "Custom Dimensions (Press ENTER)" 0 "$TMUX_INPUT" --width 30 --height 5 "Press ENTER"
+# Test: Custom Title
+run_test "Custom Title" 0 "title" "$TMUX_INPUT" --title " Custom Title " "Press ENTER" "title"
 
-# Test 4: Complex Args
-run_test "All Combined (Press ENTER)" 0 "$TMUX_INPUT" --title " Big & Bold " --width 60 --height 10 "Press ENTER" "Complex Default"
+# Test: Custom Dimensions
+run_test "Custom Dimensions" 0 "dim" "$TMUX_INPUT" --width 30 --height 5 "Press ENTER" "dim"
 
-# Test 5: Cancellation
-run_test "Cancellation (Press ESC)" 1 "$TMUX_INPUT" --title " Cancel Me " "Press ESC to pass"
+# Test: Complex Args (Accept Default)
+# Here we instruct user to just press Enter to verify default value return
+run_test "Complex Args (Default Value)" 0 "Complex Default" "$TMUX_INPUT" --title " Big & Bold " --width 60 --height 10 "Press ENTER to accept default" "Complex Default"
 
-# echo "Test 6: Color Test Mode"
+# Test: Cancellation
+# Expected output is empty string for cancellation
+run_test "Cancellation" 1 "" "$TMUX_INPUT" --title " Cancel Me " "Press ESC"
+
+# echo "Test: Color Test Mode"
 # echo "Action: Verify colors look correct. Press 'q' to exit."
 # "$TMUX_INPUT" --test-colors
 # echo "Color test completed."
