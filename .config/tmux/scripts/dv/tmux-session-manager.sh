@@ -120,37 +120,52 @@ get_session_list() {
 }
 
 # FZF Header
-fzf_header=$(printf "%s" "${ansi_green}ENTER: Switch${ansi_fg}")
+fzf_header=$(printf "%s  %s" "${ansi_green}ENTER: Switch${ansi_fg}" "${ansi_red}C-x: Kill${ansi_fg}")
 
-# FZF Execution
-selected=$(get_session_list | fzf \
-    --tmux 80%,70% \
-    --ansi \
-    --reverse \
-    --layout=reverse-list \
-    --exit-0 \
-    --delimiter="\t" \
-    --with-nth=2 \
-    --prompt="Session ❯ " \
-    --header="$fzf_header" \
-    --header-border="top" \
-    --header-label="  Commands: " \
-    --header-label-pos='1' \
-    --border-label=" 󰖲 Session Manager " \
-    --border-label-pos='2' \
-    --preview="$script_path --preview {1}" \
-    --preview-label-pos='2' \
-    --preview-window="right:60%" \
-    --bind "focus:transform-preview-label:$script_path --preview-label {1}" \
-    --color "border:${thm_cyan},label:${thm_cyan}:reverse,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
-    --color "bg+:${thm_gray},bg:${thm_bg},gutter:${thm_bg},prompt:${thm_orange}")
+while true; do
+    # FZF Execution
+    selected=$(get_session_list | fzf \
+        --tmux 80%,70% \
+        --ansi \
+        --reverse \
+        --layout=reverse-list \
+        --exit-0 \
+        --delimiter="\t" \
+        --with-nth=2 \
+        --prompt="Session ❯ " \
+        --header="$fzf_header" \
+        --header-border="top" \
+        --header-label="  Commands: " \
+        --header-label-pos='1' \
+        --border-label=" 󰖲 Session Manager " \
+        --border-label-pos='2' \
+        --preview="$script_path --preview {1}" \
+        --preview-label-pos='2' \
+        --preview-window="right:60%" \
+        --bind "focus:transform-preview-label:$script_path --preview-label {1}" \
+        --expect=ctrl-x \
+        --color "border:${thm_cyan},label:${thm_cyan}:reverse,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
+        --color "bg+:${thm_gray},bg:${thm_bg},gutter:${thm_bg},prompt:${thm_orange}")
 
-if [ $? -ne 0 ]; then exit 0; fi
+    if [ $? -ne 0 ]; then exit 0; fi
 
-target_session=$(echo "$selected" | cut -f1)
+    key=$(echo "$selected" | head -n1)
+    line=$(echo "$selected" | tail -n +2)
+    target_session=$(echo "$line" | cut -f1)
 
-if [[ "$target_session" == "NEW" ]]; then
-    exit 0 # Placeholder
-elif [[ -n "$target_session" ]]; then
-    tmux switch-client -t "$target_session"
-fi
+    if [[ "$key" == "ctrl-x" ]]; then
+        if [[ "$target_session" == "NEW" ]]; then
+            "$script_dir/tmux-input.sh" --message "Cannot kill the 'New Session' item."
+        else
+            if "$script_dir/tmux-input.sh" --confirm "Kill session '$target_session'?"; then
+                tmux kill-session -t "$target_session"
+            fi
+        fi
+        continue
+    elif [[ "$target_session" == "NEW" ]]; then
+        exit 0 # Placeholder
+    elif [[ -n "$target_session" ]]; then
+        tmux switch-client -t "$target_session"
+        break
+    fi
+done
