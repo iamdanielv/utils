@@ -103,36 +103,52 @@ tab=$'\t'
 
 # 1. Existing Windows
 # Filter out current window
-windows=$(tmux list-windows -a -F "WIN${tab}#{window_id}${tab}#{session_name}${tab}#{window_index}${tab}#{window_name}" \
+windows=$(tmux list-windows -a -F "WIN${tab}#{window_id}${tab}#{session_name}${tab}#{window_index}${tab}#{window_name}${tab}#{session_attached}" \
     | grep -v "${tab}${cur_win_id}${tab}" \
-    | while IFS="$tab" read -r type wid sn wi wn; do
+    | while IFS="$tab" read -r type wid sn wi wn attached; do
         # Sanitize window name to prevent tab collision
         wn="${wn//$tab/ }"
-        display="${ansi_blue}[${sn}]${ansi_fg} ${ansi_yellow}${wi}:${wn}${ansi_fg}"
+        
+        icon=""
+        if [ "$sn" = "$cur_sess" ]; then
+            icon="${ansi_green}${ansi_fg}"
+        elif [ "$attached" -ge 1 ]; then
+            icon="${ansi_yellow}${ansi_fg}"
+        fi
+
+        display="${icon} ${ansi_blue}${sn}${ansi_fg}: ${ansi_yellow}${wi}:${wn}${ansi_fg}"
         printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$type" "$wid" "$display" "$sn" "$wi" "$wn"
       done)
 
 # 2. New Window in Session
-sessions=$(tmux list-sessions -F "SES${tab}#{session_name}${tab}#{session_name}" \
-    | while IFS="$tab" read -r type sn _display_sn; do
+sessions=$(tmux list-sessions -F "SES${tab}#{session_name}${tab}#{session_name}${tab}#{session_attached}" \
+    | while IFS="$tab" read -r type sn _display_sn attached; do
         # Filter out current session if it's the only pane in the window
         if [ "$sn" = "$cur_sess" ] && [ "$cur_win_panes" -eq 1 ]; then
             continue
         fi
-        display="${ansi_blue}[${sn}]${ansi_fg} ${ansi_green}<New Window>${ansi_fg}"
+
+        icon=""
+        if [ "$sn" = "$cur_sess" ]; then
+            icon="${ansi_green}${ansi_fg}"
+        elif [ "$attached" -ge 1 ]; then
+            icon="${ansi_yellow}${ansi_fg}"
+        fi
+
+        display="${icon} ${ansi_blue}${sn}${ansi_fg}: ${ansi_magenta} New Window${ansi_fg}"
         printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$type" "$sn" "$display" "$sn" "+" "New Window"
       done)
 
 # 3. Scratchpad (if not exists)
 if ! tmux has-session -t scratch 2>/dev/null; then
-    display="${ansi_blue}[scratch]${ansi_fg} ${ansi_green}<New Window>${ansi_fg}"
+    display="${ansi_blue}scratch${ansi_fg}: ${ansi_magenta} New Window${ansi_fg}"
     scratch_item="SES${tab}scratch${tab}${display}${tab}scratch${tab}+${tab}New Window"
 else
     scratch_item=""
 fi
 
 # 4. New Session
-new_sess_display="${ansi_magenta}[NEW SESSION]${ansi_fg}"
+new_sess_display="${ansi_magenta} New Session${ansi_fg}"
 new_sess_item="NEW${tab}NEW${tab}${new_sess_display}${tab}NEW${tab}+${tab}New Session"
 
 # Combine list
