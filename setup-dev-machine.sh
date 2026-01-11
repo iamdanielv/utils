@@ -373,7 +373,7 @@ install_bat_or_batcat() {
 # Clones and installs fzf from the official GitHub repository.
 install_fzf_from_source() {
     printBanner "Installing fzf (from source)"
-    local fzf_dir="${HOME}/.fzf"
+    local fzf_dir="${HOME}/.local/share/fzf"
     
     if [[ -d "$fzf_dir" ]]; then
         printInfoMsg "fzf is already installed. Updating..."
@@ -383,6 +383,7 @@ install_fzf_from_source() {
         fi
     else
         printInfoMsg "Cloning fzf repository..."
+        mkdir -p "$(dirname "$fzf_dir")"
         local fzf_repo="https://github.com/junegunn/fzf.git"
         if ! run_with_spinner "Cloning fzf..." git clone --depth 1 "$fzf_repo" "$fzf_dir"; then
             printErrMsg "Failed to clone fzf repository."
@@ -392,7 +393,7 @@ install_fzf_from_source() {
 
     # Run the fzf install script non-interactively.
     printInfoMsg "Running fzf install script..."
-    if ! run_with_spinner "Installing fzf binaries..." "${HOME}/.fzf/install" --all; then
+    if ! run_with_spinner "Installing fzf binaries..." "${fzf_dir}/install" --all; then
         printErrMsg "fzf install script failed."
         return 1
     fi
