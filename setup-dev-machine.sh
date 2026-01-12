@@ -588,6 +588,36 @@ setup_tmux_config() {
     fi
 }
 
+# Installs Tmux Plugin Manager and plugins
+install_tpm() {
+    printBanner "Installing Tmux Plugin Manager (TPM)"
+    local tpm_dir="${XDG_CONFIG_HOME}/tmux/plugins/tpm"
+
+    if [[ -d "$tpm_dir" ]]; then
+        printInfoMsg "TPM is already installed. Updating..."
+        if ! run_with_spinner "Updating TPM repo..." git -C "$tpm_dir" pull; then
+            printErrMsg "Failed to update TPM."
+            return 1
+        fi
+    else
+        printInfoMsg "Cloning TPM repository..."
+        mkdir -p "$(dirname "$tpm_dir")"
+        if ! run_with_spinner "Cloning TPM..." git clone https://github.com/tmux-plugins/tpm "$tpm_dir"; then
+            printErrMsg "Failed to clone TPM repository."
+            return 1
+        fi
+    fi
+
+    printInfoMsg "Installing Tmux plugins..."
+    if [[ -f "$tpm_dir/bin/install_plugins" ]]; then
+        if run_with_spinner "Running TPM install_plugins..." "$tpm_dir/bin/install_plugins"; then
+            printOkMsg "Tmux plugins installed."
+        else
+            printErrMsg "Failed to install Tmux plugins."
+        fi
+    fi
+}
+
 # Downloads and installs Nerd Fonts
 install_nerd_fonts() {
     printBanner "Installing Nerd Fonts"
@@ -675,6 +705,7 @@ main() {
     install_core_tools
     setup_bash_aliases
     setup_tmux_config
+    install_tpm
 
     # Install and configure fzf
     install_fzf_from_source
