@@ -2,8 +2,8 @@
 # ===============
 # Script Name: tmux-session-manager.sh
 # Description: Interactive session manager with preview and management actions.
-# Keybinding:  Prefix + S
-# Config:      bind S run-shell -b "~/.config/tmux/scripts/dv/tmux-session-manager.sh"
+# Keybinding:  Prefix + s
+# Config:      bind s run-shell -b "~/.config/tmux/scripts/dv/tmux-session-manager.sh"
 # Dependencies: tmux > 3.2, fzf, sed, awk
 # ===============
 
