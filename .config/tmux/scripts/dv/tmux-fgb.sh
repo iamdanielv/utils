@@ -116,6 +116,10 @@ if is_in_popup; then
     # Default to local branches
     current_mode="local"
     current_branch=$(git branch --show-current)
+
+    controls="ENTER: Checkout | CTRL-X: Delete | CTRL-A: All | CTRL-L: Local"
+    header_local="Local Branches (Current: $current_branch) | $controls"
+    header_all="All Branches (Current: $current_branch) | $controls"
     
     # Label styling (White on Blue)
     lbl_style="\033[38;2;255;255;255;48;2;45;63;118m"
@@ -130,12 +134,12 @@ if is_in_popup; then
         --bind 'ctrl-/:change-preview-window(right,60%,border,wrap|hidden|)' \
         --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#f9e2af,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff' \
         --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7' \
-        --header="Current: $current_branch | ENTER: Checkout | CTRL-X: Delete | CTRL-A: All | CTRL-L: Local" \
+        --header="$header_local" \
         --preview="git log --graph --color=always --format='%C(auto)%h%d %s %C(black)%C(bold)%cr' \$(echo {} | sed 's/\x1b\[[0-9;]*m//g' | awk '{print \$1}') | head -n 20" \
         --bind "enter:become($0 --checkout {1})" \
-        --bind "ctrl-x:execute($0 --delete {1})+reload($0 --generate $current_mode)" \
-        --bind "ctrl-a:reload($0 --generate all)" \
-        --bind "ctrl-l:reload($0 --generate local)" \
+        --bind "ctrl-x:execute($0 --delete {1})+reload($0 --generate $current_mode)+change-header($header_local)" \
+        --bind "ctrl-a:reload($0 --generate all)+change-header($header_all)" \
+        --bind "ctrl-l:reload($0 --generate local)+change-header($header_local)" \
         --bind "focus:transform-preview-label:printf \"${lbl_style} ${icon_log} Log for [%s] ${lbl_reset}\" \$(echo {} | sed 's/\x1b\[[0-9;]*m//g' | awk '{print \$1}')"
     exit 0
 fi
