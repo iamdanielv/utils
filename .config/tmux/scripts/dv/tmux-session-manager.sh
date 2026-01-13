@@ -120,7 +120,7 @@ get_session_list() {
 }
 
 # FZF Header
-fzf_header=$(printf "%s\n  %s  %s  %s" "${ansi_green}ENTER: Switch${ansi_fg}" "${ansi_magenta}C-n: New${ansi_fg}" "${ansi_blue}C-r: Rename${ansi_fg}" "${ansi_red}C-x: Kill${ansi_fg}")
+fzf_header=$(printf "%s  %s\n  %s  %s" "${ansi_green}ENTER: Switch${ansi_fg}" "${ansi_magenta}C-n: New${ansi_fg}" "${ansi_blue}C-r: Rename${ansi_fg}" "${ansi_red}C-x: Kill${ansi_fg}")
 
 while true; do
     # FZF Execution
