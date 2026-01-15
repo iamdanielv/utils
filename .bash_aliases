@@ -378,57 +378,8 @@ fgl() {
 
 # fgb - Fuzzy Git Branch
 # Purpose: Interactively checkout local or remote git branches
-# Usage: fgb
-fgb() {
-  _require_git_repo || return 1
-  local current_branch
-  current_branch=$(git branch --show-current)
-
-  # Get all branches, color them, and format them nicely
-  local branches
-  branches=$(git for-each-ref --color=always --sort=-committerdate refs/heads/ refs/remotes/ \
-    --format='%(color:green)%(refname:short)%(color:reset) - (%(color:blue)%(committerdate:relative)%(color:reset)) %(color:yellow)%(subject)%(color:reset)' \
-    | grep -v '/HEAD')
-
-  # Use fzf to select a branch
-  local branch
-  branch=$(echo "$branches" | fzf "${_FZF_COMMON_OPTS[@]}" --no-sort \
-    --border-label=' Branch Manager ' \
-    --prompt='  Checkout❯ ' \
-    --preview "git log --oneline --graph --decorate --color=always \$(echo {} | cut -d\" \" -f1)" \
-    --header "Current: $current_branch"$'\nENTER: checkout | ESC: quit\nSHIFT-UP/DOWN: scroll log | CTRL-/: view' \
-    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Log for [%s] ${_FZF_LBL_RESET}\" \$(echo {} | cut -d\" \" -f1)"
-  )
-
-  if [[ -n "$branch" ]]; then
-    # Strip ANSI codes and extract the branch name
-    local clean_branch
-    clean_branch=$(echo "$branch" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
-
-    # If it's a local branch, checkout directly.
-    if git show-ref --verify --quiet "refs/heads/$clean_branch"; then
-      git checkout "$clean_branch"
-    else
-      # If it's a remote branch, strip the remote prefix (e.g. origin/) to checkout the local tracking branch.
-      local target="$clean_branch"
-      while read -r remote; do
-        if [[ "$clean_branch" == "$remote/"* ]]; then
-          target="${clean_branch#"$remote"/}"
-          break
-        fi
-      done < <(git remote)
-
-      # If the local branch already exists, switch to it.
-      if git show-ref --verify --quiet "refs/heads/$target"; then
-        git checkout "$target"
-      else
-        # Otherwise, create a new tracking branch.
-        # --track handles cases where the branch name might be ambiguous (multiple remotes).
-        git checkout --track "$clean_branch"
-      fi
-    fi
-  fi
-}
+# Usage: fgb (Delegates to tmux-fgb.sh)
+alias fgb='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-fgb.sh'
 
 # fzglfh - Fuzzy Git Log File History
 # Purpose: Interactively browse commit history of a specific file

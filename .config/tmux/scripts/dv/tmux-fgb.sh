@@ -35,10 +35,9 @@ generate_list() {
     fi
 
     # Format: BranchName - (RelativeDate) Subject
-    # Matches .bash_aliases style
-    git for-each-ref --sort=-committerdate "${refs[@]}" \
+    git for-each-ref --color=always --sort=-committerdate "${refs[@]}" \
         --format='%(color:green)%(refname:short)%(color:reset) - (%(color:blue)%(committerdate:relative)%(color:reset)) %(color:yellow)%(subject)%(color:reset)' \
-        | grep -v "HEAD"
+        | grep -vF $'/HEAD\e'
 }
 
 checkout_branch() {
@@ -131,7 +130,7 @@ if is_in_popup; then
 
     # Dynamic Headers (2-Line Layout)
     # Line 1: Context | Line 2: Controls
-    controls="${c_cyan}ENTER${c_gray}: Checkout ${c_gray}• ${c_cyan}CTRL-X${c_gray}: Delete ${c_gray}• ${c_cyan}CTRL-A${c_gray}: All ${c_gray}• ${c_cyan}CTRL-L${c_gray}: Local${c_reset}"
+    controls="${c_cyan}ENTER${c_gray}: Checkout ${c_gray}• ${c_cyan}CTRL-X${c_gray}: Delete ${c_gray}• ${c_cyan}CTRL-A${c_gray}: ${c_orange}All ${c_gray}• ${c_cyan}CTRL-L${c_gray}: ${c_green}Local${c_reset}"
     header_local="${c_green}Local Branches${c_reset} ${c_gray}Current: ${c_yellow}${current_branch}${c_reset}${nl}${controls}"
     header_all="${c_orange}All Branches${c_reset}   ${c_gray}Current: ${c_yellow}${current_branch}${c_reset}${nl}${controls}"
     
