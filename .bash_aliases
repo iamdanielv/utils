@@ -383,44 +383,8 @@ alias fgb='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-fgb.sh'
 
 # fzglfh - Fuzzy Git Log File History
 # Purpose: Interactively browse commit history of a specific file
-# Usage: fzglfh
-fzglfh() {
-  # 1. Check if we are in a git repository
-  _require_git_repo || return 1
-
-  while true; do
-    # 2. Use fzf to select a file, with its history in the preview.
-    local selected_file
-    selected_file=$(git ls-files | fzf "${_FZF_COMMON_OPTS[@]}" \
-      --header $'ENTER: inspect commits | ESC: quit\nSHIFT-UP/DOWN: scroll history | CTRL-/: view' \
-      --border-label=' File History Explorer ' \
-      --preview "git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | _shorten_git_date" \
-      --prompt='  File❯ ' \
-      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} History for [%s] ${_FZF_LBL_RESET}\" {}")
-
-    # If no file is selected (e.g., user pressed ESC), exit the loop.
-    if [[ -z "$selected_file" ]]; then
-      break
-    fi
-
-    # 3. If a file was selected, open a new fzf instance to inspect its commits.
-    # Pressing ESC here will just exit this fzf instance and loop back to the file selector.
-    local selected_commit
-    selected_commit=$(git log --follow --color=always \
-          --format="${_GIT_LOG_COMPACT_FORMAT}" -- "$selected_file" |
-          _shorten_git_date | fzf "${_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
-          --header $'ENTER: view diff | ESC: back to files\nCTRL-Y: print hash | CTRL-/: view' \
-          --border-label " History for $selected_file " \
-          --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
-          --bind 'ctrl-y:accept' \
-          --preview "git show --color=always {1} -- \"$selected_file\"" \
-          --prompt='  Commit❯ ' \
-          --input-label ' Filter Commits ' \
-          --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}")
-
-    _handle_git_hash_selection "$selected_commit"
-  done
-}
+# Usage: fzglfh (Delegates to tmux-git-file-history.sh)
+alias fzglfh='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-file-history.sh'
 
 # -------------------
 # System, Network & Packages
