@@ -34,6 +34,10 @@ _GIT_LOG_COMPACT_FORMAT='%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset)%C(bold cy
 # Inline sed command for date shortening to avoid export issues in subshells
 _SED_DATE="sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g'"
 
+# Define Preview Commands
+_PREVIEW_LIMITED="git log --follow -n 20 --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | ${_SED_DATE}"
+_PREVIEW_FULL="git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | ${_SED_DATE}"
+
 # --- Helpers ---
 
 _require_git_repo() {
@@ -52,10 +56,12 @@ while true; do
   # 1. Select File
   # Preview limited to 20 commits for performance optimization
   selected_file=$(git ls-files | fzf "${_FZF_COMMON_OPTS[@]}" \
-    --header $'ENTER: inspect commits | ESC: quit\nSHIFT-UP/DOWN: scroll history | CTRL-/: view' \
+    --header $'ENTER: inspect commits | ESC: quit\nCTRL-F: full history | CTRL-L: limited (20)' \
     --border-label=' File History Explorer ' \
-    --preview "git log --follow -n 20 --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | $_SED_DATE" \
+    --preview "${_PREVIEW_LIMITED}" \
     --prompt='  File❯ ' \
+    --bind "ctrl-f:change-preview(${_PREVIEW_FULL})" \
+    --bind "ctrl-l:change-preview(${_PREVIEW_LIMITED})" \
     --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} History for [%s] ${_FZF_LBL_RESET}\" {}")
 
   if [[ -z "$selected_file" ]]; then
