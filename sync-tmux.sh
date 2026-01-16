@@ -9,7 +9,11 @@
 set -e
 
 # Colors
-C_L_BLUE=$'\033[34m'
+C_BLUE=$'\033[1;34m'
+C_GREEN=$'\033[32m'
+C_RED=$'\033[31m'
+C_YELLOW=$'\033[33m'
+C_BOLD=$'\033[1m'
 T_RESET=$'\033[0m'
 
 print_usage() {
@@ -20,9 +24,9 @@ Quickly syncs local tmux config and scripts to ~/.config/tmux
 for rapid development and testing.
 
 Options:
-  ${C_L_BLUE}-c, --cleanup${T_RESET}   Remove old backup directories (tmux.bak_*)
-  ${C_L_BLUE}-l, --list${T_RESET}      List existing backup directories
-  ${C_L_BLUE}-h, --help${T_RESET}      Show this help message
+  ${C_BLUE}-c, --cleanup${T_RESET}   Remove old backup directories (tmux.bak_*)
+  ${C_BLUE}-l, --list${T_RESET}      List existing backup directories
+  ${C_BLUE}-h, --help${T_RESET}      Show this help message
 EOF
 }
 
@@ -50,7 +54,7 @@ DEST_SCRIPTS_DIR="${HOME}/.config/tmux/scripts/dv"
 DEST_BASE_DIR="${HOME}/.config/tmux"
 
 if [ "$LIST_BACKUPS" = true ]; then
-    echo "🔍 Existing backups in ${HOME}/.config:"
+    echo "${C_BLUE}🔍 Existing backups in ${HOME}/.config:${T_RESET}"
     found_backups=$(find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null | sort)
 
     if [ -n "$found_backups" ]; then
@@ -66,7 +70,7 @@ if [ "$LIST_BACKUPS" = true ]; then
 fi
 
 if [ "$CLEANUP" = true ]; then
-    echo "🧹 Cleaning up old backups..."
+    echo "${C_BLUE}🧹 Cleaning up old backups...${T_RESET}"
     count=$(find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null | wc -l)
 
     if [ "$count" -gt 0 ]; then
@@ -74,9 +78,9 @@ if [ "$CLEANUP" = true ]; then
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" -exec rm -rf {} + 2>/dev/null || true
-            echo "  ✅ Removed $count old backup(s)."
+            echo "  ${C_GREEN}✅ Removed $count old backup(s).${T_RESET}"
         else
-            echo "  ❌ Cleanup cancelled."
+            echo "  ${C_RED}❌ Cleanup cancelled.${T_RESET}"
         fi
     else
         echo "  ✨ No old backups found."
@@ -84,12 +88,12 @@ if [ "$CLEANUP" = true ]; then
     exit 0
 fi
 
-echo "🔄 Syncing Tmux Configuration..."
+echo "${C_BLUE}🔄 Syncing Tmux Configuration...${T_RESET}"
 
 # 0. Backup existing config
 if [ -d "$DEST_BASE_DIR" ]; then
     BACKUP_DIR="${DEST_BASE_DIR}.bak_$(date +%Y%m%d_%H%M%S)"
-    echo "  📦 Backing up current config to $BACKUP_DIR..."
+    echo "  ${C_YELLOW}📦 Backing up${T_RESET} current config to $BACKUP_DIR..."
     cp -r "$DEST_BASE_DIR" "$BACKUP_DIR"
 fi
 
@@ -97,9 +101,9 @@ fi
 if [ -f "$SRC_CONF" ]; then
     mkdir -p "$(dirname "$DEST_CONF")"
     cp "$SRC_CONF" "$DEST_CONF"
-    echo "  ✅ Updated: $DEST_CONF"
+    echo "  ${C_GREEN}✅ Updated:${T_RESET} $DEST_CONF"
 else
-    echo "  ❌ Error: Source tmux.conf not found at $SRC_CONF"
+    echo "  ${C_RED}❌ Error:${T_RESET} Source tmux.conf not found at $SRC_CONF"
 fi
 
 # 2. Sync Scripts
@@ -107,18 +111,18 @@ if [ -d "$SRC_SCRIPTS" ]; then
     mkdir -p "$DEST_SCRIPTS_DIR"
     cp "$SRC_SCRIPTS"/* "$DEST_SCRIPTS_DIR" 2>/dev/null || true
     chmod +x "$DEST_SCRIPTS_DIR"/*.sh 2>/dev/null || true
-    echo "  ✅ Updated: Scripts in $DEST_SCRIPTS_DIR"
+    echo "  ${C_GREEN}✅ Updated:${T_RESET} Scripts in $DEST_SCRIPTS_DIR"
     ls -1 "$DEST_SCRIPTS_DIR" | sed 's/^/      - /'
 else
-    echo "  ❌ Error: Source scripts directory not found at $SRC_SCRIPTS"
+    echo "  ${C_RED}❌ Error:${T_RESET} Source scripts directory not found at $SRC_SCRIPTS"
 fi
 
 # 3. Reload if in Tmux
 if [ -n "$TMUX" ]; then
     tmux source-file "$DEST_CONF"
     tmux display-message "Dev Config Synced & Reloaded!"
-    echo "  ⚡ Reloaded active tmux session."
-    echo "  🔍 Verifying script bindings:"
+    echo "  ${C_GREEN}⚡ Reloaded${T_RESET} active tmux session."
+    echo "  ${C_BLUE}🔍 Verifying script bindings:${T_RESET}"
 
     # Check each script to see if it is bound in the current session
     current_bindings=$(tmux list-keys -a)
@@ -157,14 +161,14 @@ if [ -n "$TMUX" ]; then
                 label="$table: $key"
             fi
             if [ -n "$note" ]; then
-                echo "      ✅ $script_name ($label) → \"$note\""
+                echo "      ${C_GREEN}✅ $script_name${T_RESET} ($label) → \"$note\""
             else
-                echo "      ✅ $script_name ($label)"
+                echo "      ${C_GREEN}✅ $script_name${T_RESET} ($label)"
             fi
         else
-            echo "      ⚠️  $script_name (Not bound)"
+            echo "      ${C_YELLOW}⚠️  $script_name${T_RESET} (Not bound)"
         fi
     done
 else
-    echo "  ℹ️  Not inside tmux. Run 'tmux source ~/.config/tmux/tmux.conf' to apply."
+    echo "  ${C_BLUE}Not inside tmux.${T_RESET} Run '${C_BOLD}tmux source ~/.config/tmux/tmux.conf${T_RESET}' to apply."
 fi
