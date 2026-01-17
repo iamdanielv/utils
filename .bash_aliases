@@ -386,6 +386,11 @@ alias fgb='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-branch-manage
 # Usage: fzglfh (Delegates to tmux-git-file-history.sh)
 alias fzglfh='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-file-history.sh'
 
+# fgs - Fuzzy Git Stash
+# Purpose: Interactively view, apply, and drop git stashes
+# Usage: fgs (Delegates to tmux-git-stash.sh)
+alias fgs='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-stash.sh'
+
 # -------------------
 # System, Network & Packages
 # -------------------
