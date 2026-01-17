@@ -316,6 +316,24 @@ Search command history interactively.
     173  echo "General Kenobi"
 ```
 
+#### Process Killer (`Alt+x k`)
+
+Filter and kill processes with previews
+
+```text
+── Process Killer ──────────────────────────────────────────────────────────────────────────────────
+  ENTER: kill (TERM) | CTRL-K: kill (KILL)        ╭ Details for PID [1] ───────────────────────────╮
+  TAB: mark | SHIFT-UP/DOWN: scroll details       │ PID: 1      User: root  CPU: 0.0    Mem: 0.1   │
+  Filter❯                                         │ ──────────────────────────────────             │
+  332/332 (0) ─────────────────────────────────── │ /usr/lib/systemd/systemd --switched-root --sys │
+▌ root           1 /usr/lib/systemd/systemd --s··││ ↳ tem --deserialize=48 splash                  │
+  root           2 [kthreadd]                     │                                                │
+  root           3 [pool_workqueue_release]       │                                                │
+  root           4 [kworker/R-rcu_gp]             │                                                │
+  root           5 [kworker/R-sync_wq]            │                                                │
+  root           6 [kworker/R-kvfree_rcu_reclaim] │                                                │
+  root           7 [kworker/R-slub_flushwq]       ╰────────────────────────────────────────────────╯
+```
 
 
 **Utilities:**
