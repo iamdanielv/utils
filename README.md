@@ -446,6 +446,24 @@ View all custom keybindings and functions.
 ╰──────────────────────────────────────────────────────────╯
 ```
 
+### Alias Cheatsheet (`Alt+x ?`)
+```
+╭─ Alias Cheatsheet ───────────────────────────────────────╮                     
+│   Run❯                                                   │                     
+│   26/26 ──────────────────────────────────────────────── │                     
+│ ▌ ..       : Go up one directory (cd ..)                ││                     
+│   cat      : Replaced with (batcat/bat)                 ││                     
+│   check-reboot : Check Reboot Status                    ││                     
+│   ga       : Git Add (git add)                          ││                     
+│   gb       : Git Show Branches (git branch -a)           │                     
+│   gc       : Git Commit (git commit -m)                  │                     
+│   gl       : Git Log Graph (git log --graph ...)         │                     
+│   glf      : Git Log File (git log --follow ...)         │                     
+│   gp       : Git Push (git push)                         │                     
+│   gs       : Git Status (git status -sb)                 │                     
+│   ip       : IP with color (ip -c)                       │                     
+╰──────────────────────────────────────────────────────────╯ 
+```
 
 
 **Utilities:**
