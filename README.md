@@ -472,6 +472,27 @@ View all custom keybindings and functions.
 - `update`: Wrapper for `apt update/upgrade/autoremove`.
 - `check-reboot`: Checks if a system reboot is required.
 
+#### Ports
+
+View listening TCP/UDP ports and associated processes.
+
+```text
+P STATUS           LOCAL:Port           REMOTE:Port  PROGRAM/PID                                    
+U UNCONN       127.0.0.1:323           0.0.0.0:*     -                                              
+U UNCONN         0.0.0.0:5353          0.0.0.0:*     "avahi-daemon",pid=850                         
+U UNCONN      172.17.0.1:3702          0.0.0.0:*     "python3",pid=1234                             
+T LISTEN   127.0.0.53%lo:53            0.0.0.0:*     -
+T LISTEN       127.0.0.1:631           0.0.0.0:*     -
+T LISTEN       127.0.0.1:5432          0.0.0.0:*     "postgres",pid=1543                            
+T LISTEN         0.0.0.0:22            0.0.0.0:*     "sshd",pid=1100                                
+T LISTEN         0.0.0.0:80            0.0.0.0:*     "nginx",pid=2048                               
+T LISTEN         0.0.0.0:4000          0.0.0.0:*     "node",pid=3005                                
+T LISTEN           [::1]:631              [::]:*     -
+T LISTEN            [::]:22               [::]:*     "sshd",pid=1100                                
+```
+```
+
+
 ### 🧩 Tmux Workflow
 
 **Description:**
