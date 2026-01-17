@@ -283,6 +283,25 @@ A set of FZF-powered interactive tools and aliases defined in `.bash_aliases` to
   - `Alt+x ?`: View all available aliases.
   - `Alt+x /`: View all custom keybindings.
 
+#### Find in Files (`Alt+x f`)
+
+Interactive search using `ripgrep` and `fzf` with previews.
+
+```text
+── Find in Files ───────────────────────────────────────────────────────────────────────────────────
+  Type to search content | ENTER: ope·· ╭──────────────────────────────────────────────────────────╮
+  Search❯                               │    1 #!/bin/bash                                   1/115││
+  11694/11694 ───────────────────────── │ ↳                                                        │
+▌ sync-bash-aliases.sh:1:1:#!/bin/bash ││    2 # ================================================= │
+  sync-bash-aliases.sh:2:1:# ========·· │ ↳ =============================                          │
+  sync-bash-aliases.sh:3:1:# Script N·· │    3 # Script Name: sync-bash-aliases.sh                 │
+  sync-bash-aliases.sh:4:1:# Descript·· │    4 # Description: Quickly syncs local .bash_aliases to │
+  sync-bash-aliases.sh:5:1:#         ·· │ ↳  ~/.bash_aliases                                       │
+  sync-bash-aliases.sh:6:1:# Usage:  ·· │    5 #              for rapid development and testing.   │
+  sync-bash-aliases.sh:7:1:# ========·· │    6 # Usage:       ./sync-bash-aliases.sh [-c|--cleanup │
+  sync-bash-aliases.sh:8:1:             ╰──────────────────────────────────────────────────────────╯
+```
+
 **Utilities:**
 
 - `ports`: View listening TCP/UDP ports and associated processes.
