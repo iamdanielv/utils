@@ -490,6 +490,73 @@ T LISTEN         0.0.0.0:4000          0.0.0.0:*     "node",pid=3005
 T LISTEN           [::1]:631              [::]:*     -
 T LISTEN            [::]:22               [::]:*     "sshd",pid=1100                                
 ```
+
+#### update
+
+Wrapper for `apt update/upgrade/autoremove`.
+
+```shell
+Update apt sources...                                                                               
+[sudo: authenticate] Password:                                                                      
+Hit:1 https://download.docker.com/linux/ubuntu noble InRelease                                      
+Hit:2 https://packages.microsoft.com/repos/code stable InRelease                                    
+Hit:3 http://us.archive.ubuntu.com/ubuntu noble InRelease                                           
+Get:4 http://us.archive.ubuntu.com/ubuntu noble-updates InRelease [136 kB]                          
+Get:5 http://security.ubuntu.com/ubuntu noble-security InRelease [136 kB]                           
+Get:6 http://us.archive.ubuntu.com/ubuntu noble-backports InRelease [133 kB]                        
+Get:7 http://us.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [234 kB]                
+Get:8 http://us.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [36.8 kB]             
+Get:9 http://us.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Components [212 B]         
+Get:10 http://us.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [138 kB]           
+Get:11 http://security.ubuntu.com/ubuntu noble-security/main amd64 Components [448 B]               
+Get:12 http://us.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [38.4 kB]        
+Get:13 http://us.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [212 B]        
+Get:14 http://us.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [212 B]            
+Get:15 http://us.archive.ubuntu.com/ubuntu noble-backports/restricted amd64 Components [216 B]      
+Get:16 http://us.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [216 B]        
+Get:17 http://us.archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Components [216 B]      
+Get:18 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Components [212 B]         
+Get:19 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Components [7,100 B]         
+Get:20 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Components [212 B]         
+Fetched 861 kB in 1s (613 kB/s)                                                                     
+3 packages can be upgraded. Run 'apt list --upgradable' to see them.                                
+  
+Upgrade apt packages...                                                                             
+Upgrading:                                                                                          
+  docker-ce  docker-ce-cli  docker-ce-rootless-extras                                               
+                                                                                                    
+Summary:                                                                                            
+  Upgrading: 3, Installing: 0, Removing: 0, Not Upgrading: 0                                        
+  Download size: 43.7 MB                                                                            
+  Freed space: 44.0 kB                                                                              
+                                                                                                    
+Get:1 https://download.docker.com/linux/ubuntu noble/stable amd64 docker-ce-cli amd64 5:26.1.5-1~ubu
+ntu.24.04~noble [16.3 MB]                                                                           
+Get:2 https://download.docker.com/linux/ubuntu noble/stable amd64 docker-ce amd64 5:26.1.5-1~ubuntu.
+24.04~noble [21.1 MB]                                                                               
+Get:3 https://download.docker.com/linux/ubuntu noble/stable amd64 docker-ce-rootless-extras amd64 5:
+26.1.5-1~ubuntu.24.04~noble [6,385 kB]                                                              
+Fetched 43.7 MB in 1s (29.9 MB/s)  
+(Reading database ... 201729 files and directories currently installed.)
+Preparing to unpack .../docker-ce-cli_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...                 
+Unpacking docker-ce-cli (5:26.1.5-1~ubuntu.24.04~noble) over (5:26.1.4-1~ubuntu.24.04~noble) ...    
+Preparing to unpack .../docker-ce_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...                     
+Unpacking docker-ce (5:26.1.5-1~ubuntu.24.04~noble) over (5:26.1.4-1~ubuntu.24.04~noble) ...        
+Preparing to unpack .../docker-ce-rootless-extras_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...     
+Unpacking docker-ce-rootless-extras (5:26.1.5-1~ubuntu.24.04~noble) over (5:26.1.4-1~ubuntu.24.04~noble) ...
+Setting up docker-ce-cli (5:26.1.5-1~ubuntu.24.04~noble) ...                                        
+Setting up docker-ce-rootless-extras (5:26.1.5-1~ubuntu.24.04~noble) ...                            
+Setting up docker-ce (5:26.1.5-1~ubuntu.24.04~noble) ...                                            
+invoke-rc.d: policy-rc.d denied execution of restart.
+/usr/sbin/policy-rc.d returned 101, not running 'restart docker.service docker.socket'
+Processing triggers for man-db (2.13.1-1) ...
+
+Autoremove apt packages...
+Summary:                        
+  Upgrading: 0, Installing: 0, Removing: 0, Not Upgrading: 0
+
+✓ No Reboot Required
+```
 ```
 
 
