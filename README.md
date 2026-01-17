@@ -267,9 +267,56 @@ A TUI (Text User Interface) for managing KVM/QEMU virtual machines using `virsh`
 - **Controls**: Start, shutdown, reboot, or force stop VMs.
 - **Details View**: Inspect VM specifics like network interfaces (IP addresses), storage devices, and guest agent status.
 
+### 🐚 Interactive Shell Workflow
+
+**Description:**
+A set of FZF-powered interactive tools and aliases defined in `.bash_aliases` to enhance the terminal experience.
+
+**Keybindings (Prefix: `Alt+x`):**
+
+- **Find in Files** (`Alt+x f`): Interactive search using `ripgrep` and `fzf` with previews.
+- **Fuzzy History** (`Alt+x r`): Search command history interactively.
+- **Process Killer** (`Alt+x k`): Filter and kill processes with previews.
+- **Fuzzy Man Pages** (`Alt+x m`): Search and read man pages.
+- **File Finder** (`Alt+x e`): Find files and open them in Neovim.
+- **Cheatsheets**:
+  - `Alt+x ?`: View all available aliases.
+  - `Alt+x /`: View all custom keybindings.
+
+**Utilities:**
+
+- `ports`: View listening TCP/UDP ports and associated processes.
+- `update`: Wrapper for `apt update/upgrade/autoremove`.
+- `check-reboot`: Checks if a system reboot is required.
+
+### 🧩 Tmux Workflow
+
+**Description:**
+A highly configured Tmux setup (`tmux.conf`) focused on speed and integration with Vim.
+
+**Core Features:**
+
+- **Prefix**: Remapped to `Ctrl+a`.
+- **Smart Navigation**: Seamlessly navigate between Tmux panes and Vim splits using `Ctrl+h/j/k/l`.
+- **Scratchpad** (`Prefix + \``): A toggleable popup terminal for quick tasks.
+- **Session Manager** (`Prefix + s`): Interactive session switcher, creator, and manager.
+
+**Git Integration (`Prefix + g`):**
+Opens a menu with interactive tools:
+- **Branch Manager**: Checkout, delete, and track branches.
+- **Git Log**: Browse commit history with diff previews.
+- **Git Status**: View and act on changed files.
+
+**Pane Management:**
+
+- **Push/Pull**:
+  - `Prefix + j`: Pull a pane from another window to the current one.
+  - `Prefix + k`: Send the current pane to another window.
+- **Sync**: `Prefix + C-s` toggles input synchronization across all panes in the window.
+
 ## 🤝 Contributing
 
-I'm open to and encourage contributions of bug fixes, improvements, and documentation!
+I'm open to and encourage contributions of bug fixes, improvements, and documentation! I like working on tooling to make developer experience better. Let me know if there is something you would like to see or would make your developer experience better.
 
 ## 📜 License
 
