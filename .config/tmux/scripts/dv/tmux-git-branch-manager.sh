@@ -1,6 +1,6 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-fgb.sh
+# Script Name: tmux-git-branch-manager.sh
 # Description: Fuzzy Git Branch - Checkout and Management
 # Keybinding:  Prefix + g (via Menu)
 # Config:      bind g display-menu ...

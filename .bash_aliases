@@ -378,8 +378,8 @@ fgl() {
 
 # fgb - Fuzzy Git Branch
 # Purpose: Interactively checkout local or remote git branches
-# Usage: fgb (Delegates to tmux-fgb.sh)
-alias fgb='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-fgb.sh'
+# Usage: fgb (Delegates to tmux-git-branch-manager.sh)
+alias fgb='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-branch-manager.sh'
 
 # fzglfh - Fuzzy Git Log File History
 # Purpose: Interactively browse commit history of a specific file
