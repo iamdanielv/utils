@@ -424,6 +424,28 @@ View all custom Tmux keybindings.
 ╰────────────────────────────────────────────────────────────────────╯ 
 ```
 
+### Cheatsheet - Custom Bash Binding (`Alt+x /`)
+
+View all custom keybindings and functions.
+
+```text
+╭─ Bindings Cheatsheet (Prefix: Alt+x) ────────────────────╮                     
+│   Run❯                                                   │                     
+│   13/13 ──────────────────────────────────────────────── │                     
+│ ▌ /       : Show this Cheatsheet                        ││                     
+│   ?       : Show Alias Cheatsheet                       ││                     
+│   Alt+x   : Clear Screen (this requires Alt+x twice)    ││                     
+│   e       : Find File and Open in Editor - nvim         ││                     
+│   f       : Find text in Files (fif)                    ││                     
+│   r       : (R)ecent Command History                    ││                     
+│   m       : Find Manual Pages (fman)                    ││                     
+│   k       : Process Killer (fzfkill)                    ││                     
+│   g g     : Git GUI (lazygit)                           ││                     
+│   g l     : Git Log (fgl)                                │                     
+│   g b     : Git Branch (fgb)                             │                     
+╰──────────────────────────────────────────────────────────╯
+```
+
 
 
 **Utilities:**
