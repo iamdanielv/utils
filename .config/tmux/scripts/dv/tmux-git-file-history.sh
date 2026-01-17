@@ -16,6 +16,8 @@ _C_CYAN=$'\033[1;36m'
 _C_BOLD=$'\033[1m'
 _C_GREEN=$'\033[1;32m'
 _C_YELLOW=$'\033[1;33m'
+_C_REVERSE=$'\033[7m'
+icon_git=""
 
 # FZF Styles
 _FZF_LBL_STYLE=$'\033[38;2;255;255;255;48;2;45;63;118m'
@@ -59,11 +61,11 @@ while true; do
   # Preview limited to 20 commits for performance optimization
   selected_file=$(git ls-files | fzf "${_FZF_COMMON_OPTS[@]}" \
     --header "ENTER: inspect commits | ESC: quit"$'\n'"CTRL-F: ${_C_GREEN}full history${_C_RESET} | CTRL-L: ${_C_YELLOW}limited (20)${_C_RESET}" \
-    --border-label=" File History Explorer ${_C_YELLOW}(Limited)${_C_RESET} " \
+    --border-label=" $icon_git File History ${_C_YELLOW}(Limited)${_C_RESET} " \
     --preview "${_PREVIEW_LIMITED}" \
     --prompt='  File❯ ' \
-    --bind "ctrl-f:change-preview(${_PREVIEW_FULL})+change-border-label( File History Explorer ${_C_GREEN}(Full)${_C_RESET} )" \
-    --bind "ctrl-l:change-preview(${_PREVIEW_LIMITED})+change-border-label( File History Explorer ${_C_YELLOW}(Limited)${_C_RESET} )" \
+    --bind "ctrl-f:change-preview(${_PREVIEW_FULL})+change-border-label( $icon_git File History ${_C_GREEN}(Full)${_C_RESET} )" \
+    --bind "ctrl-l:change-preview(${_PREVIEW_LIMITED})+change-border-label( $icon_git File History ${_C_YELLOW}(Limited)${_C_RESET} )" \
     --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} History for [%s] ${_FZF_LBL_RESET}\" {}")
 
   if [[ -z "$selected_file" ]]; then
