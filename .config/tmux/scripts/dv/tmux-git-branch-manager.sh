@@ -133,6 +133,7 @@ if is_in_popup; then
 
     # ANSI Colors for Header (Catppuccin Mocha)
     c_reset=$'\033[0m'
+    c_reverse=$'\033[7m'
     c_green=$'\033[38;2;166;227;161m'
     c_yellow=$'\033[38;2;249;226;175m'
     c_cyan=$'\033[38;2;137;220;235m'
@@ -143,9 +144,9 @@ if is_in_popup; then
     # Dynamic Headers (2-Line Layout)
     # Line 1: Context | Line 2: Controls
     controls="${c_cyan}ENTER${c_gray}: Checkout ${c_gray}• ${c_cyan}CTRL-X${c_gray}: Delete ${c_gray}• ${c_cyan}CTRL-A${c_gray}: ${c_orange}All ${c_gray}• ${c_cyan}CTRL-L${c_gray}: ${c_green}Local${c_reset}"
-    header_local="${c_green}Local Branches${c_reset} ${c_gray}Current: ${c_yellow}${current_branch}${c_reset}${nl}${controls}"
-    header_all="${c_orange}All Branches${c_reset}   ${c_gray}Current: ${c_yellow}${current_branch}${c_reset}${nl}${controls}"
-    
+    header_local="${c_green}${c_reverse} Local Branches ${c_reset} ${c_gray}Current: ${c_yellow}${current_branch}${c_reset}${nl}${controls}"
+    header_all="${c_orange}${c_reverse}  All Branches  ${c_reset} ${c_gray}Current: ${c_yellow}${current_branch}${c_reset}${nl}${controls}"
+
     $0 --generate "$current_mode" | fzf \
         --ansi --reverse --tiebreak=index \
         --info=inline-right --no-scrollbar \
@@ -171,5 +172,5 @@ fi
 script_path=$(readlink -f "$0")
 
 tmux display-popup -E -w 95% -h 80% -d "#{pane_current_path}" \
-    -T "#[bg=$thm_yellow,fg=$thm_bg,bold] $icon_git Git Branches " \
+    -T "#[bg=$thm_yellow,fg=$thm_bg,bold] $icon_git Git Branches  " \
     "TMUX_POPUP=1 $script_path"
