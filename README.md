@@ -354,6 +354,25 @@ Search and read man pages
   ··r (5) - BlueZ D-Bus BatteryProvid·· ╰──────────────────────────────────────────────────────────╯
 ```
 
+#### File Finder (`Alt+x e`)
+
+Find files and open them in Neovim
+
+```text
+── File Finder ─────────────────────────────────────────────────────────────────────────────────────
+  ENTER: open | ESC: quit               ╭─ Previewing [.bash_aliases] ─────────────────────────────╮
+  CTRL-/: view                          │    1 # shellcheck shell=bash                       1/793││
+  Open❯ bas                             │    2 # -------------------                               │
+  2/82 ──────────────────────────────── │    3 # Colors & Styling                                  │
+▌ .bash_aliases                         │    4 # -------------------                               │
+  sync-bash-aliases.sh                  │    5                                                     │
+                                        │    6 # ANSI Color Codes                                  │
+                                        │    7 _C_RESET=$'\033[0m'                                 │
+                                        │    8 _C_RED=$'\033[1;31m'                                │
+                                        │    9 _C_GREEN=$'\033[1;32m'                              │
+                                        ╰──────────────────────────────────────────────────────────╯
+```
+
 
 **Utilities:**
 
