@@ -557,6 +557,19 @@ Summary:
 
 ✓ No Reboot Required
 ```
+
+#### check-reboot
+
+Checks if a system reboot is required.
+
+```shell
+✓ No Reboot Required
+```
+
+or
+
+```shell
+ Reboot Required
 ```
 
 
