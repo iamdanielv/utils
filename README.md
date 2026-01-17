@@ -578,6 +578,21 @@ or
 **Description:**
 A highly configured Tmux setup (`tmux.conf`) focused on speed and integration with Vim.
 
+### Session Manager
+```text
+󰖲 Session Manager ──────────────────────────────────────────────────────────────────────────╮   
+│    New Session                      ╭ 󰖲 Preview: main ───────────────────────────────────╮ │   
+│ ▌  main: 1 windows                  │ ├── [1] bash (Active)                         1/14││ │   
+│   scratch: 1 windows                 │ │  Summary:                                       ││ │   
+│                                      │ │    Upgrading: 0, Installing: 0, Removing: 0, Not││ │   
+│   Commands: ─────────────────────────│ │                                                  │ │   
+│   ENTER: Switch  C-n: New            │ │  ✓ No Reboot Required                            │ │   
+│     C-r: Rename  C-x: Kill           │ │  daniel@dev:~/code/iamdanielv/utils$ check-reboo │ │   
+│   3/3 ────────────────────────────── │ │  ✓ No Reboot Required                            │ │   
+│ Session ❯                            ╰────────────────────────────────────────────────────╯ │   
+╰─────────────────────────────────────────────────────────────────────────────────────────────╯ 
+```
+
 **Core Features:**
 
 - **Prefix**: Remapped to `Ctrl+a`.
