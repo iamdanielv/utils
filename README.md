@@ -335,6 +335,25 @@ Filter and kill processes with previews
   root           7 [kworker/R-slub_flushwq]       ╰────────────────────────────────────────────────╯
 ```
 
+#### Fuzzy Man Pages (`Alt+x m`)
+
+Search and read man pages
+
+```text
+── Manual Pages ────────────────────────────────────────────────────────────────────────────────────
+  ENTER: open | CTRL-/: view            ╭──────────────────────────────────────────────────────────╮
+  Man❯ bat                              │ BATCAT(1)       General Commands Manual       BATCA1/515││
+  1830/7501 ─────────────────────────── │                                                          │
+▌ batcat (1)           - a cat(1) clo··││ NAME                                                     │
+  ··y-check (8) - Check battery level·· │        batcat - a cat(1) clone with syntax highlighting  │
+  ··y (5) - BlueZ D-Bus Battery API d·· │        and Git integration.                              │
+  ··service (8) - Check battery level·· │                                                          │
+  ··   - update passwords in batch mode │ USAGE                                                    │
+  ··r (5) - BlueZ D-Bus BatteryProvid·· │        batcat [OPTIONS] [FILE]...                        │
+  ··pdate group passwords in batch mode │                                                          │
+  ··r (5) - BlueZ D-Bus BatteryProvid·· ╰──────────────────────────────────────────────────────────╯
+```
+
 
 **Utilities:**
 
