@@ -7,6 +7,18 @@
 # Dependencies: tmux, git, fzf, tmux-input.sh
 # ===============
 
+# --- Auto-Launch Tmux ---
+if [ -z "$TMUX" ]; then
+    script_path=$(readlink -f "$0")
+    if tmux has-session -t main 2>/dev/null; then
+        tmux new-window -t main -n "git-branch-mgr" -c "$PWD" "$script_path"
+        exec tmux attach-session -t main
+    else
+        exec tmux new-session -s main -n "git-branch-mgr" -c "$PWD" "$script_path"
+    fi
+    exit 0
+fi
+
 # --- Configuration ---
 thm_bg="#1e1e2e"
 thm_fg="#cdd6f4"
