@@ -302,6 +302,22 @@ Interactive search using `ripgrep` and `fzf` with previews.
   sync-bash-aliases.sh:8:1:             ╰──────────────────────────────────────────────────────────╯
 ```
 
+#### Fuzzy History (`Alt+x r`)
+
+Search command history interactively.
+
+```text
+─ Command History ──────────────────────────────────────────────────────────────────────────────────
+  ENTER: Select | CTRL-E: Execute | CTRL-/: View                                                    
+  History❯ echo                                                                                     
+  3/516 ─────────────────────────────────────────────────────────────────────────────────────────── 
+    253  echo $XDG_CONFIG_HOME
+▌   175  echo "Hello there"
+    173  echo "General Kenobi"
+```
+
+
+
 **Utilities:**
 
 - `ports`: View listening TCP/UDP ports and associated processes.
