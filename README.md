@@ -399,6 +399,31 @@ View all TMUX available key bindings.
 ╰────────────────────────────────────────────────────────────────────╯
 ```
 
+#### Cheatsheet - Tmux Custom Bindings (`Prefix ?`)
+
+View all custom Tmux keybindings.
+
+```text
+╭─ Cheatsheet (Prefix: C-a) ─────────────────────────────────────────╮                
+│NAVIGATION - Direct                                                 │                
+│  C-h/j/k/l    Move between panes (vim-aware)                       │                
+│                                                                    │                
+│NAVIGATION - with Prefix                                            │                
+│  C-p / C-n    Previous / Next Window                               │                
+│                                                                    │                
+│WINDOWS & PANES                                                     │                
+│  - / =        New Split Vertical / Horizontal                      │                
+│  b            Send Pane to [Current Session] +:New Window          │                
+│  j            Join a Pane to [Current Session]                     │                
+│  k            Send a Pane to [Session] window                      │                
+│  s            Session Manager                                      │                
+│  S            Choose Tree (Default Session Management)             │                
+│  S-Left/Right Swap window position                                 │                
+│  z            Zoom pane                                            │                
+│:                                                                   │                
+╰────────────────────────────────────────────────────────────────────╯ 
+```
+
 
 
 **Utilities:**
