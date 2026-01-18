@@ -166,13 +166,13 @@ _fzf_compgen_dir() {
 
 # --- Custom FZF Functions ---
 # Custom function to find a file and open it in Neovim.
-alias fzf_nvim='dv-find'
+alias fzf_nvim='dv-find.sh'
 unset -f dv-find
 
 # fif - Find in Files
 # Purpose: Interactive search of file contents using ripgrep and fzf.
 # Usage: fif [query]
-alias fif='dv-fif'
+alias fif='dv-fif.sh'
 unset -f dv-fif
 
 
@@ -227,7 +227,7 @@ fhistory() {
 # fman - Fuzzy Man Pages
 # Purpose: Interactively search and open man pages.
 # Usage: fman
-alias fman='dv-man'
+alias fman='dv-man.sh'
 
 unset -f dv-man
 
@@ -347,17 +347,17 @@ fgl() {
 # fgb - Fuzzy Git Branch
 # Purpose: Interactively checkout local or remote git branches
 # Usage: fgb (Delegates to dv-git-branch)
-alias fgb='_require_git_repo && dv-git-branch'
+alias fgb='_require_git_repo && dv-git-branch.sh'
 
 # fzglfh - Fuzzy Git Log File History
 # Purpose: Interactively browse commit history of a specific file
 # Usage: fzglfh (Delegates to dv-git-history)
-alias fzglfh='_require_git_repo && dv-git-history'
+alias fzglfh='_require_git_repo && dv-git-history.sh'
 
 # fgs - Fuzzy Git Stash
 # Purpose: Interactively view, apply, and drop git stashes
 # Usage: fgs (Delegates to dv-git-stash)
-alias fgs='_require_git_repo && dv-git-stash'
+alias fgs='_require_git_repo && dv-git-stash.sh'
 
 # -------------------
 # System, Network & Packages
@@ -367,7 +367,7 @@ alias fgs='_require_git_repo && dv-git-stash'
 # Purpose: Update system packages and check if a reboot is required
 # Usage: update
 unalias update 2>/dev/null
-alias update='dv-update'
+alias update='dv-update.sh'
 unset -f dv-update
 
 # check-reboot
@@ -392,7 +392,7 @@ alias myip='curl -s ipinfo.io/ip'
 # Purpose: List listening TCP/UDP ports with process info in a table
 # Usage: ports
 unalias ports 2>/dev/null
-alias ports='dv-ports'
+alias ports='dv-ports.sh'
 unset -f dv-ports
 
 # List all running processes with essential columns.
@@ -405,7 +405,7 @@ alias psa='ps -eo user,pid,pcpu,pmem,command'
 # fzfkill
 # Purpose: Interactively find and kill processes
 # Usage: fzfkill
-alias fzfkill='dv-kill'
+alias fzfkill='dv-kill.sh'
 unset -f fzfkill
 unset -f dv-kill
 
@@ -567,15 +567,15 @@ show_keybinding_cheatsheet() {
 show_keybinding_cheatsheet:${_C_YELLOW}/${_C_RESET}       : Show this Cheatsheet
 show_alias_cheatsheet:${_C_YELLOW}?${_C_RESET}       : Show Alias Cheatsheet
 clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (this requires Alt+x twice)
-dv-find:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
-dv-fif:${_C_YELLOW}f${_C_RESET}       : Find text in Files (fif)
+dv-find.sh:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
+dv-fif.sh:${_C_YELLOW}f${_C_RESET}       : Find text in Files (fif)
 fhistory:${_C_YELLOW}r${_C_RESET}       : (R)ecent Command History
-dv-man:${_C_YELLOW}m${_C_RESET}       : Find Manual Pages (fman)
-dv-kill:${_C_YELLOW}k${_C_RESET}       : Process Killer (dv-kill)
+dv-man.sh:${_C_YELLOW}m${_C_RESET}       : Find Manual Pages (fman)
+dv-kill.sh:${_C_YELLOW}k${_C_RESET}       : Process Killer (dv-kill)
 lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
-dv-git-branch:${_C_YELLOW}g b${_C_RESET}     : Git Branch (dv-git-branch)
-dv-git-history:${_C_YELLOW}g h${_C_RESET}     : Git File History (dv-git-history)
+dv-git-branch.sh:${_C_YELLOW}g b${_C_RESET}     : Git Branch (dv-git-branch)
+dv-git-history.sh:${_C_YELLOW}g h${_C_RESET}     : Git File History (dv-git-history)
 tmux_launch:${_C_YELLOW}t${_C_RESET}       : Launch Tmux (main)
 EOF
   )
@@ -594,16 +594,16 @@ bind '"\ex\ex":clear-screen'
 bind -x '"\C-x":clear'
 
 # Bind Alt+x e to dv-find (find file and open in editor - nvim).
-bind -x '"\exe":dv-find'
+bind -x '"\exe":dv-find.sh'
 
 # Bind Alt+x f to dv-fif (find in files).
-bind -x '"\exf":dv-fif'
+bind -x '"\exf":dv-fif.sh'
 
 # Bind Alt+x r to fhistory.
 bind -x '"\exr":fhistory'
 
 # Bind Alt+x m to dv-man.
-bind -x '"\exm":dv-man'
+bind -x '"\exm":dv-man.sh'
 
 # Bind Alt+x / to the key bind cheatsheet.
 bind -x '"\ex/": show_keybinding_cheatsheet'
@@ -612,16 +612,16 @@ bind -x '"\ex/": show_keybinding_cheatsheet'
 bind -x '"\ex?": show_alias_cheatsheet'
 
 # Bind Alt+x k to dv-kill.
-bind -x '"\exk": dv-kill'
+bind -x '"\exk": dv-kill.sh'
 
 # Bind Alt+x g l to the fgl function.
 bind -x '"\exgl": fgl'
 
 # Bind Alt+x g b to dv-git-branch.
-bind -x '"\exgb": _require_git_repo && dv-git-branch'
+bind -x '"\exgb": _require_git_repo && dv-git-branch.sh'
 
 # Bind Alt+x g h to dv-git-history.
-bind -x '"\exgh": _require_git_repo && dv-git-history'
+bind -x '"\exgh": _require_git_repo && dv-git-history.sh'
 
 # Bind Alt+x g g to 'lg' (lazygit).
 bind -x '"\exgg": lazygit'
