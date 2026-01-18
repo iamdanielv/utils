@@ -514,6 +514,26 @@ install_core_tools() {
     install_golang
 }
 
+# Copies custom binaries/scripts to ~/.local/bin
+setup_binaries() {
+    printBanner "Setting up Custom Binaries"
+    local source_bin_path="${SCRIPT_DIR}/bin"
+    local dest_bin_path="${XDG_BIN_HOME}"
+
+    if [[ ! -d "$source_bin_path" ]] || [[ -z "$(ls -A "$source_bin_path")" ]]; then
+        printInfoMsg "No custom binaries found in '${source_bin_path}'. Skipping."
+        return
+    fi
+
+    printInfoMsg "Copying binaries to ${dest_bin_path}..."
+    mkdir -p "$dest_bin_path"
+    cp "$source_bin_path"/* "$dest_bin_path/"
+
+    # chmod +x only dv-* files to avoid touching unrelated files
+    chmod +x "${dest_bin_path}"/dv-* 2>/dev/null || true
+    printOkMsg "Custom binaries installed."
+}
+
 # Copies the .bash_aliases file to the user's home directory.
 setup_bash_aliases() {
     printBanner "Setting up .bash_aliases"
@@ -703,6 +723,7 @@ main() {
     fi
 
     install_core_tools
+    setup_binaries
     setup_bash_aliases
     setup_tmux_config
     install_tpm
