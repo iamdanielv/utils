@@ -50,7 +50,7 @@ A comprehensive script to automate the installation of LazyVim and all its prere
 - Sets up a custom fzf configuration in `.bashrc` for enhanced fuzzy finding
 - Backs up your existing Neovim config and sets up the LazyVim starter template
 
-### 📝 Env Manager (`env-manager.sh`)
+### 📝 Env Manager (`dv-env`)
 
 **Description:**
 An interactive TUI for managing environment variables in a `.env` file. It provides a safe and structured way to view, add, edit, and delete variables without manual text editing.
