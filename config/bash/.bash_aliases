@@ -173,6 +173,8 @@ unset -f dv-find
 # Purpose: Interactive search of file contents using ripgrep and fzf.
 # Usage: fif [query]
 alias fif='dv-fif'
+unset -f dv-fif
+
 
 # fhistory - Fuzzy History
 # Purpose: Interactively search and select commands from history.
@@ -226,6 +228,8 @@ fhistory() {
 # Purpose: Interactively search and open man pages.
 # Usage: fman
 alias fman='dv-man'
+
+unset -f dv-man
 
 # -------------------
 # Git
@@ -363,16 +367,8 @@ alias fgs='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-stash.sh'
 # Purpose: Update system packages and check if a reboot is required
 # Usage: update
 unalias update 2>/dev/null
-update() {
-  printf "%s%sUpdate%s apt sources...\n" "${_C_BOLD}" "${_C_BLUE}" "${_C_RESET}"
-  sudo apt update || return 1
-  printf "\n%s%sUpgrade%s apt packages...\n" "${_C_BOLD}" "${_C_MAGENTA}" "${_C_RESET}"
-  sudo apt upgrade -y
-  printf "\n%s%sAutoremove%s apt packages...\n" "${_C_BOLD}" "${_C_CYAN}" "${_C_RESET}"
-  sudo apt autoremove -y
-  printf "\n"
-  check-reboot
-}
+alias update='dv-update'
+unset -f dv-update
 
 # check-reboot
 # Purpose: Check if the system requires a reboot (Debian/Ubuntu specific).
@@ -396,64 +392,8 @@ alias myip='curl -s ipinfo.io/ip'
 # Purpose: List listening TCP/UDP ports with process info in a table
 # Usage: ports
 unalias ports 2>/dev/null
-ports() {
-  # Header
-  printf "${_C_BOLD}${_C_ULINE}%-1s %-6s %21s %21s %s${_C_RESET}\n" "P" "STATUS" "LOCAL:Port " "REMOTE:Port " "PROGRAM/PID"
-  
-  ss -tulpn | awk \
-    -v c_reset="${_C_RESET}" \
-    -v c_green="${_C_GREEN}" \
-    -v c_yellow="${_C_YELLOW}" \
-    -v c_blue="${_C_BLUE}" \
-    -v c_magenta="${_C_MAGENTA}" \
-    -v c_cyan="${_C_CYAN}" '
-
-    function split_addr(addr, parts) {
-      match(addr, /:[^:]*$/)
-      if (RSTART > 0) {
-        parts[1] = substr(addr, 1, RSTART-1)
-        parts[2] = substr(addr, RSTART)
-      } else {
-        parts[1] = addr
-        parts[2] = ""
-      }
-    }
-
-    NR > 1 {
-      # Shorten Protocol: udp -> U, tcp -> T
-      proto=toupper(substr($1, 1, 1))
-      c_proto = (proto == "T") ? c_green : c_yellow
-      
-      state=$2
-      if (state == "LISTEN") c_state = c_green
-      else if (state == "UNCONN") c_state = c_yellow
-      else if (state == "ESTAB") c_state = c_blue
-      else c_state = c_magenta
-
-      split_addr($5, l_parts)
-      split_addr($6, r_parts)
-
-      # Reconstruct process info from $7 onwards
-      proc_info=""
-      for (i=7; i<=NF; i++) proc_info = proc_info $i " "
-      
-      # Clean up: users:(("nginx",pid=123,fd=4))... -> "nginx",pid=123
-      sub(/users:\(\(/, "", proc_info)
-      sub(/(\),|\)\)).*/, "", proc_info)
-      sub(/,fd=[0-9]+/, "", proc_info)
-      sub(/ +$/, "", proc_info)
-      
-      if (proc_info == "") proc_info = "-"
-
-      printf "%s%-1s%s %s%-6s%s %15s%s%-6s%s %15s%s%-6s%s %s%s\n", 
-        c_proto, proto, c_reset,
-        c_state, state, c_reset,
-        l_parts[1], c_cyan, l_parts[2], c_reset,
-        r_parts[1], c_cyan, r_parts[2], c_reset,
-        c_reset, proc_info
-    }
-  '
-}
+alias ports='dv-ports'
+unset -f dv-ports
 
 # List all running processes with essential columns.
 alias psa='ps -eo user,pid,pcpu,pmem,command'
