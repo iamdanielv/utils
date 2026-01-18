@@ -73,7 +73,7 @@ Recursively performs Git commands on the current directory and all subdirectorie
 - View all local and remote branches (`-gvb`)
 - Switch all repos to a specific branch (`-gb <branch>`)
 
-### 🧹 Docker Cleanup (`docker-cleanup.sh`)
+### 🧹 Docker Cleanup (`dv-docker-cleanup`)
 
 **Description:**
 A utility to clean up unused Docker resources like containers, images, networks, and volumes.
@@ -258,7 +258,7 @@ A utility to display all 256 terminal colors for both foreground and background.
 - Can display colors as numbers or solid blocks (`-b` flag).
 - Supports foreground (`-g fg`) and background (`-g bg`) modes.
 
-### 🖥️ VM Manager (`vm-manager.sh`)
+### 🖥️ VM Manager (`dv-vm-manager`)
 
 **Description:**
 A TUI (Text User Interface) for managing KVM/QEMU virtual machines using `virsh`.
