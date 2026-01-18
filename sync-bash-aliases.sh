@@ -43,7 +43,7 @@ done
 # Where are we running?
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
-SRC_FILE="${SCRIPT_DIR}/.bash_aliases"
+SRC_FILE="${SCRIPT_DIR}/config/bash/aliases"
 DEST_FILE="${HOME}/.bash_aliases"
 
 if [ "$LIST_BACKUPS" = true ]; then
