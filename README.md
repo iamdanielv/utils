@@ -379,27 +379,25 @@ View all TMUX available key bindings.
 
 
 ```text
-╭─ Cheatsheet (Prefix: C-a) ─────────────────────────────────────────╮                              
-│NAVIGATION - Direct                                                 │                              
-│  C-h/j/k/l    Move between panes (vim-aware)                       │                              
-│                                                                    │                              
-│NAVIGATION - with Prefix                                            │                              
-│  C-p / C-n    Previous / Next Window                               │                              
-│                                                                    │                              
-│WINDOWS & PANES                                                     │                              
-│  - / =        New Split Vertical / Horizontal                      │                              
-│  b            Send Pane to [Current Session] +:New Window          │                              
-│  j            Join a Pane to [Current Session]                     │                              
-│  k            Send a Pane to [Session] window                      │                              
-│  s            Session Manager                                      │                              
-│  S            Choose Tree (Default Session Management)             │                              
-│  S-Left/Right Swap window position                                 │                              
-│  z            Zoom pane                                            │                              
-│:                                                                   │                              
-╰────────────────────────────────────────────────────────────────────╯
+╭─ TMUX KEY BINDINGS ──────────────────────────────────────╮      
+│ >                             │ C-h:                     │      
+│   112/112 ─────────────────── │   Smart Switch Left      │      
+│ ▌     C-h     @@@Smart Swit··││                          │      
+│       C-j     @@@Smart Swit·· │                          │      
+│       C-k     @@@Smart Swit·· │                          │      
+│       C-l     @@@Smart Swit·· │                          │      
+│   C-a Space   @@@Select nex·· │                          │      
+│   C-a !       @@@Break pane·· │                          │      
+│   C-a #       @@@List all p·· │                          │      
+│   C-a $       @@@Rename cur·· │                          │      
+│   C-a &       @@@Kill curre·· │                          │      
+│   C-a '       @@@Prompt for·· │                          │      
+│   C-a (       @@@Switch to ·· │                          │      
+│   C-a )       @@@Switch to ·· │                          │      
+╰──────────────────────────────────────────────────────────╯  
 ```
 
-#### Cheatsheet - Tmux Custom Bindings (`Prefix ?`)
+#### Cheatsheet - Tmux Custom Bindings (`Prefix /`)
 
 View all custom Tmux keybindings.
 
