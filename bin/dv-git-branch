@@ -4,7 +4,7 @@
 # Description: Fuzzy Git Branch - Checkout and Management
 # Keybinding:  Prefix + g (via Menu)
 # Config:      bind g display-menu ...
-# Dependencies: tmux, git, fzf, tmux-input.sh
+# Dependencies: tmux, git, fzf, dv-input
 # ===============
 
 # --- Auto-Launch Tmux ---
@@ -88,10 +88,10 @@ delete_branch() {
 
     if [[ -z "$branch" ]]; then return; fi
 
-    # Use tmux-input.sh for confirmation if available
+    # Use dv-input for confirmation if available
     local script_dir
     script_dir=$(dirname "$0")
-    local confirm_cmd="$script_dir/tmux-input.sh"
+    local confirm_cmd="$script_dir/dv-input"
 
     if [[ -x "$confirm_cmd" ]]; then
         if ! "$confirm_cmd" --internal-confirm "Delete branch '$branch'?"; then

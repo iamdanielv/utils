@@ -33,7 +33,7 @@ if [ -z "$TMUX" ]; then
 fi
 
 if ! command -v fzf >/dev/null; then
-    "$script_dir/tmux-input.sh" --message "Error: fzf is not installed."
+    "$script_dir/dv-input" --message "Error: fzf is not installed."
     exit 1
 fi
 
@@ -155,32 +155,32 @@ while true; do
 
     if [[ "$key" == "ctrl-x" ]]; then
         if [[ "$target_session" == "NEW" ]]; then
-            "$script_dir/tmux-input.sh" --message "Cannot kill the 'New Session' item."
+            "$script_dir/dv-input" --message "Cannot kill the 'New Session' item."
         else
-            if "$script_dir/tmux-input.sh" --confirm "Kill session '$target_session'?"; then
+            if "$script_dir/dv-input" --confirm "Kill session '$target_session'?"; then
                 current_session=$(tmux display-message -p "#{session_name}")
                 if [[ "$target_session" == "$current_session" ]]; then
                     other_session=$(tmux list-sessions -F "#{session_name}" 2>/dev/null | grep -v "^${target_session}$" | head -n 1)
                     if [[ -n "$other_session" ]]; then
                         tmux switch-client -t "=${other_session}"
                         tmux kill-session -t "=${target_session}"
-                        "$script_dir/tmux-input.sh" --message "Session '$target_session' killed. Switched to '$other_session'."
+                        "$script_dir/dv-input" --message "Session '$target_session' killed. Switched to '$other_session'."
                         continue
                     fi
                 fi
                 tmux kill-session -t "=${target_session}"
-                "$script_dir/tmux-input.sh" --message "Session '$target_session' killed"
+                "$script_dir/dv-input" --message "Session '$target_session' killed"
             else
-                "$script_dir/tmux-input.sh" --message "Kill cancelled"
+                "$script_dir/dv-input" --message "Kill cancelled"
             fi
         fi
         continue
     elif [[ "$key" == "ctrl-n" ]] || [[ "$target_session" == "NEW" ]]; then
         unset sess_name
-        sess_name=$("$script_dir/tmux-input.sh" --title " New Session " "Enter Name")
+        sess_name=$("$script_dir/dv-input" --title " New Session " "Enter Name")
         if [ $? -eq 0 ] && [ -n "$sess_name" ]; then
             if tmux has-session -t "=${sess_name}" 2>/dev/null; then
-                "$script_dir/tmux-input.sh" --message "Session '$sess_name' already exists."
+                "$script_dir/dv-input" --message "Session '$sess_name' already exists."
             else
                 tmux new-session -d -s "$sess_name"
                 tmux switch-client -t "=${sess_name}"
@@ -190,15 +190,15 @@ while true; do
         continue
     elif [[ "$key" == "ctrl-r" ]]; then
         if [[ "$target_session" == "NEW" ]]; then
-            "$script_dir/tmux-input.sh" --message "Cannot rename the 'New Session' item."
+            "$script_dir/dv-input" --message "Cannot rename the 'New Session' item."
         else
             unset new_name
-            new_name=$("$script_dir/tmux-input.sh" --title " Rename Session " "Enter New Name" "$target_session")
+            new_name=$("$script_dir/dv-input" --title " Rename Session " "Enter New Name" "$target_session")
             if [ $? -eq 0 ] && [ -n "$new_name" ]; then
                 if [[ "$new_name" == "$target_session" ]]; then
                     continue
                 elif tmux has-session -t "=${new_name}" 2>/dev/null; then
-                    "$script_dir/tmux-input.sh" --message "Session '$new_name' already exists."
+                    "$script_dir/dv-input" --message "Session '$new_name' already exists."
                 else
                     tmux rename-session -t "=${target_session}" "$new_name"
                 fi

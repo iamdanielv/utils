@@ -105,7 +105,7 @@ do_discard() {
     # Confirmation
     local script_dir
     script_dir=$(dirname "$0")
-    local confirm_cmd="$script_dir/tmux-input.sh"
+    local confirm_cmd="$script_dir/dv-input"
     
     if [[ -x "$confirm_cmd" ]]; then
         if ! "$confirm_cmd" --internal-confirm "Discard changes to '$file'?"; then

@@ -1,11 +1,11 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-input.sh
+# Script Name: dv-input
 # Description: Modal input popup with custom event loop.
 # Keybinding:  None (Helper Script)
 # Config:      None
 # Dependencies: tmux
-# Usage:       tmux-input.sh [OPTIONS] [PROMPT] [DEFAULT_VALUE]
+# Usage:       dv-input [OPTIONS] [PROMPT] [DEFAULT_VALUE]
 # Exit Code:   0 on success, 1 on cancel.
 #
 # Options:
@@ -24,9 +24,9 @@
 #   Filename (safe):   ^[a-zA-Z0-9._-]+$
 #
 # Examples:
-#   result=$(tmux-input.sh "Enter Name" "John Doe")
-#   tmux-input.sh --title " Rename " --width 30 "New Name"
-#   if tmux-input.sh --confirm "Are you sure?"; then echo "Yes"; fi
+#   result=$(dv-input "Enter Name" "John Doe")
+#   dv-input --title " Rename " --width 30 "New Name"
+#   if dv-input --confirm "Are you sure?"; then echo "Yes"; fi
 # ===============
 
 # --- Constants ---

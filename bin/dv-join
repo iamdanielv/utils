@@ -34,7 +34,7 @@ if [ -z "$TMUX" ]; then
 fi
 
 if ! command -v fzf >/dev/null; then
-    "$script_dir/tmux-input.sh" --message "Error: fzf is not installed."
+    "$script_dir/dv-input" --message "Error: fzf is not installed."
     exit 1
 fi
 
@@ -91,7 +91,7 @@ panes=$(tmux list-panes -a -F "#{window_id}${tab}#{pane_id}${tab}#{session_name}
       done)
 
 if [ -z "$panes" ]; then
-    "$script_dir/tmux-input.sh" --message "  No other panes found"
+    "$script_dir/dv-input" --message "  No other panes found"
     exit 0
 fi
 
@@ -163,7 +163,7 @@ if [ -n "$target_pane_id" ]; then
             # Split Horizontal (top-bottom)
             perform_join "-v" ;;
         ctrl-x)
-            if "$script_dir/tmux-input.sh" --confirm "Kill ${target_pane_display}?"; then
+            if "$script_dir/dv-input" --confirm "Kill ${target_pane_display}?"; then
                 tmux kill-pane -t "$target_pane_id"
                 tmux display-message "#[fg=${thm_green}]✓ Pane ${target_pane_display} killed"
             else
