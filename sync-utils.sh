@@ -79,20 +79,22 @@ if [ "$CLEANUP" = true ]; then
     tmux_backups=$(find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null)
     bash_backups=$(find "${HOME}" -maxdepth 1 -type f -name ".bash_aliases.bak_*" 2>/dev/null)
     
-    count_tmux=$(echo "$tmux_backups" | grep -v "^$" | wc -l)
-    count_bash=$(echo "$bash_backups" | grep -v "^$" | wc -l)
-    total_count=$((count_tmux + count_bash))
+    all_backups=$(printf "%s\n%s" "$tmux_backups" "$bash_backups" | grep -v "^$")
+    total_count=$(echo "$all_backups" | grep -c -v "^$")
 
     if [ "$total_count" -gt 0 ]; then
-        read -p "  [?] Are you sure you want to delete $total_count backup(s)? [y/N] " -n 1 -r
+        echo "The following backups will be deleted:"
+        echo "$all_backups" | sort | sed 's/^/  - /'
+
+        total_size=$(echo "$all_backups" | tr '\n' '\0' | xargs -0 du -ch 2>/dev/null | tail -n 1 | cut -f1)
+        echo ""
+        echo "  Total size to be freed: ${C_BOLD}${total_size}${T_RESET}"
+        echo ""
+
+        read -p "  ${C_YELLOW}[?] Are you sure you want to delete these ${C_BOLD}$total_count${T_RESET}${C_YELLOW} backup(s)? [y/N]${T_RESET} " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            if [ "$count_tmux" -gt 0 ]; then
-                echo "$tmux_backups" | xargs rm -rf
-            fi
-            if [ "$count_bash" -gt 0 ]; then
-                echo "$bash_backups" | xargs rm -f
-            fi
+            echo "$all_backups" | tr '\n' '\0' | xargs -0 rm -rf
             echo "  ${C_GREEN}[✓] Removed $total_count old backup(s).${T_RESET}"
         else
             echo "  ${C_RED}[✗] Cleanup cancelled.${T_RESET}"
