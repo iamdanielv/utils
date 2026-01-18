@@ -545,7 +545,7 @@ setup_bash_aliases() {
 # Copies the tmux configuration to ~/.config/tmux/tmux.conf
 setup_tmux_config() {
     printBanner "Setting up Tmux Configuration"
-    local source_conf_path="${SCRIPT_DIR}/.config/tmux/tmux.conf"
+    local source_conf_path="${SCRIPT_DIR}/config/tmux/tmux.conf"
     local dest_conf_dir="${XDG_CONFIG_HOME}/tmux"
     local dest_conf_path="${dest_conf_dir}/tmux.conf"
 
@@ -576,7 +576,7 @@ setup_tmux_config() {
     fi
 
     # Setup Tmux Scripts
-    local source_scripts_dir="${SCRIPT_DIR}/.config/tmux/scripts/dv"
+    local source_scripts_dir="${SCRIPT_DIR}/config/tmux/scripts/dv"
     local dest_scripts_dir="${dest_conf_dir}/scripts/dv"
 
     if [[ -d "$source_scripts_dir" ]]; then

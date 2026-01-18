@@ -46,8 +46,8 @@ done
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
 # Paths
-SRC_CONF="${SCRIPT_DIR}/.config/tmux/tmux.conf"
-SRC_SCRIPTS="${SCRIPT_DIR}/.config/tmux/scripts/dv"
+SRC_CONF="${SCRIPT_DIR}/config/tmux/tmux.conf"
+SRC_SCRIPTS="${SCRIPT_DIR}/config/tmux/scripts/dv"
 
 DEST_CONF="${HOME}/.config/tmux/tmux.conf"
 DEST_SCRIPTS_DIR="${HOME}/.config/tmux/scripts/dv"
