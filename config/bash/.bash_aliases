@@ -166,36 +166,13 @@ _fzf_compgen_dir() {
 
 # --- Custom FZF Functions ---
 # Custom function to find a file and open it in Neovim.
-fzf_nvim() {
-  fzf "${_FZF_COMMON_OPTS[@]}" --exact \
-    --border-label=' File Finder ' \
-    --prompt='  Open❯ ' \
-    --header $'ENTER: open | ESC: quit\nCTRL-/: view' \
-    --preview 'fzf-preview.sh {}' \
-    --bind "enter:become(nvim {})" \
-    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Previewing [%s] ${_FZF_LBL_RESET}\" {}"
-}
+alias fzf_nvim='dv-find'
+unset -f dv-find
 
 # fif - Find in Files
 # Purpose: Interactive search of file contents using ripgrep and fzf.
 # Usage: fif [query]
-fif() {
-  local initial_query="$1"
-  local rg_cmd="rg --column --line-number --no-heading --color=always --smart-case"
-
-  fzf "${_FZF_COMMON_OPTS[@]}" \
-    --disabled --ansi \
-    --bind "start:reload:$rg_cmd {q}" \
-    --bind "change:reload:sleep 0.1; $rg_cmd {q} || true" \
-    --delimiter : \
-    --header 'Type to search content | ENTER: open | CTRL-/: view' \
-    --border-label=' Find in Files ' \
-    --prompt='  Search❯ ' \
-    --preview "${_BAT_CMD} --style=numbers --color=always --highlight-line {2} {1}" \
-    --preview-window 'right,60%,border,wrap,+{2}-/2' \
-    --bind 'enter:become(nvim {1} +{2})' \
-    --query "$initial_query"
-}
+alias fif='dv-fif'
 
 # fhistory - Fuzzy History
 # Purpose: Interactively search and select commands from history.
@@ -248,20 +225,7 @@ fhistory() {
 # fman - Fuzzy Man Pages
 # Purpose: Interactively search and open man pages.
 # Usage: fman
-fman() {
-  man -k . | sort | \
-    fzf "${_FZF_COMMON_OPTS[@]}" \
-    --tiebreak=begin \
-    --border-label=' Manual Pages ' \
-    --prompt='  Man❯ ' \
-    --header 'ENTER: open | CTRL-/: view' \
-    --preview "sec=\$(echo {2} | tr -d '()'); \
-               MANWIDTH=\$FZF_PREVIEW_COLUMNS man -P cat \"\$sec\" {1} 2>/dev/null | \
-               col -bx | \
-               ${_BAT_CMD} -l man -p --color=always" \
-    --preview-window 'right,60%,border,wrap' \
-    --bind "enter:become(sec=\$(echo {2} | tr -d '()'); man \"\$sec\" {1})"
-}
+alias fman='dv-man'
 
 # -------------------
 # Git
@@ -730,10 +694,10 @@ show_keybinding_cheatsheet() {
 show_keybinding_cheatsheet:${_C_YELLOW}/${_C_RESET}       : Show this Cheatsheet
 show_alias_cheatsheet:${_C_YELLOW}?${_C_RESET}       : Show Alias Cheatsheet
 clear:${_C_YELLOW}Alt+x${_C_RESET}   : Clear Screen (this requires Alt+x twice)
-fzf_nvim:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
-fif:${_C_YELLOW}f${_C_RESET}       : Find text in Files (fif)
+dv-find:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
+dv-fif:${_C_YELLOW}f${_C_RESET}       : Find text in Files (fif)
 fhistory:${_C_YELLOW}r${_C_RESET}       : (R)ecent Command History
-fman:${_C_YELLOW}m${_C_RESET}       : Find Manual Pages (fman)
+dv-man:${_C_YELLOW}m${_C_RESET}       : Find Manual Pages (fman)
 fzfkill:${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
 lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
@@ -756,17 +720,17 @@ bind '"\ex\ex":clear-screen'
 # Bind Ctrl+x to clear the screen (executes 'clear').
 bind -x '"\C-x":clear'
 
-# Bind Alt+x e to fzf_nvim (find file and open in editor - nvim).
-bind -x '"\exe":fzf_nvim'
+# Bind Alt+x e to dv-find (find file and open in editor - nvim).
+bind -x '"\exe":dv-find'
 
-# Bind Alt+x f to fif (find in files).
-bind -x '"\exf":fif'
+# Bind Alt+x f to dv-fif (find in files).
+bind -x '"\exf":dv-fif'
 
 # Bind Alt+x r to fhistory.
 bind -x '"\exr":fhistory'
 
-# Bind Alt+x m to fman.
-bind -x '"\exm":fman'
+# Bind Alt+x m to dv-man.
+bind -x '"\exm":dv-man'
 
 # Bind Alt+x / to the key bind cheatsheet.
 bind -x '"\ex/": show_keybinding_cheatsheet'

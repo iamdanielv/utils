@@ -56,7 +56,7 @@ DEST_TMUX_SCRIPTS_DIR="${HOME}/.config/tmux/scripts/dv"
 DEST_TMUX_BASE_DIR="${HOME}/.config/tmux"
 
 # Bash Paths
-SRC_BASH_ALIASES="${SCRIPT_DIR}/config/bash/aliases"
+SRC_BASH_ALIASES="${SCRIPT_DIR}/config/bash/.bash_aliases"
 DEST_BASH_ALIASES="${HOME}/.bash_aliases"
 
 # Bin Paths

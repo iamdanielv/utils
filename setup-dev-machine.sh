@@ -537,7 +537,7 @@ setup_binaries() {
 # Copies the .bash_aliases file to the user's home directory.
 setup_bash_aliases() {
     printBanner "Setting up .bash_aliases"
-    local source_aliases_path="${SCRIPT_DIR}/config/bash/aliases"
+    local source_aliases_path="${SCRIPT_DIR}/config/bash/.bash_aliases"
     local dest_aliases_path="${HOME}/.bash_aliases"
 
     if [[ ! -f "$source_aliases_path" ]]; then
