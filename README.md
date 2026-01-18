@@ -437,14 +437,16 @@ View all custom keybindings and functions.
 │   f       : Find text in Files (fif)                    ││                     
 │   r       : (R)ecent Command History                    ││                     
 │   m       : Find Manual Pages (fman)                    ││                     
-│   k       : Process Killer (fzfkill)                    ││                     
+│   k       : Process Killer (dv-kill)                    ││                     
 │   g g     : Git GUI (lazygit)                           ││                     
 │   g l     : Git Log (fgl)                                │                     
-│   g b     : Git Branch (fgb)                             │                     
+│   g b     : Git Branch (dv-git-branch)                   │                     
+│   g h     : Git File History (dv-git-history)            │                     
 ╰──────────────────────────────────────────────────────────╯
 ```
 
 ### Alias Cheatsheet (`Alt+x ?`)
+
 ```
 ╭─ Alias Cheatsheet ───────────────────────────────────────╮                     
 │   Run❯                                                   │                     
@@ -563,13 +565,11 @@ Checks if a system reboot is required.
 ```shell
 ✓ No Reboot Required
 ```
-
 or
 
 ```shell
  Reboot Required
 ```
-
 
 ### 🧩 Tmux Workflow
 
@@ -597,6 +597,18 @@ A highly configured Tmux setup (`tmux.conf`) focused on speed and integration wi
 - **Smart Navigation**: Seamlessly navigate between Tmux panes and Vim splits using `Ctrl+h/j/k/l`.
 - **Scratchpad** (`Prefix + \``): A toggleable popup terminal for quick tasks.
 - **Session Manager** (`Prefix + s`): Interactive session switcher, creator, and manager.
+
+**Execute Menu (`Prefix + e`):**
+Opens a menu to launch utilities:
+- **Find File**: `dv-find`
+- **Find in Files**: `dv-fif`
+- **Process Killer**: `dv-kill`
+- **System Monitor**: `btop`
+- **Ports**: `dv-ports`
+- **Man Pages**: `dv-man`
+- **LazyDocker**: `lazydocker`
+- **Env Manager**: `dv-env`
+- **System Update**: `dv-update`
 
 **Git Integration (`Prefix + g`):**
 Opens a menu with interactive tools:
