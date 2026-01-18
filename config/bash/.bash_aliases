@@ -346,18 +346,18 @@ fgl() {
 
 # fgb - Fuzzy Git Branch
 # Purpose: Interactively checkout local or remote git branches
-# Usage: fgb (Delegates to tmux-git-branch-manager.sh)
-alias fgb='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-branch-manager.sh'
+# Usage: fgb (Delegates to dv-git-branch)
+alias fgb='_require_git_repo && dv-git-branch'
 
 # fzglfh - Fuzzy Git Log File History
 # Purpose: Interactively browse commit history of a specific file
-# Usage: fzglfh (Delegates to tmux-git-file-history.sh)
-alias fzglfh='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-file-history.sh'
+# Usage: fzglfh (Delegates to dv-git-history)
+alias fzglfh='_require_git_repo && dv-git-history'
 
 # fgs - Fuzzy Git Stash
 # Purpose: Interactively view, apply, and drop git stashes
-# Usage: fgs (Delegates to tmux-git-stash.sh)
-alias fgs='_require_git_repo && ~/.config/tmux/scripts/dv/tmux-git-stash.sh'
+# Usage: fgs (Delegates to dv-git-stash)
+alias fgs='_require_git_repo && dv-git-stash'
 
 # -------------------
 # System, Network & Packages
@@ -402,79 +402,12 @@ alias psa='ps -eo user,pid,pcpu,pmem,command'
 # Process Management
 # -------------------
 
-# _fzfkill_preview (Internal)
-# Purpose: Generate the preview content for fzfkill
-# Usage: _fzfkill_preview <PID>
-_fzfkill_preview() {
-  local pid=$1
-
-  # Get detailed process info. -ww ensures the command isn't truncated.
-  ps -ww -o pid=,user=,pcpu=,pmem=,cmd= -p "$pid" | \
-    awk -v cb="${_C_BLUE}" -v cg="${_C_GREEN}" -v cc="${_C_CYAN}" \
-        -v cbo="${_C_BOLD}" -v cr="${_C_RESET}" -v cw="${_C_YELLOW}" -v cl="${_C_DARK_GRAY}" '
-    {
-      pid=$1; user=$2; cpu=$3; mem=$4;
-
-      # Reconstruct command (handle spaces)
-      cmd_start = index($0, $5);
-      cmd = substr($0, cmd_start);
-
-      # Determine user color
-      uc = (user == "root") ? cw : cbo;
-
-      # Format Output
-      # PID & User
-      printf "%sPID:%s %s%-6s%s %sUser:%s %s%s%s \t", cb, cr, cbo, pid, cr, cb, cr, uc, user, cr;
-      # CPU & Mem
-      printf "%sCPU:%s %s%-6s%s %sMem:%s %s%s%s\n", cg, cr, cbo, cpu, cr, cg, cr, cbo, mem, cr;
-      # Separator
-      printf "%s──────────────────────────────────%s\n", cl, cr;
-      # Command
-      printf "%s%s%s\n", cbo, cc, cmd;
-    }'
-}
-# Export the function so fzf's subshell can access it.
-export -f _fzfkill_preview
-
 # fzfkill
 # Purpose: Interactively find and kill processes
 # Usage: fzfkill
-fzfkill() {
-  # Get a process list with only User, PID, and Command, without headers.
-  # Exclude the current fzfkill process and its children from the list.
-  # Highlight processes run by the 'root' user.
-  # Pipe directly to fzf to avoid storing large output in a variable.
-  ps -eo user,pid,cmd --no-headers | \
-    awk -v c_warn="${_C_YELLOW}" -v c_reset="${_C_RESET}" '{
-      if (/fzfkill/ || /ps -eo/) next;
-      if ($1 == "root") {
-        # Color only username for root processes
-        printf "%s%s%s%s\n", c_warn, $1, c_reset, substr($0, length($1) + 1);
-      } else {
-        print $0;
-      }
-    }' | \
-    _C_BLUE="${_C_BLUE}" _C_GREEN="${_C_GREEN}" _C_CYAN="${_C_CYAN}" \
-    _C_BOLD="${_C_BOLD}" _C_RESET="${_C_RESET}" _C_YELLOW="${_C_YELLOW}" \
-    _C_DARK_GRAY="${_C_DARK_GRAY}" \
-    fzf -m --no-hscroll "${_FZF_COMMON_OPTS[@]}" \
-    --preview-label-pos='2' \
-    --header $'ENTER: kill (TERM) | CTRL-K: kill (KILL)\nTAB: mark | SHIFT-UP/DOWN: scroll details' \
-    --preview '_fzfkill_preview {2}' \
-    --prompt='  Filter❯ ' \
-    --border-label=' Process Killer ' --input-label ' Filter Processes ' \
-    --bind "enter:execute(echo {+2} | xargs -r kill -s TERM)+abort" \
-    --bind "ctrl-k:execute(echo {+2} | xargs -r kill -s KILL)+abort" \
-    --bind "result:transform-list-label:
-        if [[ -z \$FZF_QUERY ]]; then
-          echo \" All Processes \"
-        else
-          echo \" \$FZF_MATCH_COUNT matches for [\$FZF_QUERY] \"
-        fi" \
-    --bind 'focus:transform-preview-label:[[ -n {} ]] && printf " Details for PID [%s] " {2}' \
-    --color 'border:#cc6666,label:#ff9999,preview-border:#cc9999,preview-label:#ffcccc' \
-    --color 'header-border:#cc6666,header-label:#ff9999'
-}
+alias fzfkill='dv-kill'
+unset -f fzfkill
+unset -f dv-kill
 
 # -------------------
 # File & Directory Listing (using eza)
@@ -638,11 +571,11 @@ dv-find:${_C_YELLOW}e${_C_RESET}       : Find File and Open in Editor - nvim
 dv-fif:${_C_YELLOW}f${_C_RESET}       : Find text in Files (fif)
 fhistory:${_C_YELLOW}r${_C_RESET}       : (R)ecent Command History
 dv-man:${_C_YELLOW}m${_C_RESET}       : Find Manual Pages (fman)
-fzfkill:${_C_YELLOW}k${_C_RESET}       : Process Killer (fzfkill)
+dv-kill:${_C_YELLOW}k${_C_RESET}       : Process Killer (dv-kill)
 lg:${_C_YELLOW}g g${_C_RESET}     : Git GUI (lazygit)
 fgl:${_C_YELLOW}g l${_C_RESET}     : Git Log (fgl)
-fgb:${_C_YELLOW}g b${_C_RESET}     : Git Branch (fgb)
-fzglfh:${_C_YELLOW}g h${_C_RESET}     : Git File History (fzglfh)
+dv-git-branch:${_C_YELLOW}g b${_C_RESET}     : Git Branch (dv-git-branch)
+dv-git-history:${_C_YELLOW}g h${_C_RESET}     : Git File History (dv-git-history)
 tmux_launch:${_C_YELLOW}t${_C_RESET}       : Launch Tmux (main)
 EOF
   )
@@ -678,17 +611,17 @@ bind -x '"\ex/": show_keybinding_cheatsheet'
 # Bind Alt+x ? to the alias cheatsheet.
 bind -x '"\ex?": show_alias_cheatsheet'
 
-# Bind Alt+x k to the fzfkill function.
-bind -x '"\exk": fzfkill'
+# Bind Alt+x k to dv-kill.
+bind -x '"\exk": dv-kill'
 
 # Bind Alt+x g l to the fgl function.
 bind -x '"\exgl": fgl'
 
-# Bind Alt+x g b to the fgb function.
-bind -x '"\exgb": fgb'
+# Bind Alt+x g b to dv-git-branch.
+bind -x '"\exgb": _require_git_repo && dv-git-branch'
 
-# Bind Alt+x g h to the fzglfh function.
-bind -x '"\exgh": fzglfh'
+# Bind Alt+x g h to dv-git-history.
+bind -x '"\exgh": _require_git_repo && dv-git-history'
 
 # Bind Alt+x g g to 'lg' (lazygit).
 bind -x '"\exgg": lazygit'
