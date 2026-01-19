@@ -67,7 +67,7 @@ if [ -z "$TMUX" ]; then
 fi
 
 if ! command -v fzf >/dev/null; then
-    "$script_dir/dv-input" --message "Error: fzf is not installed."
+    "$script_dir/dv-input.sh" --message "Error: fzf is not installed."
     exit 1
 fi
 
@@ -250,7 +250,7 @@ case "$type" in
             msg="${ansi_blue}${cur_sess}${ansi_yellow} has no more panes,"
             msg+=$'\n'
             msg+="  ${ansi_green}moving to ${target_sess}${ansi_yellow}."
-            "$script_dir/dv-input" --message "$msg"
+            "$script_dir/dv-input.sh" --message "$msg"
             tmux display-message "#[fg=${thm_yellow}][!] '${cur_sess}' ended; moved to '${target_sess}'"
         fi
         ;;
@@ -274,12 +274,12 @@ case "$type" in
             msg="${ansi_blue}${cur_sess}${ansi_yellow} has no more panes,"
             msg+=$'\n'
             msg+="  ${ansi_green}moving to ${target}${ansi_yellow}."
-            "$script_dir/dv-input" --message "$msg"
+            "$script_dir/dv-input.sh" --message "$msg"
             tmux display-message "#[fg=${thm_yellow}][!] '${cur_sess}' ended; moved to '${target}'"
         fi
         ;;
     NEW)
-        sess_name=$("$script_dir/dv-input" --title " New Session " "Enter Name")
+        sess_name=$("$script_dir/dv-input.sh" --title " New Session " "Enter Name")
         if [ $? -eq 0 ] && [ -n "$sess_name" ]; then
             "$script_path" --new-session "$sess_name" "$src_pane" "$follow"
         else

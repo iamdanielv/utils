@@ -78,7 +78,10 @@ do_pop() {
 do_create() {
     local script_dir
     script_dir=$(dirname "$0")
-    local input_cmd="$script_dir/dv-input"
+    local input_cmd="$script_dir/../config/tmux/scripts/dv/dv-input.sh"
+    if [[ ! -x "$input_cmd" ]]; then
+        input_cmd="$HOME/.config/tmux/scripts/dv/dv-input.sh"
+    fi
     local stash_msg=""
 
     if [[ -x "$input_cmd" ]]; then
@@ -102,7 +105,10 @@ do_branch() {
 
     local script_dir
     script_dir=$(dirname "$0")
-    local input_cmd="$script_dir/dv-input"
+    local input_cmd="$script_dir/../config/tmux/scripts/dv/dv-input.sh"
+    if [[ ! -x "$input_cmd" ]]; then
+        input_cmd="$HOME/.config/tmux/scripts/dv/dv-input.sh"
+    fi
     local branch_name=""
 
     if [[ -x "$input_cmd" ]]; then
@@ -129,7 +135,10 @@ do_drop() {
     # Confirmation
     local script_dir
     script_dir=$(dirname "$0")
-    local confirm_cmd="$script_dir/dv-input"
+    local confirm_cmd="$script_dir/../config/tmux/scripts/dv/dv-input.sh"
+    if [[ ! -x "$confirm_cmd" ]]; then
+        confirm_cmd="$HOME/.config/tmux/scripts/dv/dv-input.sh"
+    fi
     
     if [[ -x "$confirm_cmd" ]]; then
         if ! "$confirm_cmd" --internal-confirm "Drop stash '$stash_id'?"; then

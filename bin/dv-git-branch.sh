@@ -91,7 +91,10 @@ delete_branch() {
     # Use dv-input for confirmation if available
     local script_dir
     script_dir=$(dirname "$0")
-    local confirm_cmd="$script_dir/dv-input"
+    local confirm_cmd="$script_dir/../config/tmux/scripts/dv/dv-input.sh"
+    if [[ ! -x "$confirm_cmd" ]]; then
+        confirm_cmd="$HOME/.config/tmux/scripts/dv/dv-input.sh"
+    fi
 
     if [[ -x "$confirm_cmd" ]]; then
         if ! "$confirm_cmd" --internal-confirm "Delete branch '$branch'?"; then

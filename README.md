@@ -437,11 +437,11 @@ View all custom keybindings and functions.
 │   f       : Find text in Files (fif)                    ││                     
 │   r       : (R)ecent Command History                    ││                     
 │   m       : Find Manual Pages (fman)                    ││                     
-│   k       : Process Killer (dv-kill)                    ││                     
+│   k       : Process Killer (dv-kill.sh)                 ││                     
 │   g g     : Git GUI (lazygit)                           ││                     
 │   g l     : Git Log (fgl)                                │                     
-│   g b     : Git Branch (dv-git-branch)                   │                     
-│   g h     : Git File History (dv-git-history)            │                     
+│   g b     : Git Branch (dv-git-branch.sh)                │                     
+│   g h     : Git File History (dv-git-history.sh)         │                     
 ╰──────────────────────────────────────────────────────────╯
 ```
 
