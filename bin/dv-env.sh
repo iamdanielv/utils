@@ -1,11 +1,13 @@
 #!/bin/bash
-#
-# manage-env.sh
-#
-# An interactive TUI for managing environment variables in a .env file.
-# It supports adding, editing, and deleting variables, along with special
-# comments in the format: ##@ <VAR> comment text
-#
+# ===============
+# Script Name: dv-env.sh
+# Description: Interactive TUI for managing environment variables in a .env file.
+#              It supports adding, editing, and deleting variables, along with
+#              special comments in the format: ##@ <VAR> comment text
+# Keybinding:  None
+# Config:      None
+# Dependencies: bash
+# ===============
 
 set -o pipefail
 

@@ -1,9 +1,10 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-git-stash.sh
-# Description: Interactive Git Stash Viewer - Apply, Drop
+# Script Name: dv-git-stash.sh
+# Description: Interactive Git Stash Viewer - Apply, Drop.
 # Keybinding:  Prefix + g -> t
-# Dependencies: tmux, git, fzf
+# Config:      bind g display-menu ...
+# Dependencies: tmux, git, fzf, dv-input.sh
 # ===============
 
 # --- Auto-Launch Tmux ---

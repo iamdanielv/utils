@@ -1,9 +1,11 @@
 #!/bin/bash
-# ==============================================================================
-# Script Name: dv-find
+# ===============
+# Script Name: dv-find.sh
 # Description: Find a file and open it in Neovim.
-# Usage:       dv-find
-# ==============================================================================
+# Keybinding:  Alt+x e
+# Config:      alias fzf_nvim='dv-find.sh'
+# Dependencies: fzf, fd (optional), nvim
+# ===============
 
 # --- Configuration ---
 C_RESET=$'\033[0m'

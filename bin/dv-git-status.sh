@@ -1,9 +1,10 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-git-status.sh
-# Description: Interactive Git Status - Stage, Discard, Diff
+# Script Name: dv-git-status.sh
+# Description: Interactive Git Status - Stage, Discard, Diff.
 # Keybinding:  Prefix + g -> s
-# Dependencies: tmux, git, fzf, bat (optional)
+# Config:      bind g display-menu ...
+# Dependencies: tmux, git, fzf, bat/batcat
 # ===============
 
 # --- Auto-Launch Tmux ---

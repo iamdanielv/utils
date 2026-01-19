@@ -1,9 +1,11 @@
 #!/bin/bash
-# ==============================================================================
-# Script Name: dv-man
+# ===============
+# Script Name: dv-man.sh
 # Description: Interactively search and open man pages.
-# Usage:       dv-man
-# ==============================================================================
+# Keybinding:  Alt+x m
+# Config:      alias fman='dv-man.sh'
+# Dependencies: man, fzf, bat/batcat
+# ===============
 
 # --- Configuration ---
 FZF_COMMON_OPTS=(

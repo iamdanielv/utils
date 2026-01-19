@@ -1,4 +1,11 @@
 #!/bin/bash
+# ===============
+# Script Name: dv-vm-manager.sh
+# Description: TUI for managing KVM/QEMU virtual machines using virsh.
+# Keybinding:  None
+# Config:      None
+# Dependencies: virsh
+# ===============
 
 declare -rx C_RED=$'\033[31m'
 declare -rx C_GREEN=$'\033[32m'

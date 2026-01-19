@@ -1,9 +1,11 @@
 #!/bin/bash
-# ==============================================================================
-# Script Name: dv-fif
+# ===============
+# Script Name: dv-fif.sh
 # Description: Interactive search of file contents using ripgrep and fzf.
-# Usage:       dv-fif [query]
-# ==============================================================================
+# Keybinding:  Alt+x f
+# Config:      alias fif='dv-fif.sh'
+# Dependencies: rg, fzf, bat/batcat
+# ===============
 
 # --- Configuration ---
 C_RESET=$'\033[0m'

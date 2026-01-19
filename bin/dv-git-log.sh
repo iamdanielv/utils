@@ -1,8 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-git-log.sh
-# Description: Interactive Git Log Viewer
+# Script Name: dv-git-log.sh
+# Description: Interactive Git Log Viewer.
 # Keybinding:  Prefix + g -> l
+# Config:      bind g display-menu ...
 # Dependencies: tmux, git, fzf
 # ===============
 

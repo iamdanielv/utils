@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==============================================================================
-# Script Name: tmux-reload.sh
+# Script Name: dv-reload.sh
 # Description: Reloads the tmux configuration file.
 # Keybinding:  Prefix + r
-# Config:      bind -N "Reload Tmux Configuration" r run-shell -b "~/.config/tmux/scripts/dv/tmux-reload.sh"
+# Config:      bind -N "Reload Tmux Configuration" r run-shell -b "~/.config/tmux/scripts/dv/dv-reload.sh"
 # Dependencies: tmux
 # ==============================================================================
 

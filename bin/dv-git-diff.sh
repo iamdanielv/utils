@@ -1,8 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-git-diff.sh
-# Description: Interactive Git Diff Viewer (Unstaged/Staged/All)
+# Script Name: dv-git-diff.sh
+# Description: Interactive Git Diff Viewer (Unstaged/Staged/All).
 # Keybinding:  Prefix + g -> d
+# Config:      bind g display-menu ...
 # Dependencies: tmux, git, fzf
 # ===============
 

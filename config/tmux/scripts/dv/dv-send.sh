@@ -1,9 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-send.sh
+# Script Name: dv-send.sh
 # Description: Unified Send (Push) - Move the current pane to another window or session.
 # Keybinding:  Prefix + k
-# Config:      bind k run-shell -b "~/.config/tmux/scripts/dv/tmux-send.sh"
+# Config:      bind k run-shell -b "~/.config/tmux/scripts/dv/dv-send.sh"
 # Dependencies: tmux > 3.2, fzf, grep, sed, cut
 # ===============
 

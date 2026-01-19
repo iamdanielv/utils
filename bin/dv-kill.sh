@@ -1,9 +1,11 @@
 #!/bin/bash
-# ==============================================================================
-# Script Name: dv-kill
+# ===============
+# Script Name: dv-kill.sh
 # Description: Interactively find and kill processes.
-# Usage:       dv-kill
-# ==============================================================================
+# Keybinding:  Alt+x k
+# Config:      bind -x '"\exk": dv-kill.sh'
+# Dependencies: fzf, ps, awk
+# ===============
 
 # --- Configuration ---
 C_RESET=$'\033[0m'

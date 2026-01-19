@@ -1,9 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-list-keys.sh
+# Script Name: dv-keys.sh
 # Description: FZF Keybinding Lookup
 # Keybinding:  Prefix + ?
-# Config:      bind ? run-shell -b "~/.config/tmux/scripts/dv/tmux-list-keys.sh"
+# Config:      bind ? run-shell -b "~/.config/tmux/scripts/dv/dv-keys.sh"
 # Dependencies: tmux, fzf, awk
 # ===============
 

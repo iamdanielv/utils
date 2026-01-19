@@ -1,4 +1,11 @@
 #!/bin/bash
+# ===============
+# Script Name: dv-docker-cleanup.sh
+# Description: Clean up unused Docker resources (containers, images, networks, volumes).
+# Keybinding:  None
+# Config:      None
+# Dependencies: docker
+# ===============
 set -o pipefail
 
 # Colors

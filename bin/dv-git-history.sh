@@ -1,8 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-git-file-history.sh
+# Script Name: dv-git-history.sh
 # Description: Interactive file history viewer with nested FZF loops.
 # Keybinding:  Prefix + g -> h
+# Config:      bind g display-menu ...
 # Dependencies: git, fzf, tmux
 # ===============
 

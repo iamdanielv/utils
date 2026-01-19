@@ -1,10 +1,11 @@
 #!/bin/bash
 # ===============
-# Script Name: dv-input
+# Script Name: dv-input.sh
 # Description: Modal input popup with custom event loop.
 # Keybinding:  None (Helper Script)
 # Config:      None
 # Dependencies: tmux
+# ===============
 # Usage:       dv-input [OPTIONS] [PROMPT] [DEFAULT_VALUE]
 # Exit Code:   0 on success, 1 on cancel.
 #

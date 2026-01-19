@@ -1,9 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-join.sh
+# Script Name: dv-join.sh
 # Description: Unified Join (Pull) - Bring a remote pane into the current window.
 # Keybinding:  Prefix + j
-# Config:      bind j run-shell -b "~/.config/tmux/scripts/dv/tmux-join.sh"
+# Config:      bind j run-shell -b "~/.config/tmux/scripts/dv/dv-join.sh"
 # Dependencies: tmux > 3.2, fzf, grep, cut
 # ===============
 

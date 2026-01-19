@@ -1,9 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-cheatsheet.sh
+# Script Name: dv-cheatsheet.sh
 # Description: Displays a popup with keybinding cheatsheet
 # Keybinding:  Prefix + /
-# Config:      bind / run-shell -b "~/.config/tmux/scripts/dv/tmux-cheatsheet.sh"
+# Config:      bind / run-shell -b "~/.config/tmux/scripts/dv/dv-cheatsheet.sh"
 # Dependencies: tmux, less
 # ===============
 

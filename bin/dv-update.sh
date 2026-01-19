@@ -1,9 +1,11 @@
 #!/bin/bash
-# ==============================================================================
-# Script Name: dv-update
+# ===============
+# Script Name: dv-update.sh
 # Description: Update system packages and check if a reboot is required.
-# Usage:       dv-update
-# ==============================================================================
+# Keybinding:  None
+# Config:      alias update='dv-update.sh'
+# Dependencies: apt, sudo
+# ===============
 
 set -e
 set -o pipefail

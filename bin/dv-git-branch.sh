@@ -1,10 +1,10 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-git-branch-manager.sh
-# Description: Fuzzy Git Branch - Checkout and Management
-# Keybinding:  Prefix + g (via Menu)
+# Script Name: dv-git-branch.sh
+# Description: Fuzzy Git Branch - Checkout and Management.
+# Keybinding:  Prefix + g -> b
 # Config:      bind g display-menu ...
-# Dependencies: tmux, git, fzf, dv-input
+# Dependencies: tmux, git, fzf, dv-input.sh
 # ===============
 
 # --- Auto-Launch Tmux ---

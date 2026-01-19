@@ -1,9 +1,11 @@
 #!/bin/bash
-# ==============================================================================
-# Script Name: dv-ports
-# Description: List listening TCP/UDP ports with process info in a table.
-# Usage:       dv-ports
-# ==============================================================================
+# ===============
+# Script Name: dv-ports.sh
+# Description: List listening TCP/UDP ports with process info.
+# Keybinding:  None
+# Config:      alias ports='dv-ports.sh'
+# Dependencies: ss, awk
+# ===============
 
 # --- Configuration ---
 C_RESET=$'\033[0m'

@@ -1,9 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: tmux-toggle-scratch.sh
+# Script Name: dv-scratch.sh
 # Description: Smart toggle for scratchpad (Popup vs Window)
 # Keybinding:  Prefix + `
-# Config:      bind ` run-shell -b "~/.config/tmux/scripts/dv/tmux-toggle-scratch.sh"
+# Config:      bind ` run-shell -b "~/.config/tmux/scripts/dv/dv-scratch.sh"
 # Dependencies: tmux, grep
 # ===============
 
