@@ -63,17 +63,55 @@ DEST_BASH_ALIASES="${HOME}/.bash_aliases"
 SRC_BIN_DIR="${SCRIPT_DIR}/bin"
 DEST_BIN_DIR="${HOME}/.local/bin"
 
-if [ "$LIST_BACKUPS" = true ]; then
-    echo "${C_BLUE}[i] Existing backups:${T_RESET}"
-    # Find tmux backups
-    find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null | sort | sed 's/^/  - /'
-    # Find bash backups
-    find "${HOME}" -maxdepth 1 -type f -name ".bash_aliases.bak_*" 2>/dev/null | sort | sed 's/^/  - /'
+# --- Helper Functions ---
 
-    exit 0
-fi
+backup_path() {
+    local path="$1"
+    if [ -e "$path" ]; then
+        local backup="${path}.bak_$(date +%Y%m%d_%H%M%S)"
+        echo "  ${C_YELLOW}[i] Backing up${T_RESET} current config to $(basename "$backup")..."
+        cp -r "$path" "$backup"
+    fi
+}
 
-if [ "$CLEANUP" = true ]; then
+sync_file() {
+    local src="$1"
+    local dest="$2"
+    if [ -f "$src" ]; then
+        mkdir -p "$(dirname "$dest")"
+        if cp "$src" "$dest"; then
+            echo "  ${C_GREEN}[✓] Updated:${T_RESET} $dest"
+        else
+            echo "  ${C_RED}[✗] Error:${T_RESET} Failed to copy to $dest"
+        fi
+    else
+        echo "  ${C_RED}[✗] Error:${T_RESET} Source file not found: $src"
+    fi
+}
+
+sync_dir_contents() {
+    local src="$1"
+    local dest="$2"
+    local chmod_pattern="$3"
+    
+    if [ -d "$src" ]; then
+        mkdir -p "$dest"
+        cp "$src"/* "$dest/" 2>/dev/null || true
+        if [ -n "$chmod_pattern" ]; then
+            chmod +x "$dest"/$chmod_pattern 2>/dev/null || true
+        fi
+        local count
+        count=$(find "$src" -maxdepth 1 -type f | wc -l)
+        echo "  ${C_GREEN}[✓] Updated:${T_RESET} Contents of $dest ${C_YELLOW}($count files)${T_RESET}"
+        ls -m "$src"
+        return 0
+    else
+        # Return failure so caller can handle specific error messaging
+        return 1
+    fi
+}
+
+perform_cleanup() {
     echo "${C_BLUE}[i] Cleaning up old backups...${T_RESET}"
     
     tmux_backups=$(find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null)
@@ -102,73 +140,9 @@ if [ "$CLEANUP" = true ]; then
     else
         echo "  [i] No old backups found."
     fi
-    exit 0
-fi
+}
 
-# --- 1. Tmux Sync ---
-echo "${C_BLUE}[i] Syncing Tmux Configuration...${T_RESET}"
-
-# Backup existing config
-if [ -d "$DEST_TMUX_BASE_DIR" ]; then
-    BACKUP_DIR="${DEST_TMUX_BASE_DIR}.bak_$(date +%Y%m%d_%H%M%S)"
-    echo "  ${C_YELLOW}[i] Backing up${T_RESET} current config to $BACKUP_DIR..."
-    cp -r "$DEST_TMUX_BASE_DIR" "$BACKUP_DIR"
-fi
-
-# Sync tmux.conf
-if [ -f "$SRC_TMUX_CONF" ]; then
-    mkdir -p "$(dirname "$DEST_TMUX_CONF")"
-    cp "$SRC_TMUX_CONF" "$DEST_TMUX_CONF"
-    echo "  ${C_GREEN}[✓] Updated:${T_RESET} $DEST_TMUX_CONF"
-else
-    echo "  ${C_RED}[✗] Error:${T_RESET} Source tmux.conf not found at $SRC_TMUX_CONF"
-fi
-
-# Sync Scripts
-if [ -d "$SRC_TMUX_SCRIPTS" ]; then
-    mkdir -p "$DEST_TMUX_SCRIPTS_DIR"
-    cp "$SRC_TMUX_SCRIPTS"/* "$DEST_TMUX_SCRIPTS_DIR" 2>/dev/null || true
-    chmod +x "$DEST_TMUX_SCRIPTS_DIR"/*.sh 2>/dev/null || true
-    echo "  ${C_GREEN}[✓] Updated:${T_RESET} Scripts in $DEST_TMUX_SCRIPTS_DIR"
-    ls -1 "$DEST_TMUX_SCRIPTS_DIR" | sed 's/^/      - /'
-else
-    echo "  ${C_RED}[✗] Error:${T_RESET} Source scripts directory not found at $SRC_TMUX_SCRIPTS"
-fi
-
-# --- 2. Bash Sync ---
-echo ""
-echo "${C_BLUE}[i] Syncing Bash Aliases...${T_RESET}"
-
-if [ -f "$DEST_BASH_ALIASES" ]; then
-    BACKUP_FILE="${DEST_BASH_ALIASES}.bak_$(date +%Y%m%d_%H%M%S)"
-    echo "  ${C_YELLOW}[i] Backing up${T_RESET} current file to $(basename "$BACKUP_FILE")..."
-    cp "$DEST_BASH_ALIASES" "$BACKUP_FILE"
-fi
-
-if cp "$SRC_BASH_ALIASES" "$DEST_BASH_ALIASES"; then
-    echo "  ${C_GREEN}[✓] Updated:${T_RESET} $DEST_BASH_ALIASES"
-else
-    echo "  ${C_RED}[✗] Error:${T_RESET} Failed to copy file to $DEST_BASH_ALIASES"
-fi
-
-# --- 3. Bin Sync ---
-echo ""
-echo "${C_BLUE}[i] Syncing Binaries...${T_RESET}"
-if [ -d "$SRC_BIN_DIR" ]; then
-    mkdir -p "$DEST_BIN_DIR"
-    cp "$SRC_BIN_DIR"/* "$DEST_BIN_DIR/" 2>/dev/null || true
-    chmod +x "$DEST_BIN_DIR"/dv-* 2>/dev/null || true
-    echo "  ${C_GREEN}[✓] Updated:${T_RESET} Binaries in $DEST_BIN_DIR"
-else
-    echo "  ${C_YELLOW}[!] No binaries found in $SRC_BIN_DIR${T_RESET}"
-fi
-
-# --- 4. Post-Sync Actions ---
-echo ""
-if [ -n "$TMUX" ]; then
-    tmux source-file "$DEST_TMUX_CONF"
-    tmux display-message "Dev Config Synced & Reloaded!"
-    echo "  ${C_GREEN}[✓] Reloaded${T_RESET} active tmux session."
+verify_tmux_bindings() {
     echo "  ${C_BLUE}[i] Verifying script bindings:${T_RESET}"
 
     # Check each script to see if it is bound in the current session
@@ -216,6 +190,53 @@ if [ -n "$TMUX" ]; then
             echo "      ${C_YELLOW}[!] $script_name${T_RESET} (Not bound)"
         fi
     done
+}
+
+# --- Main Execution ---
+
+if [ "$LIST_BACKUPS" = true ]; then
+    echo "${C_BLUE}[i] Existing backups:${T_RESET}"
+    # Find tmux backups
+    find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null | sort | sed 's/^/  - /'
+    # Find bash backups
+    find "${HOME}" -maxdepth 1 -type f -name ".bash_aliases.bak_*" 2>/dev/null | sort | sed 's/^/  - /'
+    exit 0
+fi
+
+if [ "$CLEANUP" = true ]; then
+    perform_cleanup
+    exit 0
+fi
+
+# 1. Tmux Sync
+echo "${C_BLUE}[i] Syncing Tmux Configuration...${T_RESET}"
+backup_path "$DEST_TMUX_BASE_DIR"
+sync_file "$SRC_TMUX_CONF" "$DEST_TMUX_CONF"
+
+if ! sync_dir_contents "$SRC_TMUX_SCRIPTS" "$DEST_TMUX_SCRIPTS_DIR" "*.sh"; then
+    echo "  ${C_RED}[✗] Error:${T_RESET} Source scripts directory not found at $SRC_TMUX_SCRIPTS"
+fi
+
+# 2. Bash Sync
+echo ""
+echo "${C_BLUE}[i] Syncing Bash Aliases...${T_RESET}"
+backup_path "$DEST_BASH_ALIASES"
+sync_file "$SRC_BASH_ALIASES" "$DEST_BASH_ALIASES"
+
+# 3. Bin Sync
+echo ""
+echo "${C_BLUE}[i] Syncing Binaries...${T_RESET}"
+if ! sync_dir_contents "$SRC_BIN_DIR" "$DEST_BIN_DIR" "dv-*"; then
+    echo "  ${C_YELLOW}[!] No binaries found in $SRC_BIN_DIR${T_RESET}"
+fi
+
+# 4. Post-Sync Actions
+echo ""
+if [ -n "$TMUX" ]; then
+    tmux source-file "$DEST_TMUX_CONF"
+    tmux display-message "Dev Config Synced & Reloaded!"
+    echo "  ${C_GREEN}[✓] Reloaded${T_RESET} active tmux session."
+    verify_tmux_bindings
 else
     echo "  ${C_BLUE}Not inside tmux.${T_RESET} Run '${C_BOLD}tmux source ~/.config/tmux/tmux.conf${T_RESET}' to apply."
 fi
