@@ -9,22 +9,8 @@
 
 script_path=$(readlink -f "$0")
 script_dir=$(dirname "$script_path")
+source "$script_dir/common.sh"
 
-# --- Colors (Tokyo Night) ---
-thm_bg="#1e2030"
-thm_fg="#c8d3f5"
-thm_cyan="#04a5e5"
-thm_black="#1e2030"
-thm_gray="#2d3f76"
-thm_magenta="#cba6f7"
-thm_pink="#ff007c"
-thm_red="#ff966c"
-thm_green="#c3e88d"
-thm_yellow="#ffc777"
-thm_blue="#82aaff"
-thm_orange="#ff966c"
-thm_black4="#444a73"
-thm_mauve="#cba6f7"
 
 # --- Checks ---
 if [ -z "$TMUX" ]; then
@@ -32,31 +18,7 @@ if [ -z "$TMUX" ]; then
     exit 1
 fi
 
-if ! command -v fzf >/dev/null; then
-    "$script_dir/dv-input.sh" --message "Error: fzf is not installed."
-    exit 1
-fi
-
-# --- Logic ---
-
-# Helper to convert hex color to ANSI escape code
-to_ansi() {
-    local hex=$1
-    hex="${hex/\#/}"
-    local r=$((16#${hex:0:2}))
-    local g=$((16#${hex:2:2}))
-    local b=$((16#${hex:4:2}))
-    printf "\033[38;2;%d;%d;%dm" "$r" "$g" "$b"
-}
-
-ansi_blue=$(to_ansi "$thm_blue")
-ansi_fg=$(to_ansi "$thm_fg")
-ansi_yellow=$(to_ansi "$thm_yellow")
-ansi_cyan=$(to_ansi "$thm_cyan")
-ansi_red=$(to_ansi "$thm_red")
-ansi_green=$(to_ansi "$thm_green")
-ansi_magenta=$(to_ansi "$thm_magenta")
-ansi_gray=$(to_ansi "$thm_gray")
+check_deps "fzf" "sed" "awk"
 
 get_preview_label() {
     local target="$1"
@@ -124,12 +86,9 @@ fzf_header=$(printf "%s  %s\n  %s  %s" "${ansi_green}ENTER: Switch${ansi_fg}" "$
 
 while true; do
     # FZF Execution
-    selected=$(get_session_list | fzf \
-        --tmux 95%,90% \
-        --ansi \
-        --reverse \
-        --layout=reverse-list \
+    selected=$(get_session_list | dv_run_fzf \
         --exit-0 \
+        --tmux 95%,90% \
         --delimiter="\t" \
         --with-nth=2 \
         --prompt="Session ❯ " \
@@ -144,8 +103,7 @@ while true; do
         --preview-window="right:60%" \
         --bind "focus:transform-preview-label:$script_path --preview-label {1}" \
         --expect=ctrl-x,ctrl-n,ctrl-r \
-        --color "border:${thm_cyan},label:${thm_cyan}:reverse,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
-        --color "bg+:${thm_gray},bg:${thm_bg},gutter:${thm_bg},prompt:${thm_orange}")
+        --color "preview-label:regular")
 
     if [ $? -ne 0 ]; then exit 0; fi
 
