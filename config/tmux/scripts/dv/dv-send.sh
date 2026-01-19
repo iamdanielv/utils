@@ -26,6 +26,24 @@ thm_orange="#ff966c"
 thm_black4="#444a73"
 thm_mauve="#cba6f7"
 
+# Helper for colors
+to_ansi() {
+    local hex=$1
+    hex="${hex/\#/}"
+    local r=$((16#${hex:0:2}))
+    local g=$((16#${hex:2:2}))
+    local b=$((16#${hex:4:2}))
+    printf "\033[38;2;%d;%d;%dm" "$r" "$g" "$b"
+}
+
+ansi_blue=$(to_ansi "$thm_blue")
+ansi_fg=$(to_ansi "$thm_fg")
+ansi_yellow=$(to_ansi "$thm_yellow")
+ansi_cyan=$(to_ansi "$thm_cyan")
+ansi_red=$(to_ansi "$thm_red")
+ansi_green=$(to_ansi "$thm_green")
+ansi_magenta=$(to_ansi "$thm_magenta")
+
 # --- Callback Logic (New Session) ---
 if [ "$1" = "--new-session" ]; then
     sess_name="$2"
@@ -34,19 +52,12 @@ if [ "$1" = "--new-session" ]; then
 
     if [ -z "$sess_name" ]; then exit 0; fi
 
-    show_popup() {
-        local header="$1"
-        local value="$2"
-        tmux display-popup -w 60 -h 10 -E \
-            "bash -c \"printf ' $header\033[0m\n   \033[1;34m%s\033[0m\n\n Press any key to continue...' '$value'; read -n 1 -s\""
-    }
-
     if tmux has-session -t "=${sess_name}" 2>/dev/null; then
         if [ "$follow" -eq 1 ]; then
             tmux switch-client -t "=${sess_name}"
         fi
         tmux break-pane -s "$src_pane" -t "=${sess_name}"
-        show_popup "\033[1;33m! Session Exists" "$sess_name"
+        "$script_dir/dv-input.sh" --message "${ansi_yellow}! Session Exists${ansi_fg}: ${ansi_blue}${sess_name}"
     else
         tmux new-session -d -s "$sess_name"
         if [ "$follow" -eq 1 ]; then
@@ -54,7 +65,7 @@ if [ "$1" = "--new-session" ]; then
         fi
         tmux join-pane -s "$src_pane" -t "=${sess_name}:"
         tmux kill-pane -a -t "$src_pane"
-        show_popup "\033[1;32m✓ Session Created" "$sess_name"
+        "$script_dir/dv-input.sh" --message "${ansi_green}✓ Session Created${ansi_fg}: ${ansi_blue}${sess_name}"
     fi
 
     exit 0
@@ -78,24 +89,6 @@ src_pane=$(tmux display-message -p "#{pane_id}")
 cur_win_id=$(tmux display-message -p "#{window_id}")
 cur_sess=$(tmux display-message -p "#{session_name}")
 cur_win_panes=$(tmux display-message -p "#{window_panes}")
-
-# Helper for colors
-to_ansi() {
-    local hex=$1
-    hex="${hex/\#/}"
-    local r=$((16#${hex:0:2}))
-    local g=$((16#${hex:2:2}))
-    local b=$((16#${hex:4:2}))
-    printf "\033[38;2;%d;%d;%dm" "$r" "$g" "$b"
-}
-
-ansi_blue=$(to_ansi "$thm_blue")
-ansi_fg=$(to_ansi "$thm_fg")
-ansi_yellow=$(to_ansi "$thm_yellow")
-ansi_cyan=$(to_ansi "$thm_cyan")
-ansi_red=$(to_ansi "$thm_red")
-ansi_green=$(to_ansi "$thm_green")
-ansi_magenta=$(to_ansi "$thm_magenta")
 
 # Generate Target List
 # Format: TYPE <tab> TARGET <tab> DISPLAY
