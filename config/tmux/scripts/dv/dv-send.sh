@@ -9,40 +9,8 @@
 
 script_path=$(readlink -f "$0")
 script_dir=$(dirname "$script_path")
+source "$script_dir/common.sh"
 
-# --- Colors (Tokyo Night) ---
-thm_bg="#1e2030"
-thm_fg="#c8d3f5"
-thm_cyan="#04a5e5"
-thm_black="#1e2030"
-thm_gray="#2d3f76"
-thm_magenta="#cba6f7"
-thm_pink="#ff007c"
-thm_red="#ff966c"
-thm_green="#c3e88d"
-thm_yellow="#ffc777"
-thm_blue="#82aaff"
-thm_orange="#ff966c"
-thm_black4="#444a73"
-thm_mauve="#cba6f7"
-
-# Helper for colors
-to_ansi() {
-    local hex=$1
-    hex="${hex/\#/}"
-    local r=$((16#${hex:0:2}))
-    local g=$((16#${hex:2:2}))
-    local b=$((16#${hex:4:2}))
-    printf "\033[38;2;%d;%d;%dm" "$r" "$g" "$b"
-}
-
-ansi_blue=$(to_ansi "$thm_blue")
-ansi_fg=$(to_ansi "$thm_fg")
-ansi_yellow=$(to_ansi "$thm_yellow")
-ansi_cyan=$(to_ansi "$thm_cyan")
-ansi_red=$(to_ansi "$thm_red")
-ansi_green=$(to_ansi "$thm_green")
-ansi_magenta=$(to_ansi "$thm_magenta")
 
 # --- Callback Logic (New Session) ---
 if [ "$1" = "--new-session" ]; then
@@ -77,10 +45,7 @@ if [ -z "$TMUX" ]; then
     exit 1
 fi
 
-if ! command -v fzf >/dev/null; then
-    "$script_dir/dv-input.sh" --message "Error: fzf is not installed."
-    exit 1
-fi
+check_deps "fzf" "grep" "sed" "cut"
 
 # --- Logic ---
 
@@ -163,11 +128,7 @@ else \
 fi"
 
 # Select
-selected=$(printf '%s\n' "$targets" | fzf \
-    --tmux 90%,60% \
-    --ansi \
-    --reverse \
-    --layout=reverse-list \
+selected=$(printf '%s\n' "$targets" | dv_run_fzf \
     --exit-0 \
     --delimiter="\t" \
     --with-nth=3 \
@@ -184,8 +145,7 @@ selected=$(printf '%s\n' "$targets" | fzf \
     --preview-window="right:60%" \
     --bind "focus:transform-preview-label:printf \"${ansi_blue}[%s]${ansi_fg} ${ansi_yellow}%s:%s${ansi_fg} \" {4} {5} {6}" \
     --preview-label-pos='3' \
-    --color "border:${thm_cyan},label:${thm_cyan}:reverse,preview-border:${thm_gray},preview-label:white:regular,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
-    --color "bg+:${thm_gray},bg:${thm_bg},gutter:${thm_bg},prompt:${thm_orange}")
+    --color "preview-label:white:regular,preview-border:${thm_gray}")
 
 if [ $? -ne 0 ]; then
     exit 0
