@@ -48,6 +48,39 @@ thm_yellow="#ffc777"
 
 # --- Functions ---
 
+strip_ansi() {
+    echo "$1" | sed 's/\x1b\[[0-9;]*m//g'
+}
+
+get_auto_geometry() {
+    local text="$1"
+    local mode="$2" # "input" or "msg"
+    
+    local clean_text
+    clean_text=$(strip_ansi "$text")
+    local len=${#clean_text}
+    
+    local term_cols
+    term_cols=$(tput cols 2>/dev/null || echo 80)
+    
+    local max_w=$(( term_cols * 80 / 100 ))
+    if (( max_w > 120 )); then max_w=120; fi
+    local min_w=40
+    
+    local w=$(( len + 8 ))
+    if (( w < min_w )); then w=$min_w; fi
+    if (( w > max_w )); then w=$max_w; fi
+    
+    local h=8
+    if [[ "$mode" == "msg" ]]; then
+        local inner_w=$(( w - 6 ))
+        if (( inner_w < 1 )); then inner_w=1; fi
+        local lines=$(( len / inner_w + 1 ))
+        h=$(( lines + 6 ))
+    fi
+    echo "$w $h"
+}
+
 # Adapted from tui.lib.sh to handle key inputs robustly
 read_single_char() {
     local char; local seq; IFS= read -rsn1 char < /dev/tty
@@ -284,8 +317,8 @@ main() {
     local regex=""
     local val_error_msg=""
     local title=" Input "
-    local width="50"
-    local height="8"
+    local width=""
+    local height=""
     local tmp_file
     tmp_file=$(mktemp)
     trap 'rm -f "$tmp_file"' EXIT
@@ -298,7 +331,8 @@ main() {
                 local script_path
                 script_path=$(readlink -f "$0")
                 local safe_msg=$(printf '%q' "$msg")
-                tmux display-popup -E -w 60 -h 10 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Info " \
+                read -r w h <<< $(get_auto_geometry "$msg" "msg")
+                tmux display-popup -E -w "$w" -h "$h" -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Info " \
                     "$script_path --internal-msg $safe_msg"
                 exit 0
                 ;;
@@ -307,7 +341,8 @@ main() {
                 local script_path
                 script_path=$(readlink -f "$0")
                 local safe_msg=$(printf '%q' "$msg")
-                tmux display-popup -E -w 60 -h 10 -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Confirm " \
+                read -r w h <<< $(get_auto_geometry "$msg" "msg")
+                tmux display-popup -E -w "$w" -h "$h" -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Confirm " \
                     "$script_path --internal-confirm $safe_msg"
                 exit $?
                 ;;
@@ -343,6 +378,12 @@ main() {
     done
 
     if [[ -z "$prompt" ]]; then prompt="Input"; fi
+    
+    if [[ -z "$width" || -z "$height" ]]; then
+        read -r auto_w auto_h <<< $(get_auto_geometry "$prompt" "input")
+        if [[ -z "$width" ]]; then width="$auto_w"; fi
+        if [[ -z "$height" ]]; then height="$auto_h"; fi
+    fi
 
     local script_path
     script_path=$(readlink -f "$0")
