@@ -7,9 +7,11 @@
 # Dependencies: tmux, grep
 # ===============
 
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+source "$script_dir/common.sh"
+
 # --- Configuration ---
-thm_bg="#1e1e2e"
-thm_yellow="#f9e2af"
 icon_scratch=""
 
 # --- Helper Functions ---

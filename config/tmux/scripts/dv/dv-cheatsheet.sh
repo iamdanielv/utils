@@ -7,11 +7,15 @@
 # Dependencies: tmux, less
 # ===============
 
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+source "$script_dir/common.sh"
+
 # --- Display Logic (Recursive Call) ---
 if [[ "$1" == "--show" ]]; then
     # ANSI Colors
-    C=$(printf '\033[1;34m') # Blue
-    R=$(printf '\033[0m')    # Reset
+    C="$ansi_blue"
+    R=$'\033[0m'
 
     cat <<EOF | less -R
 NAVIGATION - Direct
@@ -52,9 +56,7 @@ EOF
 fi
 
 # --- Main Logic (Launch Popup) ---
-thm_bg="#1e1e2e"
-thm_yellow="#f9e2af"
 
 tmux display-popup -E -w 70% -h 70% \
-  -T "#[bg=$thm_yellow,fg=$thm_bg] Cheatsheet (Prefix: C-a) " \
+  -T "#[bg=$thm_yellow,fg=$thm_bg] Cheatsheet (Prefix: C-a) (q to close) " \
   "$0 --show"
