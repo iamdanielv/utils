@@ -45,6 +45,9 @@ if ! tmux has-session -t scratch 2>/dev/null; then
     # Create it detached so we don't switch to it yet
     tmux new-session -d -s scratch
 fi
+# Ensure that if this session is closed, the client detaches (closing the popup)
+# instead of switching to another session (which keeps the popup open).
+tmux set-option -t scratch detach-on-destroy on
 
 if is_in_popup; then
     # Case 1: We are inside the popup. Detach (close) it.
