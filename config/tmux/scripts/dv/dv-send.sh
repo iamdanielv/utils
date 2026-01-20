@@ -25,7 +25,7 @@ if [ "$1" = "--new-session" ]; then
             tmux switch-client -t "=${sess_name}"
         fi
         tmux break-pane -s "$src_pane" -t "=${sess_name}"
-        "$script_dir/dv-input.sh" --message "${ansi_yellow}! Session Exists${ansi_fg}: ${ansi_blue}${sess_name}"
+        "$script_dir/dv-input.sh" --type warning --message "Session Exists: ${ansi_blue}${sess_name}"
     else
         tmux new-session -d -s "$sess_name"
         if [ "$follow" -eq 1 ]; then
@@ -33,7 +33,7 @@ if [ "$1" = "--new-session" ]; then
         fi
         tmux join-pane -s "$src_pane" -t "=${sess_name}:"
         tmux kill-pane -a -t "$src_pane"
-        "$script_dir/dv-input.sh" --message "${ansi_green}✓ Session Created${ansi_fg}: ${ansi_blue}${sess_name}"
+        "$script_dir/dv-input.sh" --type success --message "Session Created: ${ansi_blue}${sess_name}"
     fi
 
     exit 0
@@ -203,7 +203,7 @@ case "$type" in
             msg="${ansi_blue}${cur_sess}${ansi_yellow} has no more panes,"
             msg+=$'\n'
             msg+="  ${ansi_green}moving to ${target_sess}${ansi_yellow}."
-            "$script_dir/dv-input.sh" --message "$msg"
+            "$script_dir/dv-input.sh" --type info --message "$msg"
             tmux display-message "#[fg=${thm_yellow}][!] '${cur_sess}' ended; moved to '${target_sess}'"
         fi
         ;;
@@ -227,7 +227,7 @@ case "$type" in
             msg="${ansi_blue}${cur_sess}${ansi_yellow} has no more panes,"
             msg+=$'\n'
             msg+="  ${ansi_green}moving to ${target}${ansi_yellow}."
-            "$script_dir/dv-input.sh" --message "$msg"
+            "$script_dir/dv-input.sh" --type info --message "$msg"
             tmux display-message "#[fg=${thm_yellow}][!] '${cur_sess}' ended; moved to '${target}'"
         fi
         ;;

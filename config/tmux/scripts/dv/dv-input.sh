@@ -16,6 +16,7 @@
 #   --regex <pattern>      Regex validation pattern
 #   --val-error-msg <msg>  Custom error message on validation failure
 #   --message <text>       Display a simple message popup (no input)
+#   --type <type>          Set message type: info, success, warning, error (default: info)
 #   --confirm <text>       Display a Yes/No confirmation popup
 #
 # Common Validation Patterns (--regex):
@@ -69,10 +70,19 @@ read_single_char() {
 # --- Internal Message Mode ---
 run_internal_msg() {
     local msg="$1"
+    local type="${2:-info}"
+    local color="$ansi_blue"
+
+    case "$type" in
+        success) color="$ansi_green" ;;
+        warning) color="$ansi_yellow" ;;
+        error)   color="$ansi_red" ;;
+    esac
+
     # Clear screen
     printf '\033[H\033[2J'
-    # Message (Yellow)
-    printf "\n\n  \033[1;33m%s\033[0m\n" "$msg"
+    # Message
+    printf "\n\n  %s%s\033[0m\n" "$color" "$msg"
     # Footer
     printf "\n  \033[90m(Press any key)\033[0m"
     read_single_char >/dev/null
@@ -263,7 +273,7 @@ main() {
     fi
 
     if [[ "$1" == "--internal-msg" ]]; then
-        run_internal_msg "$2"
+        run_internal_msg "$2" "$3"
         exit 0
     fi
 
@@ -286,17 +296,37 @@ main() {
     local height=""
     local tmp_file
     tmp_file=$(mktemp)
+    local msg_type="info"
     trap 'rm -f "$tmp_file"' EXIT
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --type)
+                msg_type="$2"
+                shift 2
+                ;;
             --message)
                 local msg="$2"
-                local safe_msg=$(printf '%q' "$msg")
-                read -r w h <<< $(get_auto_geometry "$msg" "msg")
-                tmux display-popup -E -w "$w" -h "$h" -b rounded -T "#[bg=${thm_yellow},fg=${thm_bg}] Info " \
-                    "$script_path --internal-msg $safe_msg"
+                
+                local border_color="${thm_blue}"
+                local title_text=" Info "
+                local icon="ℹ"
+                
+                case "$msg_type" in
+                    success) border_color="${thm_green}"; title_text=" Success "; icon="✓" ;;
+                    warning) border_color="${thm_yellow}"; title_text=" Warning "; icon="!" ;;
+                    error)   border_color="${thm_red}";   title_text=" Error ";   icon="✗" ;;
+                esac
+
+                local full_msg="${icon} ${msg}"
+                local safe_msg=$(printf '%q' "$full_msg")
+                
+                read -r w h <<< $(get_auto_geometry "$full_msg" "msg")
+                tmux display-popup -E -w "$w" -h "$h" -b rounded \
+                    -S "fg=${border_color}" \
+                    -T "#[bg=${border_color},fg=${thm_bg}]${title_text}" \
+                    "$script_path --internal-msg $safe_msg $msg_type"
                 exit 0
                 ;;
             --confirm)

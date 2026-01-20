@@ -83,6 +83,18 @@ test_message() {
     run_test "Auto-size: Wrapping Message" 0 "" "$TMUX_INPUT" --message "This is a very long message that is intended to exceed the maximum width of the popup window. It should wrap to multiple lines and increase the height of the popup accordingly. Please verify visually."
 }
 
+test_enhanced_msg() {
+    echo "=== Enhanced Message Styling Tests ==="
+    # Test: Info
+    run_test "Type: Info" 0 "" "$TMUX_INPUT" --type info --message "This is an INFO message."
+    # Test: Success
+    run_test "Type: Success" 0 "" "$TMUX_INPUT" --type success --message "This is a SUCCESS message."
+    # Test: Warning
+    run_test "Type: Warning" 0 "" "$TMUX_INPUT" --type warning --message "This is a WARNING message."
+    # Test: Error
+    run_test "Type: Error" 0 "" "$TMUX_INPUT" --type error --message "This is an ERROR message."
+}
+
 test_confirm() {
     echo "=== Confirmation Tests ==="
     # Test: Confirmation Mode (Yes)
@@ -103,19 +115,21 @@ echo "dv-input.sh Test Suite"
 echo "--------------------------------"
 
 PS3="Select a test group: "
-options=("Basic Input" "Validation" "Message/Auto-size" "Confirmation" "Color Test" "Run All" "Quit")
+options=("Basic Input" "Validation" "Message/Auto-size" "Enhanced Styling" "Confirmation" "Color Test" "Run All" "Quit")
 while true; do
     select opt in "${options[@]}"; do
         case $opt in
             "Basic Input") test_basic; break ;;
             "Validation") test_validation; break ;;
             "Message/Auto-size") test_message; break ;;
+            "Enhanced Styling") test_enhanced_msg; break ;;
             "Confirmation") test_confirm; break ;;
             "Color Test") test_colors; break ;;
             "Run All")
                 test_basic
                 test_validation
                 test_message
+                test_enhanced_msg
                 test_confirm
                 break
                 ;;
