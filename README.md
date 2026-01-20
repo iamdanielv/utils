@@ -63,16 +63,6 @@ An interactive TUI for managing environment variables in a `.env` file. It provi
 - **External Editor Integration:** Quickly open the `.env` file in your default editor (`$EDITOR`).
 - **Automatic Discovery:** Finds and edits the `.env` file in the project root by default, or you can specify a path.
 
-### 🧾 Git Utilities (`git-utils.sh`)
-
-**Description:**
-Recursively performs Git commands on the current directory and all subdirectories that are Git repositories.
-
-- Check status of all repos (`-gs`)
-- Pull changes for all repos (`-gp`)
-- View all local and remote branches (`-gvb`)
-- Switch all repos to a specific branch (`-gb <branch>`)
-
 ### 🧹 Docker Cleanup (`dv-docker-cleanup`)
 
 **Description:**
