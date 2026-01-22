@@ -333,9 +333,9 @@ Search command history interactively.
 
 ```text
 ─ Command History ──────────────────────────────────────────────────────────────────────────────────
-  ENTER: Select | CTRL-E: Execute | CTRL-/: View                                                    
-  History❯ echo                                                                                     
-  3/516 ─────────────────────────────────────────────────────────────────────────────────────────── 
+  ENTER: Select | CTRL-E: Execute | CTRL-/: View
+  History❯ echo
+  3/516 ───────────────────────────────────────────────────────────────────────────────────────────
     253  echo $XDG_CONFIG_HOME
 ▌   175  echo "Hello there"
     173  echo "General Kenobi"
@@ -404,22 +404,22 @@ View all TMUX available key bindings.
 
 
 ```text
-╭─ TMUX KEY BINDINGS ──────────────────────────────────────╮      
-│ >                             │ C-h:                     │      
-│   112/112 ─────────────────── │   Smart Switch Left      │      
-│ ▌     C-h     @@@Smart Swit··││                          │      
-│       C-j     @@@Smart Swit·· │                          │      
-│       C-k     @@@Smart Swit·· │                          │      
-│       C-l     @@@Smart Swit·· │                          │      
-│   C-a Space   @@@Select nex·· │                          │      
-│   C-a !       @@@Break pane·· │                          │      
-│   C-a #       @@@List all p·· │                          │      
-│   C-a $       @@@Rename cur·· │                          │      
-│   C-a &       @@@Kill curre·· │                          │      
-│   C-a '       @@@Prompt for·· │                          │      
-│   C-a (       @@@Switch to ·· │                          │      
-│   C-a )       @@@Switch to ·· │                          │      
-╰──────────────────────────────────────────────────────────╯  
+╭─ TMUX KEY BINDINGS ──────────────────────────────────────╮
+│ >                             │ C-h:                     │
+│   112/112 ─────────────────── │   Smart Switch Left      │
+│ ▌     C-h     @@@Smart Swit··││                          │
+│       C-j     @@@Smart Swit·· │                          │
+│       C-k     @@@Smart Swit·· │                          │
+│       C-l     @@@Smart Swit·· │                          │
+│   C-a Space   @@@Select nex·· │                          │
+│   C-a !       @@@Break pane·· │                          │
+│   C-a #       @@@List all p·· │                          │
+│   C-a $       @@@Rename cur·· │                          │
+│   C-a &       @@@Kill curre·· │                          │
+│   C-a '       @@@Prompt for·· │                          │
+│   C-a (       @@@Switch to ·· │                          │
+│   C-a )       @@@Switch to ·· │                          │
+╰──────────────────────────────────────────────────────────╯
 ```
 
 #### Cheatsheet - Tmux Custom Bindings (`Prefix /`)
@@ -427,24 +427,24 @@ View all TMUX available key bindings.
 View all custom Tmux keybindings.
 
 ```text
-╭─ Cheatsheet (Prefix: C-a) ─────────────────────────────────────────╮                
-│NAVIGATION - Direct                                                 │                
-│  C-h/j/k/l    Move between panes (vim-aware)                       │                
-│                                                                    │                
-│NAVIGATION - with Prefix                                            │                
-│  C-p / C-n    Previous / Next Window                               │                
-│                                                                    │                
-│WINDOWS & PANES                                                     │                
-│  - / =        New Split Vertical / Horizontal                      │                
-│  b            Send Pane to [Current Session] +:New Window          │                
-│  j            Join a Pane to [Current Session]                     │                
-│  k            Send a Pane to [Session] window                      │                
-│  s            Session Manager                                      │                
-│  S            Choose Tree (Default Session Management)             │                
-│  S-Left/Right Swap window position                                 │                
-│  z            Zoom pane                                            │                
-│:                                                                   │                
-╰────────────────────────────────────────────────────────────────────╯ 
+╭─ Cheatsheet (Prefix: C-a) ─────────────────────────────────────────╮
+│NAVIGATION - Direct                                                 │
+│  C-h/j/k/l    Move between panes (vim-aware)                       │
+│                                                                    │
+│NAVIGATION - with Prefix                                            │
+│  C-p / C-n    Previous / Next Window                               │
+│                                                                    │
+│WINDOWS & PANES                                                     │
+│  - / =        New Split Vertical / Horizontal                      │
+│  b            Send Pane to [Current Session] +:New Window          │
+│  j            Join a Pane to [Current Session]                     │
+│  k            Send a Pane to [Session] window                      │
+│  s            Session Manager                                      │
+│  S            Choose Tree (Default Session Management)             │
+│  S-Left/Right Swap window position                                 │
+│  z            Zoom pane                                            │
+│:                                                                   │
+╰────────────────────────────────────────────────────────────────────╯
 ```
 
 ### Cheatsheet - Custom Bash Binding (`Alt+x /`)
@@ -452,42 +452,42 @@ View all custom Tmux keybindings.
 View all custom keybindings and functions.
 
 ```text
-╭─ Bindings Cheatsheet (Prefix: Alt+x) ────────────────────╮                     
-│   Run❯                                                   │                     
-│   13/13 ──────────────────────────────────────────────── │                     
-│ ▌ /       : Show this Cheatsheet                        ││                     
-│   ?       : Show Alias Cheatsheet                       ││                     
-│   Alt+x   : Clear Screen (this requires Alt+x twice)    ││                     
-│   e       : Find File and Open in Editor - nvim         ││                     
-│   f       : Find text in Files (fif)                    ││                     
-│   r       : (R)ecent Command History                    ││                     
-│   m       : Find Manual Pages (fman)                    ││                     
-│   k       : Process Killer (dv-kill.sh)                 ││                     
-│   g g     : Git GUI (lazygit)                           ││                     
-│   g l     : Git Log (fgl)                                │                     
-│   g b     : Git Branch (dv-git-branch.sh)                │                     
-│   g h     : Git File History (dv-git-history.sh)         │                     
+╭─ Bindings Cheatsheet (Prefix: Alt+x) ────────────────────╮
+│   Run❯                                                   │
+│   13/13 ──────────────────────────────────────────────── │
+│ ▌ /       : Show this Cheatsheet                        ││
+│   ?       : Show Alias Cheatsheet                       ││
+│   Alt+x   : Clear Screen (this requires Alt+x twice)    ││
+│   e       : Find File and Open in Editor - nvim         ││
+│   f       : Find text in Files (fif)                    ││
+│   r       : (R)ecent Command History                    ││
+│   m       : Find Manual Pages (fman)                    ││
+│   k       : Process Killer (dv-kill.sh)                 ││
+│   g g     : Git GUI (lazygit)                           ││
+│   g l     : Git Log (fgl)                                │
+│   g b     : Git Branch (dv-git-branch.sh)                │
+│   g h     : Git File History (dv-git-history.sh)         │
 ╰──────────────────────────────────────────────────────────╯
 ```
 
 ### Alias Cheatsheet (`Alt+x ?`)
 
 ```
-╭─ Alias Cheatsheet ───────────────────────────────────────╮                     
-│   Run❯                                                   │                     
-│   26/26 ──────────────────────────────────────────────── │                     
-│ ▌ ..       : Go up one directory (cd ..)                ││                     
-│   cat      : Replaced with (batcat/bat)                 ││                     
-│   check-reboot : Check Reboot Status                    ││                     
-│   ga       : Git Add (git add)                          ││                     
-│   gb       : Git Show Branches (git branch -a)           │                     
-│   gc       : Git Commit (git commit -m)                  │                     
-│   gl       : Git Log Graph (git log --graph ...)         │                     
-│   glf      : Git Log File (git log --follow ...)         │                     
-│   gp       : Git Push (git push)                         │                     
-│   gs       : Git Status (git status -sb)                 │                     
-│   ip       : IP with color (ip -c)                       │                     
-╰──────────────────────────────────────────────────────────╯ 
+╭─ Alias Cheatsheet ───────────────────────────────────────╮
+│   Run❯                                                   │
+│   26/26 ──────────────────────────────────────────────── │
+│ ▌ ..       : Go up one directory (cd ..)                ││
+│   cat      : Replaced with (batcat/bat)                 ││
+│   check-reboot : Check Reboot Status                    ││
+│   ga       : Git Add (git add)                          ││
+│   gb       : Git Show Branches (git branch -a)           │
+│   gc       : Git Commit (git commit -m)                  │
+│   gl       : Git Log Graph (git log --graph ...)         │
+│   glf      : Git Log File (git log --follow ...)         │
+│   gp       : Git Push (git push)                         │
+│   gs       : Git Status (git status -sb)                 │
+│   ip       : IP with color (ip -c)                       │
+╰──────────────────────────────────────────────────────────╯
 ```
 
 
@@ -502,18 +502,18 @@ View all custom keybindings and functions.
 View listening TCP/UDP ports and associated processes.
 
 ```text
-P STATUS           LOCAL:Port           REMOTE:Port  PROGRAM/PID                                    
-U UNCONN       127.0.0.1:323           0.0.0.0:*     -                                              
-U UNCONN         0.0.0.0:5353          0.0.0.0:*     "avahi-daemon",pid=850                         
-U UNCONN      172.17.0.1:3702          0.0.0.0:*     "python3",pid=1234                             
+P STATUS           LOCAL:Port           REMOTE:Port  PROGRAM/PID
+U UNCONN       127.0.0.1:323           0.0.0.0:*     -
+U UNCONN         0.0.0.0:5353          0.0.0.0:*     "avahi-daemon",pid=850
+U UNCONN      172.17.0.1:3702          0.0.0.0:*     "python3",pid=1234
 T LISTEN   127.0.0.53%lo:53            0.0.0.0:*     -
 T LISTEN       127.0.0.1:631           0.0.0.0:*     -
-T LISTEN       127.0.0.1:5432          0.0.0.0:*     "postgres",pid=1543                            
-T LISTEN         0.0.0.0:22            0.0.0.0:*     "sshd",pid=1100                                
-T LISTEN         0.0.0.0:80            0.0.0.0:*     "nginx",pid=2048                               
-T LISTEN         0.0.0.0:4000          0.0.0.0:*     "node",pid=3005                                
+T LISTEN       127.0.0.1:5432          0.0.0.0:*     "postgres",pid=1543
+T LISTEN         0.0.0.0:22            0.0.0.0:*     "sshd",pid=1100
+T LISTEN         0.0.0.0:80            0.0.0.0:*     "nginx",pid=2048
+T LISTEN         0.0.0.0:4000          0.0.0.0:*     "node",pid=3005
 T LISTEN           [::1]:631              [::]:*     -
-T LISTEN            [::]:22               [::]:*     "sshd",pid=1100                                
+T LISTEN            [::]:22               [::]:*     "sshd",pid=1100
 ```
 
 #### update
@@ -521,63 +521,63 @@ T LISTEN            [::]:22               [::]:*     "sshd",pid=1100
 Wrapper for `apt update/upgrade/autoremove`.
 
 ```shell
-Update apt sources...                                                                               
-[sudo: authenticate] Password:                                                                      
-Hit:1 https://download.docker.com/linux/ubuntu noble InRelease                                      
-Hit:2 https://packages.microsoft.com/repos/code stable InRelease                                    
-Hit:3 http://us.archive.ubuntu.com/ubuntu noble InRelease                                           
-Get:4 http://us.archive.ubuntu.com/ubuntu noble-updates InRelease [136 kB]                          
-Get:5 http://security.ubuntu.com/ubuntu noble-security InRelease [136 kB]                           
-Get:6 http://us.archive.ubuntu.com/ubuntu noble-backports InRelease [133 kB]                        
-Get:7 http://us.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [234 kB]                
-Get:8 http://us.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [36.8 kB]             
-Get:9 http://us.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Components [212 B]         
-Get:10 http://us.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [138 kB]           
-Get:11 http://security.ubuntu.com/ubuntu noble-security/main amd64 Components [448 B]               
-Get:12 http://us.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [38.4 kB]        
-Get:13 http://us.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [212 B]        
-Get:14 http://us.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [212 B]            
-Get:15 http://us.archive.ubuntu.com/ubuntu noble-backports/restricted amd64 Components [216 B]      
-Get:16 http://us.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [216 B]        
-Get:17 http://us.archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Components [216 B]      
-Get:18 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Components [212 B]         
-Get:19 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Components [7,100 B]         
-Get:20 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Components [212 B]         
-Fetched 861 kB in 1s (613 kB/s)                                                                     
-3 packages can be upgraded. Run 'apt list --upgradable' to see them.                                
-  
-Upgrade apt packages...                                                                             
-Upgrading:                                                                                          
-  docker-ce  docker-ce-cli  docker-ce-rootless-extras                                               
-                                                                                                    
-Summary:                                                                                            
-  Upgrading: 3, Installing: 0, Removing: 0, Not Upgrading: 0                                        
-  Download size: 43.7 MB                                                                            
-  Freed space: 44.0 kB                                                                              
-                                                                                                    
+Update apt sources...
+[sudo: authenticate] Password:
+Hit:1 https://download.docker.com/linux/ubuntu noble InRelease
+Hit:2 https://packages.microsoft.com/repos/code stable InRelease
+Hit:3 http://us.archive.ubuntu.com/ubuntu noble InRelease
+Get:4 http://us.archive.ubuntu.com/ubuntu noble-updates InRelease [136 kB]
+Get:5 http://security.ubuntu.com/ubuntu noble-security InRelease [136 kB]
+Get:6 http://us.archive.ubuntu.com/ubuntu noble-backports InRelease [133 kB]
+Get:7 http://us.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [234 kB]
+Get:8 http://us.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [36.8 kB]
+Get:9 http://us.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Components [212 B]
+Get:10 http://us.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [138 kB]
+Get:11 http://security.ubuntu.com/ubuntu noble-security/main amd64 Components [448 B]
+Get:12 http://us.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [38.4 kB]
+Get:13 http://us.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [212 B]
+Get:14 http://us.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [212 B]
+Get:15 http://us.archive.ubuntu.com/ubuntu noble-backports/restricted amd64 Components [216 B]
+Get:16 http://us.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [216 B]
+Get:17 http://us.archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Components [216 B]
+Get:18 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Components [212 B]
+Get:19 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Components [7,100 B]
+Get:20 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Components [212 B]
+Fetched 861 kB in 1s (613 kB/s)
+3 packages can be upgraded. Run 'apt list --upgradable' to see them.
+
+Upgrade apt packages...
+Upgrading:
+  docker-ce  docker-ce-cli  docker-ce-rootless-extras
+
+Summary:
+  Upgrading: 3, Installing: 0, Removing: 0, Not Upgrading: 0
+  Download size: 43.7 MB
+  Freed space: 44.0 kB
+
 Get:1 https://download.docker.com/linux/ubuntu noble/stable amd64 docker-ce-cli amd64 5:26.1.5-1~ubu
-ntu.24.04~noble [16.3 MB]                                                                           
+ntu.24.04~noble [16.3 MB]
 Get:2 https://download.docker.com/linux/ubuntu noble/stable amd64 docker-ce amd64 5:26.1.5-1~ubuntu.
-24.04~noble [21.1 MB]                                                                               
+24.04~noble [21.1 MB]
 Get:3 https://download.docker.com/linux/ubuntu noble/stable amd64 docker-ce-rootless-extras amd64 5:
-26.1.5-1~ubuntu.24.04~noble [6,385 kB]                                                              
-Fetched 43.7 MB in 1s (29.9 MB/s)  
+26.1.5-1~ubuntu.24.04~noble [6,385 kB]
+Fetched 43.7 MB in 1s (29.9 MB/s)
 (Reading database ... 201729 files and directories currently installed.)
-Preparing to unpack .../docker-ce-cli_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...                 
-Unpacking docker-ce-cli (5:26.1.5-1~ubuntu.24.04~noble) over (5:26.1.4-1~ubuntu.24.04~noble) ...    
-Preparing to unpack .../docker-ce_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...                     
-Unpacking docker-ce (5:26.1.5-1~ubuntu.24.04~noble) over (5:26.1.4-1~ubuntu.24.04~noble) ...        
-Preparing to unpack .../docker-ce-rootless-extras_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...     
+Preparing to unpack .../docker-ce-cli_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...
+Unpacking docker-ce-cli (5:26.1.5-1~ubuntu.24.04~noble) over (5:26.1.4-1~ubuntu.24.04~noble) ...
+Preparing to unpack .../docker-ce_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...
+Unpacking docker-ce (5:26.1.5-1~ubuntu.24.04~noble) over (5:26.1.4-1~ubuntu.24.04~noble) ...
+Preparing to unpack .../docker-ce-rootless-extras_5%3a26.1.5-1~ubuntu.24.04~noble_amd64.deb ...
 Unpacking docker-ce-rootless-extras (5:26.1.5-1~ubuntu.24.04~noble) over (5:26.1.4-1~ubuntu.24.04~noble) ...
-Setting up docker-ce-cli (5:26.1.5-1~ubuntu.24.04~noble) ...                                        
-Setting up docker-ce-rootless-extras (5:26.1.5-1~ubuntu.24.04~noble) ...                            
-Setting up docker-ce (5:26.1.5-1~ubuntu.24.04~noble) ...                                            
+Setting up docker-ce-cli (5:26.1.5-1~ubuntu.24.04~noble) ...
+Setting up docker-ce-rootless-extras (5:26.1.5-1~ubuntu.24.04~noble) ...
+Setting up docker-ce (5:26.1.5-1~ubuntu.24.04~noble) ...
 invoke-rc.d: policy-rc.d denied execution of restart.
 /usr/sbin/policy-rc.d returned 101, not running 'restart docker.service docker.socket'
 Processing triggers for man-db (2.13.1-1) ...
 
 Autoremove apt packages...
-Summary:                        
+Summary:
   Upgrading: 0, Installing: 0, Removing: 0, Not Upgrading: 0
 
 ✓ No Reboot Required
@@ -603,17 +603,17 @@ A highly configured Tmux setup (`tmux.conf`) focused on speed and integration wi
 
 ### Session Manager
 ```text
-╭ 󰖲 Session Manager ──────────────────────────────────────────────────────────────────────────╮   
-│    New Session                      ╭ 󰖲 Preview: main ───────────────────────────────────╮ │   
-│ ▌  main: 1 windows                  │ ├── [1] bash (Active)                         1/14││ │   
-│   scratch: 1 windows                 │ │  Summary:                                       ││ │   
-│                                      │ │    Upgrading: 0, Installing: 0, Removing: 0, Not││ │   
-│   Commands: ─────────────────────────│ │                                                  │ │   
-│   ENTER: Switch  C-n: New            │ │  ✓ No Reboot Required                            │ │   
-│     C-r: Rename  C-x: Kill           │ │  daniel@dev:~/code/iamdanielv/utils$ check-reboo │ │   
-│   3/3 ────────────────────────────── │ │  ✓ No Reboot Required                            │ │   
-│ Session ❯                            ╰────────────────────────────────────────────────────╯ │   
-╰─────────────────────────────────────────────────────────────────────────────────────────────╯ 
+╭ 󰖲 Session Manager ──────────────────────────────────────────────────────────────────────────╮
+│    New Session                      ╭ 󰖲 Preview: main ───────────────────────────────────╮ │
+│ ▌  main: 1 windows                  │ ├── [1] bash (Active)                         1/14││ │
+│   scratch: 1 windows                 │ │  Summary:                                       ││ │
+│                                      │ │    Upgrading: 0, Installing: 0, Removing: 0, Not││ │
+│   Commands: ─────────────────────────│ │                                                  │ │
+│   ENTER: Switch  C-n: New            │ │  ✓ No Reboot Required                            │ │
+│     C-r: Rename  C-x: Kill           │ │  daniel@dev:~/code/iamdanielv/utils$ check-reboo │ │
+│   3/3 ────────────────────────────── │ │  ✓ No Reboot Required                            │ │
+│ Session ❯                            ╰────────────────────────────────────────────────────╯ │
+╰─────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 **Core Features:**
