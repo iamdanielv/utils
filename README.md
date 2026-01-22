@@ -603,7 +603,7 @@ A highly configured Tmux setup (`tmux.conf`) focused on speed and integration wi
 
 ### Session Manager
 ```text
-󰖲 Session Manager ──────────────────────────────────────────────────────────────────────────╮   
+╭ 󰖲 Session Manager ──────────────────────────────────────────────────────────────────────────╮   
 │    New Session                      ╭ 󰖲 Preview: main ───────────────────────────────────╮ │   
 │ ▌  main: 1 windows                  │ ├── [1] bash (Active)                         1/14││ │   
 │   scratch: 1 windows                 │ │  Summary:                                       ││ │   
