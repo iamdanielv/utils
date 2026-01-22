@@ -257,6 +257,41 @@ A TUI (Text User Interface) for managing KVM/QEMU virtual machines using `virsh`
 - **Controls**: Start, shutdown, reboot, or force stop VMs.
 - **Details View**: Inspect VM specifics like network interfaces (IP addresses), storage devices, and guest agent status.
 
+**VM Manager - Main View**
+
+```text
+╭─VM Manager────────────────────────────────────────────────────────────
+│ NAME                                STATE        CPU     MEM     A/S
+│❱ ubuntu-server                       ✔ running   12.5%   8 GiB   Yes
+│  arch-linux                          ✘ shut off  ---     4 GiB   No
+│  dns-service                         ✔ running   1.2%    1 GiB   Yes
+│  win11-test                          ✘ shut off  ---     16 GiB  No
+│  docker-host                         ✔ running   5.4%    8 GiB   Yes
+├─Controls:──┬──────────────┬──────────┬─────────────────────┬──────────
+│ [↓↑]Select │ [S]tart/Stop │ [R]eboot │ [F]orce Stop        │ [?]Help
+╰ [jk]Select │ [I]nfo/Enter │ [C]lone  │ [D]elete            │ [Q]uit
+```
+
+**VM Detail view**
+
+```text
+╭─VM Details: ubuntu-server ( ✔ running )───────────────────────────────
+│  CPU(s): 4     Memory: 8 GiB   Autostart: enable
+│  Agent OS: Ubuntu 24.04 LTS
+├─Network Interfaces (Source: Agent)────────────────────────────────────
+│  lo         00:00:00:00:00:00 ipv4 127.0.0.1/8
+│                               ipv6 ::1/128
+│  enp1s0     52:54:00:aa:bb:cc ipv4 192.168.1.50/24
+│                               ipv6 fe80::5054:ff:feaa:bbcc/64
+├─Storage───────────────────────────────────────────────────────────────
+│  Device: vda (disk) - Type: file
+│    Host path: /var/lib/libvirt/images/ubuntu-server.qcow2
+│    Capacity: 25/100 GiB
+│  Device: sda (cdrom) - (Empty)
+├─Controls:──┬──────────────┬──────────┬─────────────────────┬──────────
+╰            │ [S]tart/Stop │ [R]eboot │ [F]orce Stop        │ [Q]uit
+```
+
 ### 🐚 Interactive Shell Workflow
 
 **Description:**
