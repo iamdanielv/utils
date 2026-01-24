@@ -650,6 +650,9 @@ _get_color_preview_string() {
 
     local esc=$'\033'
     local ansi_color_pattern="^$esc\\[[0-9;]*m$"
+    local hex_color_pattern_6="^#([a-fA-F0-9]{6})$"
+    local hex_color_pattern_3="^#([a-fA-F0-9]{3})$"
+
     if [[ "$value" =~ $ansi_color_pattern ]]; then
         local display_code="$value"
         local inner="${value#*$esc[}"
@@ -671,6 +674,29 @@ _get_color_preview_string() {
         fi
         color_preview_ref=$(printf "   %s████%s" "$display_code" "$T_RESET")
         preview_len_ref=5 # Visible length of "   ████"
+    elif [[ "$value" =~ $hex_color_pattern_6 || "$value" =~ $hex_color_pattern_3 ]]; then
+        local hex_str="${BASH_REMATCH[1]}"
+        local r g b
+
+        if [[ ${#hex_str} -eq 3 ]]; then
+            local r_char="${hex_str:0:1}"
+            local g_char="${hex_str:1:1}"
+            local b_char="${hex_str:2:1}"
+            r=$((16#${r_char}${r_char}))
+            g=$((16#${g_char}${g_char}))
+            b=$((16#${b_char}${b_char}))
+        else
+            r=$((16#${hex_str:0:2}))
+            g=$((16#${hex_str:2:2}))
+            b=$((16#${hex_str:4:2}))
+        fi
+
+        local display_code="${esc}[38;2;${r};${g};${b}m"
+        if [[ "$is_current" == "true" ]]; then
+            display_code="${T_NO_REVERSE}${display_code}"
+        fi
+        color_preview_ref=$(printf "   %s████%s" "$display_code" "$T_RESET")
+        preview_len_ref=7
     fi
 }
 
