@@ -63,9 +63,12 @@ elif [ "$current_session" = "scratch" ]; then
     fi
 else
     # Case 3: We are in a normal session. Open the scratchpad popup.
+    # Set parent session for global bindings (Alt-h/Alt-w)
+    tmux set-option -t scratch "@popup_parent" "$current_session"
+
     # We inject TMUX_POPUP=1 so is_in_popup can detect it later.
     tmux display-popup -E -w 100% -h 50% -d "#{pane_current_path}" \
-        -T "#[bg=$thm_yellow,fg=$thm_bg] $icon_scratch Scratch ── (Toggle: C-a \`, Join Pane: C-a j, Send Pane: C-a k) " \
+        -T "#[bg=$thm_yellow,fg=$thm_bg] $icon_scratch Scratch ── (Toggle: C-a \` | Hide: Alt-h | Promote: Alt-w) " \
         -e "TMUX_POPUP=1" \
         "tmux attach-session -t scratch"
 fi
