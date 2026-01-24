@@ -9,7 +9,7 @@
 id="$1"
 cmd="$2"
 parent_session="$3"
-cwd="${4:-$HOME}"
+cwd="${4:-$(pwd)}"
 
 session_name="popup-${id}"
 
