@@ -551,6 +551,11 @@ setup_bash_aliases() {
     fi
 
     if [[ -f "$dest_aliases_path" ]]; then
+        if cmp -s "$source_aliases_path" "$dest_aliases_path"; then
+            printInfoMsg "'~/.bash_aliases' is identical to source. Skipping."
+            return
+        fi
+
         if prompt_yes_no "File '~/.bash_aliases' already exists. Back it up and overwrite it?" "y"; then
             local backup_file
             backup_file="${dest_aliases_path}.bak_$(date +"%Y%m%d_%H%M%S")"
@@ -585,7 +590,10 @@ setup_tmux_config() {
     fi
 
     if [[ -f "$dest_conf_path" ]]; then
-        if prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "y"; then
+        if cmp -s "$source_conf_path" "$dest_conf_path"; then
+            printInfoMsg "'tmux.conf' is identical to source. Skipping."
+            # Fall through to script setup
+        elif prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "y"; then
             local backup_file
             backup_file="${dest_conf_path}.bak_$(date +"%Y%m%d_%H%M%S")"
             printInfoMsg "Backing up current file to ${backup_file}..."
