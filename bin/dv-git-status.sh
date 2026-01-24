@@ -7,42 +7,16 @@
 # Dependencies: tmux, git, fzf, bat/batcat
 # ===============
 
-# --- Auto-Launch Tmux ---
-if [ -z "$TMUX" ]; then
-    script_path=$(readlink -f "$0")
-    if tmux has-session -t main 2>/dev/null; then
-        tmux new-window -t main -n "git-status" -c "$PWD" "$script_path"
-        exec tmux attach-session -t main
-    else
-        exec tmux new-session -s main -n "git-status" -c "$PWD" "$script_path"
-    fi
-    exit 0
-fi
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+source "$script_dir/dv-common.sh"
 
 # --- Configuration ---
-_C_RESET=$'\033[0m'
-_C_GREEN=$'\033[1;32m'
-_C_BOLD=$'\033[1m'
-_C_REVERSE=$'\033[7m'
-
-thm_bg="#1e1e2e"
-thm_fg="#cdd6f4"
-thm_yellow="#f9e2af"
+C_RESET=$'\033[0m'
+C_BOLD=$'\033[1m'
+C_REVERSE=$'\033[7m'
 
 icon_git=""
-
-# --- Helpers ---
-_require_git_repo() {
-  if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-    echo "Error: Not a git repository"
-    read -n 1 -s -r -p "Press any key to exit..."
-    exit 1
-  fi
-}
-
-is_in_popup() {
-    [[ -n "$TMUX_POPUP" ]]
-}
 
 # --- Action Logic ---
 
@@ -103,18 +77,8 @@ do_discard() {
     local status=$(get_status "$line")
     local file=$(get_file "$line")
     
-    # Confirmation
-    local script_dir
-    script_dir=$(dirname "$0")
-    local confirm_cmd="$script_dir/../config/tmux/scripts/dv/dv-input.sh"
-    if [[ ! -x "$confirm_cmd" ]]; then
-        confirm_cmd="$HOME/.config/tmux/scripts/dv/dv-input.sh"
-    fi
-    
-    if [[ -x "$confirm_cmd" ]]; then
-        if ! "$confirm_cmd" --internal-confirm "Discard changes to '$file'?"; then
-            return
-        fi
+    if ! dv_confirm "Discard changes to '$file'?"; then
+        return
     fi
 
     if [[ "$status" == "??" ]]; then
@@ -132,41 +96,31 @@ if [[ "$1" == "--preview" ]]; then do_preview "$2"; exit 0; fi
 if [[ "$1" == "--toggle" ]]; then do_toggle "$2"; exit 0; fi
 if [[ "$1" == "--discard" ]]; then do_discard "$2"; exit 0; fi
 
-# --- Popup Logic ---
+# --- Main Logic ---
 
-if is_in_popup; then
-    _require_git_repo
-    
-    current_branch=$(git branch --show-current)
-    [ -z "$current_branch" ] && current_branch=$(git rev-parse --short HEAD)
+require_git_repo
 
-    controls="${_C_BOLD}TAB${_C_RESET}: Stage/Unstage • ${_C_BOLD}CTRL-X${_C_RESET}: Discard • ${_C_BOLD}ENTER${_C_RESET}: Edit"
-    header="${_C_GREEN}${_C_REVERSE} Status: ${current_branch} ${_C_RESET}"$'\n'"${controls}"
+current_branch=$(git branch --show-current)
+[ -z "$current_branch" ] && current_branch=$(git rev-parse --short HEAD)
 
-    EDITOR_CMD="${EDITOR:-vim}"
-    if command -v nvim &>/dev/null; then EDITOR_CMD="nvim"; fi
-    LIST_CMD="git status --short"
-    
-    $LIST_CMD | fzf \
-        --ansi --reverse --tiebreak=index --header-first \
-        --no-sort \
-        --preview-window 'right,60%,border,wrap' \
-        --preview-label-pos='3' \
-        --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)' \
-        --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff' \
-        --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7' \
-        --header "$header" \
-        --prompt='  Status❯ ' \
-        --preview "$0 --preview {}" \
-        --bind "tab:execute($0 --toggle {})+reload($LIST_CMD)" \
-        --bind "ctrl-x:execute($0 --discard {})+reload($LIST_CMD)" \
-        --bind "enter:become($EDITOR_CMD \$(echo {} | cut -c 4- | sed 's/^\"//;s/\"$//'))" \
-        --bind "focus:transform-preview-label:[[ -n {} ]] && printf \" Previewing [%s] \" \$(echo {} | cut -c 4- | sed 's/^\"//;s/\"$//')"
-    exit 0
-fi
+controls="${C_BOLD}TAB${C_RESET}: Stage/Unstage • ${C_BOLD}CTRL-X${C_RESET}: Discard • ${C_BOLD}ENTER${C_RESET}: Edit"
+header="${ansi_green}${C_REVERSE} Status: ${current_branch} ${C_RESET}"$'\n'"${controls}"
 
-# --- Launch ---
-script_path=$(readlink -f "$0")
-tmux display-popup -E -w 95% -h 80% -d "#{pane_current_path}" \
-    -T "#[bg=$thm_yellow,fg=$thm_bg,bold] $icon_git Git Status " \
-    "TMUX_POPUP=1 $script_path"
+EDITOR_CMD=$(get_editor)
+LIST_CMD="git status --short"
+
+$LIST_CMD | dv_run_fzf \
+    --tiebreak=index --header-first \
+    --no-sort \
+    --preview-window 'right,60%,border,wrap' \
+    --preview-label-pos='3' \
+    --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)' \
+    --border-label=" $icon_git Git Status " \
+    --border-label-pos='3' \
+    --header "$header" \
+    --prompt='  Status❯ ' \
+    --preview "$0 --preview {}" \
+    --bind "tab:execute($0 --toggle {})+reload($LIST_CMD)" \
+    --bind "ctrl-x:execute($0 --discard {})+reload($LIST_CMD)" \
+    --bind "enter:become($EDITOR_CMD \$(echo {} | cut -c 4- | sed 's/^\"//;s/\"$//'))" \
+    --bind "focus:transform-preview-label:[[ -n {} ]] && printf \" Previewing [%s] \" \$(echo {} | cut -c 4- | sed 's/^\"//;s/\"$//')"
