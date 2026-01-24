@@ -23,7 +23,7 @@ parent_session=$(tmux display-message -p "#{session_name}")
 
 # Execute tmux display-popup
 # We use -d "#{pane_current_path}" to ensure the popup starts in the current directory
-tmux display-popup \
+exec tmux display-popup \
     -E \
     -w 100% \
     -h 90% \
