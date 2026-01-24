@@ -168,7 +168,7 @@ _find_project_root() {
 
     while [[ "$current_dir" != "/" && "$current_dir" != "" ]]; do
         # Using README.md and shared.lib.sh as anchor files to identify the project root.
-        if [[ -f "$current_dir/README.md" && -f "$current_dir/src/lib/shared.lib.sh" ]] || [[ -f "$current_dir/GEMINI.md" ]]; then
+        if [[ -f "$current_dir/README.md" && -f "$current_dir/src/lib/shared.lib.sh" ]]; then
             _PROJECT_ROOT="$current_dir"
             export _PROJECT_ROOT # Export so subshells can see it
             return 0
