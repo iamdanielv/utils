@@ -86,6 +86,11 @@ sessions=$(tmux list-sessions -F "SES${tab}#{session_name}${tab}#{session_name}$
             continue
         fi
 
+        # Filter out popup sessions
+        if [[ "$sn" == popup-* ]]; then
+            continue
+        fi
+
         icon=""
         if [ "$sn" = "$cur_sess" ]; then
             icon="${ansi_green}${ansi_fg} "
