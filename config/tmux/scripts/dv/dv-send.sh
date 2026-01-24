@@ -135,6 +135,7 @@ fi"
 # Select
 selected=$(printf '%s\n' "$targets" | dv_run_fzf \
     --exit-0 \
+    --tmux 90%,70% \
     --delimiter="\t" \
     --with-nth=3 \
     --prompt="Send To ❯ " \

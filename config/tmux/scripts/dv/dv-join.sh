@@ -73,6 +73,7 @@ fzf_header=$(printf "%s\n%s\n%s\n%s" \
 # We use --tmux to launch in a popup (requires fzf 0.53+ or tmux-fzf)
 selected=$(printf '%s\n' "$panes" | dv_run_fzf \
     --exit-0 \
+    --tmux 90%,70% \
     --delimiter="\t" \
     --with-nth=2 \
     --prompt="Pane ❯ " \

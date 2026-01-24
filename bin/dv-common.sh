@@ -92,34 +92,6 @@ get_auto_geometry() {
     echo "$w $h"
 }
 
-# --- Context Helpers ---
-
-dv_ensure_context() {
-    local border_color="$1"
-    local icon="$2"
-    local title="$3"
-    local id="$4"
-    local cmd_str="$5" # Optional command string override
-
-    # If in Tmux but NOT in a popup, launch self via dv-tm-popup.sh
-    if [[ -n "$TMUX" && -z "$TMUX_POPUP" ]]; then
-        local self_path
-        self_path=$(readlink -f "$0")
-        local target_cmd="TMUX_POPUP=1 $self_path"
-        if [[ -n "$cmd_str" ]]; then
-            target_cmd="$cmd_str"
-        fi
-        
-        local launcher="$HOME/.config/tmux/scripts/dv/dv-tm-popup.sh"
-        if [[ -x "$launcher" ]]; then
-            exec "$launcher" "$border_color" "${thm_bg}" "$icon" "$title" "$id" "$target_cmd"
-        else
-            # Fallback if launcher missing: just run inline
-            export TMUX_POPUP=1
-        fi
-    fi
-}
-
 require_git_repo() {
     if ! git rev-parse --is-inside-work-tree &> /dev/null; then
         echo "Error: Not a git repository"
@@ -160,16 +132,16 @@ dv_run_fzf() {
     local fzf_opts=(
         --ansi \
         --reverse \
-        --layout=reverse-list \
-        --border=rounded \
         --color "border:${thm_cyan},label:${thm_cyan}:reverse,header-border:${thm_blue},header-label:${thm_blue},header:${thm_cyan}" \
         --color "bg+:${thm_gray},bg:${thm_bg},gutter:${thm_bg},prompt:${thm_orange}" \
     )
     
-    if [[ -n "$TMUX" ]]; then
-        fzf_opts+=(--tmux 90%,70%)
+    if [[ -n "$TMUX_POPUP" ]]; then
+        fzf_opts+=(--height 100%)
+        fzf_opts+=(--border=none)
     else
-        fzf_opts+=(--height 40%)
+        fzf_opts+=(--height 50%)
+        fzf_opts+=(--border=rounded)
     fi
     
     fzf "${fzf_opts[@]}" "$@"
