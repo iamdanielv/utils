@@ -531,6 +531,11 @@ setup_binaries() {
 
     # chmod +x only dv-* files to avoid touching unrelated files
     chmod +x "${dest_bin_path}"/dv-* 2>/dev/null || true
+
+    # Ensure library files are not executable
+    if [[ -f "${dest_bin_path}/dv-common.sh" ]]; then
+        chmod -x "${dest_bin_path}/dv-common.sh"
+    fi
     printOkMsg "Custom binaries installed."
 }
 

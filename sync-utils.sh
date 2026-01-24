@@ -229,6 +229,10 @@ echo "${C_BLUE}[i] Syncing Binaries...${T_RESET}"
 if ! sync_dir_contents "$SRC_BIN_DIR" "$DEST_BIN_DIR" "dv-*"; then
     echo "  ${C_YELLOW}[!] No binaries found in $SRC_BIN_DIR${T_RESET}"
 fi
+# Ensure library files are not executable
+if [ -f "$DEST_BIN_DIR/dv-common.sh" ]; then
+    chmod -x "$DEST_BIN_DIR/dv-common.sh"
+fi
 
 # 4. Post-Sync Actions
 echo ""
