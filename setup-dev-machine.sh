@@ -518,29 +518,47 @@ configure_shell_environment() {
         return
     fi
 
+    local block_exists=false
+    if grep -qF "$marker_start" "$bashrc"; then
+        block_exists=true
+    fi
+
     # Construct the configuration block
     local config_block=""
     config_block+="${marker_start}\n"
     config_block+="export PATH=\"\$HOME/.local/bin:\$PATH\"\n"
     config_block+="export PATH=\"\$PATH:/usr/local/go/bin:\$HOME/go/bin\"\n"
     config_block+="${marker_end}"
-
-    # Check if the block already exists
-    if grep -qF "$marker_start" "$bashrc"; then
-        printInfoMsg "Shell configuration block already exists in .bashrc."
-    else
-        printMsg ""
-        if prompt_yes_no "Add environment configuration to .bashrc?" "y"; then
-            # Create backup
-            local backup_file="${bashrc}.bak_$(date +"%Y%m%d_%H%M%S")"
-            cp "$bashrc" "$backup_file"
-            printInfoMsg "Backup created at: ${backup_file}"
-            
-            # Append block
-            echo -e "\n${config_block}" >> "$bashrc"
-            printOkMsg "Injected shell configuration into .bashrc."
-            printInfoMsg "Please run '${C_L_CYAN}source ~/.bashrc${T_RESET}' to apply changes."
+    
+    # If block exists, check if it's identical to what we would write.
+    if $block_exists; then
+        local existing_block
+        existing_block=$(sed -n "/^${marker_start}$/,/^${marker_end}$/p" "$bashrc")
+        
+        # Compare existing block with the one we want to write.
+        if [[ "$existing_block" == "$(echo -e "${config_block}")" ]]; then
+            printInfoMsg "Shell configuration is already up to date. Skipping."
+            return
         fi
+    fi
+
+    local prompt_msg="Add environment configuration to .bashrc?"
+    if $block_exists; then
+        prompt_msg="Your shell configuration is out of date. Update it?"
+    fi
+
+    printMsg ""
+    if prompt_yes_no "$prompt_msg" "y"; then
+        local backup_file="${bashrc}.bak_$(date +"%Y%m%d_%H%M%S")"
+        cp "$bashrc" "$backup_file"
+        printInfoMsg "Backup created at: ${backup_file}"
+
+        if $block_exists; then
+            sed -i "/^${marker_start}$/,/^${marker_end}$/d" "$bashrc"
+        fi
+        echo -e "\n${config_block}" >> "$bashrc"
+        printOkMsg "Injected/Updated shell configuration in .bashrc."
+        printInfoMsg "Please run '${C_L_CYAN}source ~/.bashrc${T_RESET}' to apply changes."
     fi
 }
 
