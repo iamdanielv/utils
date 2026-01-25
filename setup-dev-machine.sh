@@ -515,6 +515,39 @@ setup_fzf_config() {
     fi
 }
 
+# Configures git to use delta as the default pager
+configure_git_delta() {
+    # Ensure local bin is in PATH so we can detect delta if it was just installed
+    export PATH="${XDG_BIN_HOME}:${PATH}"
+
+    if ! command -v delta &>/dev/null; then
+        printInfoMsg "delta not found. Skipping git configuration."
+        return
+    fi
+
+    printBanner "Configuring Delta (Git Pager)"
+    
+    # Check if core.pager is already delta
+    local current_pager
+    current_pager=$(git config --global core.pager || true)
+    
+    if [[ "$current_pager" == "delta" ]]; then
+        printInfoMsg "Git is already configured to use delta. Skipping."
+        return
+    fi
+
+    if prompt_yes_no "Configure 'delta' as the default git pager?" "y"; then
+        printInfoMsg "Setting git config..."
+        git config --global core.pager "delta"
+        git config --global interactive.diffFilter "delta --color-only"
+        git config --global delta.navigate true
+        git config --global delta.light false
+        git config --global merge.conflictstyle "diff3"
+        git config --global diff.colorMoved "default"
+        printOkMsg "Git configured to use delta."
+    fi
+}
+
 # Configures .bashrc with a consolidated block of environment settings
 configure_shell_environment() {
     printBanner "Configuring Shell Environment"
@@ -848,6 +881,7 @@ phase_configuration() {
     install_tpm
     setup_fzf_config
     install_nerd_fonts
+    configure_git_delta
     configure_shell_environment
 }
 
