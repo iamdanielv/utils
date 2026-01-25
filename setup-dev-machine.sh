@@ -243,6 +243,7 @@ _gh_download_and_install() {
 
     local found_bin; found_bin=$(find "$temp_dir" -type f -name "$binary_name" | head -n 1)
     if [[ -n "$found_bin" ]]; then
+        mkdir -p "${XDG_BIN_HOME}"
         run_with_spinner "Installing to ${XDG_BIN_HOME}/${binary_name}..." mv "$found_bin" "${XDG_BIN_HOME}/${binary_name}"
         chmod +x "${XDG_BIN_HOME}/${binary_name}"
         printOkMsg "Successfully installed ${binary_name} ${version}."
@@ -301,80 +302,6 @@ install_github_binary() {
     fi
 
     _gh_download_and_install "$download_url" "$binary_name" "$latest_version"
-}
-
-# Installs tools from Jesse Duffield (lazygit, lazydocker) by downloading the latest binary from GitHub releases.
-# Usage: install_jesseduffield_tool "lazygit"
-install_jesseduffield_tool() {
-    local tool_name="$1"
-    local repo="jesseduffield/${tool_name}"
-    
-    if [[ "$(uname -m)" == "x86_64" ]]; then
-        arch="x86_64"
-    else
-        printErrMsg "Unsupported architecture for ${tool_name}: $(uname -m). Only x86_64 is supported by this script."
-        return 1
-    fi
-    printBanner "Install/Update ${tool_name}"
-
-    # Get latest version tag
-    local latest_version
-    latest_version=$(curl -s "https://api.github.com/repos/${repo}/releases/latest" | jq -r '.tag_name')
-
-    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
-        printErrMsg "Could not determine latest ${tool_name} version from GitHub API."
-        return
-    fi
-
-    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
-
-    local installed_version_string="Not installed"
-    if command -v "$tool_name" &>/dev/null; then
-        local raw_version_output
-        raw_version_output=$($tool_name --version)
-
-        # Attempt to extract just the version number (handles "version=..." and "Version: ...")
-        installed_version_string=$(echo "$raw_version_output" | grep -oE '(version=|Version: )[^,]*' | head -n 1 | sed -E 's/(version=|Version: )//')
-
-        # Fallback to full output with highlighting if extraction fails
-        if [[ -z "$installed_version_string" ]]; then
-            installed_version_string=$(echo "$raw_version_output" | sed "s/version/${C_L_GREEN}version${C_L_YELLOW}/g")
-        fi
-    fi
-    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
-
-    # Normalize versions for comparison (remove leading 'v')
-    local norm_latest="${latest_version#v}"
-    local norm_installed="${installed_version_string#v}"
-
-    if [[ "$norm_latest" == "$norm_installed" ]]; then
-        printOkMsg "You already have the latest version of ${tool_name} (${latest_version}). Skipping."
-        return
-    fi
-
-    if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
-        printInfoMsg "${tool_name} installation skipped."
-        return
-    fi
-
-    # The version tag from GitHub includes 'v' (e.g., v0.40.2), but the tarball name does not.
-    local version_number_only="${latest_version#v}"
-    local tarball_name="${tool_name}_${version_number_only}_Linux_${arch}.tar.gz"
-    local download_url="https://github.com/${repo}/releases/download/${latest_version}/${tarball_name}"
-    local install_dir="${XDG_BIN_HOME}"
-    mkdir -p "$install_dir"
-
-    local temp_dir; temp_dir=$(mktemp -d)
-    # Ensure the temp directory is cleaned up on exit
-    trap 'rm -rf "$temp_dir"' RETURN
-
-    if run_with_spinner "Downloading ${tool_name} ${latest_version}..." curl -L -f "$download_url" -o "${temp_dir}/${tarball_name}"; then
-        run_with_spinner "Extracting binary..." tar -xzf "${temp_dir}/${tarball_name}" -C "$temp_dir"
-        run_with_spinner "Installing to ${install_dir}/${tool_name}..." mv "${temp_dir}/${tool_name}" "${install_dir}/${tool_name}"
-        printOkMsg "Successfully installed ${tool_name} ${latest_version}."
-    else
-        printErrMsg "Failed to download ${tool_name}. Please try installing it manually."
-    fi
 }
 
 # (Private) Checks and offers to add ~/.local/bin to ~/.bashrc.
@@ -617,8 +544,8 @@ install_core_tools() {
     install_package "fontconfig" "fc-cache"
 
     # For 'lg' alias (lazygit) and docker management (lazydocker)
-    install_jesseduffield_tool "lazygit"
-    install_jesseduffield_tool "lazydocker"
+    install_github_binary "jesseduffield/lazygit" "lazygit"
+    install_github_binary "jesseduffield/lazydocker" "lazydocker"
 
     # Ensure ~/.local/bin is in PATH
     _setup_local_bin_path
