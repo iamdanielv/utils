@@ -385,6 +385,46 @@ install_bat_or_batcat() {
     fi
 }
 
+# Installs zoxide (smarter cd) using the official install script
+install_zoxide() {
+    printBanner "Install/Update zoxide"
+    local repo="ajeetdsouza/zoxide"
+    local binary_name="zoxide"
+
+    local latest_version
+    latest_version=$(_gh_get_latest_version "$repo")
+
+    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
+        printErrMsg "Could not determine latest zoxide version from GitHub API."
+        return 1
+    fi
+    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
+
+    local installed_version_string
+    installed_version_string=$(_gh_get_installed_version "$binary_name")
+    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
+
+    local norm_latest="${latest_version#v}"
+    local norm_installed="${installed_version_string#v}"
+
+    if [[ "$norm_latest" == "$norm_installed" ]]; then
+        printOkMsg "You already have the latest version of zoxide (${latest_version}). Skipping."
+        return 0
+    fi
+
+    if ! prompt_yes_no "Do you want to install/update zoxide to version ${latest_version}?" "y"; then
+        printInfoMsg "zoxide installation skipped."
+        return 0
+    fi
+
+    if run_with_spinner "Installing zoxide via official script..." bash -c "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR='${XDG_BIN_HOME}' bash"; then
+        printOkMsg "Successfully installed zoxide."
+    else
+        printErrMsg "Failed to install zoxide."
+        return 1
+    fi
+}
+
 # Clones and installs fzf from the official GitHub repository.
 install_fzf_from_source() {
     printBanner "Installing fzf (from source)"
@@ -736,6 +776,7 @@ phase_user_binaries() {
     install_github_binary "jesseduffield/lazygit" "lazygit"
     install_github_binary "jesseduffield/lazydocker" "lazydocker"
     
+    install_zoxide
     install_fzf_from_source
 }
 
