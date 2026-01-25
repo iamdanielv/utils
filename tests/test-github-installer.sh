@@ -73,13 +73,13 @@ verify_install() {
         # Check if it's a real binary (not our bash mock)
         # 'file' command output usually contains "ELF" for binaries or "shell script" for mocks
         if file "$XDG_BIN_HOME/$binary" | grep -q "shell script"; then
-             echo "❌ Verification Failed: File is still the mock script."
+             printErrMsg "Verification Failed: File is still the mock script."
              return 1
         fi
-        echo "✅ Verification: Real binary installed at $XDG_BIN_HOME/$binary"
+        printOkMsg "Verification: Real binary installed at $XDG_BIN_HOME/$binary"
         echo "   Version Output: $("$XDG_BIN_HOME/$binary" --version | head -n 1)"
     else
-        echo "❌ Verification Failed: Binary not found."
+        printErrMsg "Verification Failed: Binary not found."
         return 1
     fi
 }
@@ -97,7 +97,7 @@ rm -f "$XDG_BIN_HOME/$BINARY"
 if install_github_binary "$REPO" "$BINARY"; then
     verify_install "$BINARY"
 else
-    echo "❌ Function returned failure."
+    printErrMsg "Function returned failure."
     exit 1
 fi
 
@@ -111,7 +111,7 @@ if install_github_binary "$REPO" "$BINARY"; then
     # Should overwrite the mock with the real binary
     verify_install "$BINARY"
 else
-    echo "❌ Function returned failure."
+    printErrMsg "Function returned failure."
     exit 1
 fi
 
@@ -124,9 +124,9 @@ echo "   [Setup] Created mock $BINARY with invalid version output"
 if install_github_binary "$REPO" "$BINARY"; then
     verify_install "$BINARY"
 else
-    echo "❌ Function returned failure."
+    printErrMsg "Function returned failure."
     exit 1
 fi
 
 echo ""
-echo "🎉 All tests passed successfully!"
+printOkMsg "${C_L_GREEN}All tests passed successfully!${T_RESET}"

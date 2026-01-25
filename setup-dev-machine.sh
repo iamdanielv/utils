@@ -190,65 +190,45 @@ install_package() {
     fi
 }
 
-# Generic installer for GitHub release binaries
-# Usage: install_github_binary "owner/repo" "binary_name" [ "asset_regex" ]
-install_github_binary() {
+# (Private) Fetches the latest version tag from GitHub API
+_gh_get_latest_version() {
     local repo="$1"
+    curl -s "https://api.github.com/repos/${repo}/releases/latest" | jq -r '.tag_name'
+}
+
+# (Private) Gets the installed version of a binary
+_gh_get_installed_version() {
+    local binary_name="$1"
+    if ! command -v "$binary_name" &>/dev/null; then
+        echo "Not installed"
+        return
+    fi
+    local raw_version_output
+    raw_version_output=$("$binary_name" --version 2>/dev/null || "$binary_name" -v 2>/dev/null || echo "unknown")
+    local installed_version_string
+    installed_version_string=$(echo "$raw_version_output" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+    if [[ -z "$installed_version_string" ]]; then installed_version_string="$raw_version_output"; fi
+    echo "$installed_version_string"
+}
+
+# (Private) Finds the download URL for the correct asset
+_gh_find_download_url() {
+    local repo="$1"
+    local asset_regex="${2:-}"
+    curl -s "https://api.github.com/repos/${repo}/releases/latest" | \
+        jq -r --arg regex "$asset_regex" '.assets[] | select(.name | test("linux"; "i") and (test("amd64"; "i") or test("x86_64"; "i"))) | select($regex == "" or (.name | test($regex; "i"))) | .browser_download_url' | head -n 1
+}
+
+# (Private) Downloads and installs the binary
+_gh_download_and_install() {
+    local download_url="$1"
     local binary_name="$2"
-    # Optional regex to match specific assets (e.g., "musl", "amd64"). Case-insensitive.
-    local asset_regex="${3:-}"
-
-    if [[ "$(uname -m)" != "x86_64" ]]; then
-        printErrMsg "Unsupported architecture for ${binary_name}: $(uname -m). Only x86_64 is supported."
-        return 1
-    fi
-    
-    printBanner "Install/Update ${binary_name} from ${repo}"
-
-    local latest_version
-    latest_version=$(curl -s "https://api.github.com/repos/${repo}/releases/latest" | jq -r '.tag_name')
-    
-    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
-        printErrMsg "Could not determine latest ${binary_name} version from GitHub API."
-        return 1
-    fi
-    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
-
-    local installed_version_string="Not installed"
-    if command -v "$binary_name" &>/dev/null; then
-        local raw_version_output
-        raw_version_output=$("$binary_name" --version 2>/dev/null || "$binary_name" -v 2>/dev/null || echo "unknown")
-        installed_version_string=$(echo "$raw_version_output" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
-        if [[ -z "$installed_version_string" ]]; then installed_version_string="$raw_version_output"; fi
-    fi
-    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
-
-    local norm_latest="${latest_version#v}"
-    local norm_installed="${installed_version_string#v}"
-
-    if [[ "$norm_latest" == "$norm_installed" ]]; then
-        printOkMsg "You already have the latest version of ${binary_name} (${latest_version}). Skipping."
-        return 0
-    fi
-
-    if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
-        printInfoMsg "${binary_name} installation skipped."
-        return 0
-    fi
-
-    local download_url
-    download_url=$(curl -s "https://api.github.com/repos/${repo}/releases/latest" | \
-        jq -r --arg regex "$asset_regex" '.assets[] | select(.name | test("linux"; "i") and (test("amd64"; "i") or test("x86_64"; "i"))) | select($regex == "" or (.name | test($regex; "i"))) | .browser_download_url' | head -n 1)
-
-    if [[ -z "$download_url" ]]; then
-        printErrMsg "Could not find a compatible download asset for ${repo} on Linux x86_64."
-        return 1
-    fi
+    local version="$3"
 
     local temp_dir; temp_dir=$(mktemp -d); trap 'rm -rf "$temp_dir"' RETURN
     local archive_name; archive_name=$(basename "$download_url")
 
-    if ! run_with_spinner "Downloading ${binary_name} ${latest_version}..." curl -L -f "$download_url" -o "${temp_dir}/${archive_name}"; then
+    if ! run_with_spinner "Downloading ${binary_name} ${version}..." curl -L -f "$download_url" -o "${temp_dir}/${archive_name}"; then
         printErrMsg "Failed to download ${binary_name}. Please try installing it manually."
         return 1
     fi
@@ -265,10 +245,62 @@ install_github_binary() {
     if [[ -n "$found_bin" ]]; then
         run_with_spinner "Installing to ${XDG_BIN_HOME}/${binary_name}..." mv "$found_bin" "${XDG_BIN_HOME}/${binary_name}"
         chmod +x "${XDG_BIN_HOME}/${binary_name}"
-        printOkMsg "Successfully installed ${binary_name} ${latest_version}."
+        printOkMsg "Successfully installed ${binary_name} ${version}."
     else
         printErrMsg "Binary '${binary_name}' not found in extracted archive."; ls -R "$temp_dir"; return 1
     fi
+}
+
+# Generic installer for GitHub release binaries
+# Usage: install_github_binary "owner/repo" "binary_name" [ "asset_regex" ]
+install_github_binary() {
+    local repo="$1"
+    local binary_name="$2"
+    # Optional regex to match specific assets (e.g., "musl", "amd64"). Case-insensitive.
+    local asset_regex="${3:-}"
+
+    if [[ "$(uname -m)" != "x86_64" ]]; then
+        printErrMsg "Unsupported architecture for ${binary_name}: $(uname -m). Only x86_64 is supported."
+        return 1
+    fi
+    
+    printBanner "Install/Update ${binary_name} from ${repo}"
+
+    local latest_version
+    latest_version=$(_gh_get_latest_version "$repo")
+    
+    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
+        printErrMsg "Could not determine latest ${binary_name} version from GitHub API."
+        return 1
+    fi
+    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
+
+    local installed_version_string
+    installed_version_string=$(_gh_get_installed_version "$binary_name")
+    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
+
+    local norm_latest="${latest_version#v}"
+    local norm_installed="${installed_version_string#v}"
+
+    if [[ "$norm_latest" == "$norm_installed" ]]; then
+        printOkMsg "You already have the latest version of ${binary_name} (${latest_version}). Skipping."
+        return 0
+    fi
+
+    if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
+        printInfoMsg "${binary_name} installation skipped."
+        return 0
+    fi
+
+    local download_url
+    download_url=$(_gh_find_download_url "$repo" "$asset_regex")
+
+    if [[ -z "$download_url" ]]; then
+        printErrMsg "Could not find a compatible download asset for ${repo} on Linux x86_64."
+        return 1
+    fi
+
+    _gh_download_and_install "$download_url" "$binary_name" "$latest_version"
 }
 
 # Installs tools from Jesse Duffield (lazygit, lazydocker) by downloading the latest binary from GitHub releases.
