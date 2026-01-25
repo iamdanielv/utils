@@ -304,36 +304,6 @@ install_github_binary() {
     _gh_download_and_install "$download_url" "$binary_name" "$latest_version"
 }
 
-# (Private) Checks and offers to add ~/.local/bin to ~/.bashrc.
-_setup_local_bin_path() {
-    local local_bin_path="${XDG_BIN_HOME}"
-    local bashrc_path="${HOME}/.bashrc"
-    local path_export_line="export PATH=\"\$HOME/.local/bin:\$PATH\""
-    local path_comment="# Add local bin to PATH (added by setup-dev-machine.sh)"
-
-    if [[ ! -f "$bashrc_path" ]]; then
-        return
-    fi
-
-    # Check if the directory is already mentioned in .bashrc
-    if grep -q ".local/bin" "$bashrc_path"; then
-        return
-    fi
-
-    printMsg "" # Add a newline for spacing
-    if prompt_yes_no "Add '${local_bin_path}' to your '${bashrc_path}'?" "y"; then
-        if prompt_yes_no "Create a backup of '${bashrc_path}' before modifying?" "y"; then
-            local backup_file
-            backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
-            cp "$bashrc_path" "$backup_file"
-            printOkMsg "Backup created at: ${backup_file}"
-        fi
-        echo -e "\n${path_comment}\n${path_export_line}" >> "$bashrc_path"
-        printOkMsg "Successfully updated '${bashrc_path}'."
-        export PATH="${local_bin_path}:${PATH}"
-    fi
-}
-
 # Installs or updates Go (Golang) to the latest stable version.
 install_golang() {
     printBanner "Install/Update Go (Golang)"
@@ -391,7 +361,6 @@ install_golang() {
         printInfoMsg "Extracting to ${install_path}..."
         if sudo tar -C "$install_path" -xzf "${temp_dir}/${tarball_name}"; then
             printOkMsg "Successfully installed Go ${latest_version}."
-            _setup_go_path
         fi
     else
         printErrMsg "Failed to download Go. Please try installing it manually."
@@ -464,46 +433,6 @@ setup_fzf_config() {
             printErrMsg "Failed to download fzf-preview.sh."
         fi
     fi
-}
-
-# (Private) Checks and offers to add the Go binary path to ~/.bashrc.
-# This is called by install_golang after a successful installation.
-_setup_go_path() {
-    local go_bin_path="/usr/local/go/bin"
-    local bashrc_path="${HOME}/.bashrc"
-    local path_export_line="export PATH=\$PATH:${go_bin_path}:\$HOME/go/bin"
-    local path_comment="# Add Go binary paths to PATH (added by setup-dev-machine.sh)"
-
-    if [[ ! -f "$bashrc_path" ]]; then
-        printWarnMsg "Could not find '${bashrc_path}'. Cannot configure PATH automatically."
-        printInfoMsg "Please add '${go_bin_path}' and '\$HOME/go/bin' to your shell's PATH manually."
-        return
-    fi
-
-    # Check if the Go binary path is already in .bashrc to avoid duplicates.
-    if grep -q "${go_bin_path}" "$bashrc_path"; then
-        printInfoMsg "Go binary path seems to be already configured in '${bashrc_path}'. Skipping."
-        return
-    fi
-
-    printMsg "" # Add a newline for spacing
-    if ! prompt_yes_no "Add Go binary path to your '${bashrc_path}'?" "y"; then
-        printInfoMsg "Skipping PATH modification. Please add it manually:"
-        printMsg "  ${C_L_CYAN}${path_export_line}${T_RESET}"
-        return
-    fi
-
-    if prompt_yes_no "Create a backup of '${bashrc_path}' before modifying?" "y"; then
-        local backup_file
-        backup_file="${bashrc_path}.bak_$(date +"%Y%m%d_%H%M%S")"
-        cp "$bashrc_path" "$backup_file"
-        printOkMsg "Backup created at: ${backup_file}"
-    fi
-
-    # Append the comment and the export line to .bashrc
-    echo -e "\n${path_comment}\n${path_export_line}" >> "$bashrc_path"
-    printOkMsg "Successfully updated '${bashrc_path}'."
-    printInfoMsg "Please run '${C_L_CYAN}source ~/.bashrc${T_RESET}' or open a new terminal to apply the changes."
 }
 
 # Configures .bashrc with a consolidated block of environment settings
@@ -602,9 +531,6 @@ install_core_tools() {
     # For 'lg' alias (lazygit) and docker management (lazydocker)
     install_github_binary "jesseduffield/lazygit" "lazygit"
     install_github_binary "jesseduffield/lazydocker" "lazydocker"
-
-    # Ensure ~/.local/bin is in PATH
-    _setup_local_bin_path
 
     # For Go development
     install_golang
@@ -834,6 +760,7 @@ main() {
     install_core_tools
     setup_binaries
     setup_bash_aliases
+    configure_shell_environment
     setup_tmux_config
     install_tpm
 
