@@ -491,51 +491,6 @@ configure_shell_environment() {
     fi
 }
 
-# Installs the core tools referenced in the .bash_aliases file.
-install_core_tools() {
-    printBanner "Installing Core CLI Tools"
-
-    # Update package manager repositories first
-    printInfoMsg "Updating package lists..."
-    sudo apt-get update
-
-    install_package "curl"
-    install_package "git"
-
-    # For 'ag' alias
-    install_package "silversearcher-ag" "ag"
-    # For fzf and general searching
-    install_package "ripgrep" "rg"
-    install_package "fd-find" "fd"
-    # Symlink fd if needed (fdfind -> fd)
-    if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
-        printInfoMsg "Creating symlink for 'fd' from 'fdfind'..."
-        mkdir -p "${XDG_BIN_HOME}"
-        ln -sf "$(which fdfind)" "${XDG_BIN_HOME}/fd"
-    fi
-    install_bat_or_batcat
-
-    # For 'ls', 'll', 'lt', etc. aliases
-    install_package "eza"
-    # Replacement for nano
-    install_package "micro"
-    # Terminal Multiplexer
-    install_package "tmux"
-    # For parsing JSON in scripts
-    install_package "jq"
-    # For extracting archives
-    install_package "unzip"
-    # For font management
-    install_package "fontconfig" "fc-cache"
-
-    # For 'lg' alias (lazygit) and docker management (lazydocker)
-    install_github_binary "jesseduffield/lazygit" "lazygit"
-    install_github_binary "jesseduffield/lazydocker" "lazydocker"
-
-    # For Go development
-    install_golang
-}
-
 # Copies custom binaries/scripts to ~/.local/bin
 setup_binaries() {
     printBanner "Setting up Custom Binaries"
@@ -742,6 +697,63 @@ install_nerd_fonts() {
     fi
 }
 
+# --- Phases ---
+
+phase_bootstrap() {
+    printBanner "Phase 1: Bootstrap"
+    printInfoMsg "Updating package lists..."
+    sudo apt-get update
+    install_package "curl"
+    install_package "git"
+    install_package "build-essential"
+}
+
+phase_system_tools() {
+    printBanner "Phase 2: System Tools (APT)"
+    install_package "silversearcher-ag" "ag"
+    install_package "ripgrep" "rg"
+    install_package "fd-find" "fd"
+    
+    if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
+        printInfoMsg "Creating symlink for 'fd' from 'fdfind'..."
+        mkdir -p "${XDG_BIN_HOME}"
+        ln -sf "$(which fdfind)" "${XDG_BIN_HOME}/fd"
+    fi
+    
+    install_bat_or_batcat
+    install_package "eza"
+    install_package "micro"
+    install_package "tmux"
+    install_package "jq"
+    install_package "unzip"
+    install_package "fontconfig" "fc-cache"
+}
+
+phase_user_binaries() {
+    printBanner "Phase 3: User Binaries (~/.local/bin)"
+    setup_binaries
+    
+    install_github_binary "jesseduffield/lazygit" "lazygit"
+    install_github_binary "jesseduffield/lazydocker" "lazydocker"
+    
+    install_fzf_from_source
+}
+
+phase_language_runtimes() {
+    printBanner "Phase 4: Language Runtimes"
+    install_golang
+}
+
+phase_configuration() {
+    printBanner "Phase 5: Configuration & Dotfiles"
+    setup_bash_aliases
+    setup_tmux_config
+    install_tpm
+    setup_fzf_config
+    install_nerd_fonts
+    configure_shell_environment
+}
+
 main() {
     if [[ "$1" == "-h" || "$1" == "--help" ]]; then
         print_usage
@@ -757,19 +769,11 @@ main() {
         exit 0
     fi
 
-    install_core_tools
-    setup_binaries
-    setup_bash_aliases
-    configure_shell_environment
-    setup_tmux_config
-    install_tpm
-
-    # Install and configure fzf
-    install_fzf_from_source
-    setup_fzf_config
-
-    # Install Nerd Fonts
-    install_nerd_fonts
+    phase_bootstrap
+    phase_system_tools
+    phase_user_binaries
+    phase_language_runtimes
+    phase_configuration
 
     # Execute the LazyVim installer script
     bash "${SCRIPT_DIR}/install-lazyvim.sh"
