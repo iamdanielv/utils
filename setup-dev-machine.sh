@@ -527,6 +527,9 @@ configure_shell_environment() {
         return
     fi
 
+    # Ensure local bin is in PATH so we can detect newly installed tools
+    export PATH="${XDG_BIN_HOME}:${PATH}"
+
     local block_exists=false
     if grep -qF "$marker_start" "$bashrc"; then
         block_exists=true
@@ -537,6 +540,17 @@ configure_shell_environment() {
     config_block+="${marker_start}\n"
     config_block+="export PATH=\"\$HOME/.local/bin:\$PATH\"\n"
     config_block+="export PATH=\"\$PATH:/usr/local/go/bin:\$HOME/go/bin\"\n"
+    
+    # Tool Integrations
+    if command -v zoxide &>/dev/null; then
+        config_block+="\n# Zoxide (better cd)\n"
+        config_block+="eval \"\$(zoxide init bash)\"\n"
+    fi
+
+    if command -v starship &>/dev/null; then
+        config_block+="\n# Starship (prompt)\n"
+        config_block+="eval \"\$(starship init bash)\"\n"
+    fi
     config_block+="${marker_end}"
     
     # If block exists, check if it's identical to what we would write.
