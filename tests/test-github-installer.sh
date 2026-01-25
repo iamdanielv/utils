@@ -55,6 +55,9 @@ fi
 if command -v lazydocker &>/dev/null; then
     echo "⚠️  Warning: 'lazydocker' still found in sanitized PATH. 'Not Installed' test may show system version."
 fi
+if command -v delta &>/dev/null; then
+    echo "⚠️  Warning: 'delta' still found in sanitized PATH. 'Not Installed' test may show system version."
+fi
 
 echo "Test Environment Configured:"
 echo "  Bin Dir: $XDG_BIN_HOME"
@@ -146,6 +149,7 @@ run_tool_tests() {
 TOOLS_TO_TEST=(
     "jesseduffield/lazygit:lazygit"
     "jesseduffield/lazydocker:lazydocker"
+    "dandavison/delta:delta"
 )
 
 for tool_spec in "${TOOLS_TO_TEST[@]}"; do

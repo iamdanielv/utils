@@ -815,6 +815,7 @@ phase_user_binaries() {
     
     install_github_binary "jesseduffield/lazygit" "lazygit"
     install_github_binary "jesseduffield/lazydocker" "lazydocker"
+    install_github_binary "dandavison/delta" "delta"
     
     install_zoxide
     install_starship
