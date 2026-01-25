@@ -28,11 +28,31 @@ trap 'rm -rf "$TEST_DIR"' EXIT
 
 # Override HOME so the function modifies our temp .bashrc instead of the real one
 export HOME="$TEST_DIR"
+# Update XDG_BIN_HOME to match the test HOME so we can mock tools there
+export XDG_BIN_HOME="${HOME}/.local/bin"
 BASHRC="$HOME/.bashrc"
+
+# Sanitize PATH to prevent system tools (like zoxide/starship) from interfering
+# We need standard utilities for the script logic (sed, grep, etc.)
+REQUIRED_TOOLS="grep sed cat cp mv rm mkdir touch date ls head tail wc awk basename dirname mktemp printf echo sleep tput chmod"
+CLEAN_BIN_DIR="$TEST_DIR/sys-bin"
+mkdir -p "$CLEAN_BIN_DIR"
+
+for tool in $REQUIRED_TOOLS; do
+    if tool_path=$(command -v "$tool"); then
+        ln -sf "$tool_path" "$CLEAN_BIN_DIR/$tool"
+    fi
+done
+export PATH="$CLEAN_BIN_DIR"
 
 # Create a dummy .bashrc with some existing content
 echo "# Existing user content" > "$BASHRC"
 echo "alias foo='bar'" >> "$BASHRC"
+
+# Create mock tools so the configuration helper detects them
+mkdir -p "$XDG_BIN_HOME"
+touch "$XDG_BIN_HOME/zoxide" "$XDG_BIN_HOME/starship"
+chmod +x "$XDG_BIN_HOME/zoxide" "$XDG_BIN_HOME/starship"
 
 printBanner "Testing configure_shell_environment"
 printInfoMsg "Test Home: $HOME"
@@ -56,6 +76,20 @@ if grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" "$BASHRC"; then
     printOkMsg "PATH export found."
 else
     printErrMsg "PATH export NOT found."
+    exit 1
+fi
+
+if grep -q "zoxide init bash" "$BASHRC"; then
+    printOkMsg "Zoxide init found."
+else
+    printErrMsg "Zoxide init NOT found."
+    exit 1
+fi
+
+if grep -q "starship init bash" "$BASHRC"; then
+    printOkMsg "Starship init found."
+else
+    printErrMsg "Starship init NOT found."
     exit 1
 fi
 
@@ -114,6 +148,23 @@ if grep -q "$dummy_line" "$BASHRC"; then
     exit 1
 fi
 printOkMsg "Dummy line was removed (Update/Replace verified)."
+
+# --- Test Case 5: Dynamic Update (Tools Removed) ---
+echo ""
+printMsg "${T_BOLD}Test Case 5: Dynamic Update (Tools Removed)${T_RESET}"
+# Remove the mocks. The helper should detect this and remove the init lines.
+rm "$XDG_BIN_HOME/zoxide" "$XDG_BIN_HOME/starship"
+
+configure_shell_environment
+
+if grep -q "zoxide init bash" "$BASHRC" || grep -q "starship init bash" "$BASHRC"; then
+    printErrMsg "Update failed: Tool init lines still exist after tools were removed."
+    cat "$BASHRC"
+    exit 1
+else
+    printOkMsg "Tool init lines removed (Dynamic update verified)."
+fi
+
 
 echo ""
 printOkMsg "${C_L_GREEN}All shell config tests passed!${T_RESET}"
