@@ -30,12 +30,17 @@ A Go-based TUI (Text User Interface) for managing `systemd` services.
 ### 💻 Developer Machine Setup (`setup-dev-machine.sh`)
 
 **Description:**
-Script to set up a new dev machine.
+Script to set up a new dev machine. It is designed to be **idempotent**, meaning you can run it multiple times safely to update your tools or configuration.
 
-- Installs essential CLI tools like `eza`, `ag` (the_silver_searcher), `net-tools`, `micro`, and `jq`.
-- Installs the latest versions of `lazygit`, `lazydocker`, and `golang`.
-- Copies the `.bash_aliases` file from the repository to `~/.bash_aliases`.
-- Executes the `install-lazyvim.sh` script to provide a full Neovim and LazyVim environment.
+- **Core Tools**: Installs essential CLI tools like `eza`, `ag`, `ripgrep`, `fd`, `bat`, `tmux`, `micro`, and `jq`.
+- **Modern Shell**: Sets up `zoxide` (smarter cd) and `starship` (fast, customizable prompt).
+- **Git Enhancements**: Installs `lazygit` and configures `delta` as the default git pager for better diffs.
+- **Dev Tools**: Installs the latest versions of `lazydocker` and `golang`.
+- **Configuration**:
+  - Configures `.bashrc` with necessary exports and integrations.
+  - Copies `.bash_aliases` to `~/.bash_aliases`.
+  - Sets up `tmux` configuration and plugins.
+- **Neovim**: Executes `install-lazyvim.sh` for a full Neovim environment.
 
 ### 🚀 LazyVim Installer (`install-lazyvim.sh`)
 
