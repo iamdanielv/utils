@@ -425,6 +425,46 @@ install_zoxide() {
     fi
 }
 
+# Installs starship (custom prompt) using the official install script
+install_starship() {
+    printBanner "Install/Update Starship"
+    local repo="starship/starship"
+    local binary_name="starship"
+
+    local latest_version
+    latest_version=$(_gh_get_latest_version "$repo")
+
+    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
+        printErrMsg "Could not determine latest starship version from GitHub API."
+        return 1
+    fi
+    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
+
+    local installed_version_string
+    installed_version_string=$(_gh_get_installed_version "$binary_name")
+    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
+
+    local norm_latest="${latest_version#v}"
+    local norm_installed="${installed_version_string#v}"
+
+    if [[ "$norm_latest" == "$norm_installed" ]]; then
+        printOkMsg "You already have the latest version of starship (${latest_version}). Skipping."
+        return 0
+    fi
+
+    if ! prompt_yes_no "Do you want to install/update starship to version ${latest_version}?" "y"; then
+        printInfoMsg "starship installation skipped."
+        return 0
+    fi
+
+    if run_with_spinner "Installing starship via official script..." sh -c "curl -sS https://starship.rs/install.sh | sh -s -- -y -b '${XDG_BIN_HOME}'"; then
+        printOkMsg "Successfully installed starship."
+    else
+        printErrMsg "Failed to install starship."
+        return 1
+    fi
+}
+
 # Clones and installs fzf from the official GitHub repository.
 install_fzf_from_source() {
     printBanner "Installing fzf (from source)"
@@ -777,6 +817,7 @@ phase_user_binaries() {
     install_github_binary "jesseduffield/lazydocker" "lazydocker"
     
     install_zoxide
+    install_starship
     install_fzf_from_source
 }
 
