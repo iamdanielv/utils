@@ -93,5 +93,27 @@ else
     exit 1
 fi
 
+# --- Test Case 4: Update Verification ---
+echo ""
+printMsg "${T_BOLD}Test Case 4: Update (Content Change)${T_RESET}"
+# Manually add a dummy line inside the block to make it "out of date"
+dummy_line="#--DUMMY-LINE-FOR-TEST--#"
+sed -i "/# --- DEV MACHINE SETUP START ---/a ${dummy_line}" "$BASHRC"
+
+if ! grep -q "$dummy_line" "$BASHRC"; then
+    printErrMsg "Setup failed: Could not inject dummy line for update test."
+    exit 1
+fi
+printInfoMsg "Injected dummy line into config block."
+
+# Run the configuration again. It should detect the change and replace the block.
+configure_shell_environment
+
+if grep -q "$dummy_line" "$BASHRC"; then
+    printErrMsg "Update failed: Dummy line still exists in .bashrc."
+    exit 1
+fi
+printOkMsg "Dummy line was removed (Update/Replace verified)."
+
 echo ""
 printOkMsg "${C_L_GREEN}All shell config tests passed!${T_RESET}"
