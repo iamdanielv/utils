@@ -52,6 +52,9 @@ mkdir -p "$XDG_BIN_HOME"
 if command -v lazygit &>/dev/null; then
     echo "⚠️  Warning: 'lazygit' still found in sanitized PATH. 'Not Installed' test may show system version."
 fi
+if command -v lazydocker &>/dev/null; then
+    echo "⚠️  Warning: 'lazydocker' still found in sanitized PATH. 'Not Installed' test may show system version."
+fi
 
 echo "Test Environment Configured:"
 echo "  Bin Dir: $XDG_BIN_HOME"
@@ -76,57 +79,79 @@ verify_install() {
              printErrMsg "Verification Failed: File is still the mock script."
              return 1
         fi
-        printOkMsg "Verification: Real binary installed at $XDG_BIN_HOME/$binary"
-        echo "   Version Output: $("$XDG_BIN_HOME/$binary" --version | head -n 1)"
+        printOkMsg "${C_L_GREEN}Verification: Real binary installed at $XDG_BIN_HOME/$binary${T_RESET}"
+        echo "    Version Output: $("$XDG_BIN_HOME/$binary" --version | head -n 1)"
     else
         printErrMsg "Verification Failed: Binary not found."
         return 1
     fi
 }
 
-# 5. Run Test Cases
+# 5. Test Runner Logic
 
-REPO="jesseduffield/lazygit"
-BINARY="lazygit"
+run_tool_tests() {
+    local repo="$1"
+    local binary="$2"
+    
+    printBanner "Testing Tool: $binary"
+    printInfoMsg "Repository: $repo"
 
-echo ""
-echo "=== Test Case 1: Application Not Installed ==="
-# Ensure clean state
-rm -f "$XDG_BIN_HOME/$BINARY"
+    # Scenario 1: Not Installed
+    echo ""
+    printMsg "${T_BOLD}Scenario 1: Clean Install (Not Installed)${T_RESET}"
+    rm -f "$XDG_BIN_HOME/$binary"
+    if install_github_binary "$repo" "$binary"; then
+        verify_install "$binary"
+    else
+        printErrMsg "Scenario 1 Failed"
+        exit 1
+    fi
 
-if install_github_binary "$REPO" "$BINARY"; then
-    verify_install "$BINARY"
-else
-    printErrMsg "Function returned failure."
-    exit 1
-fi
+    # Scenario 2: Current Version (Idempotency)
+    echo ""
+    printMsg "${T_BOLD}Scenario 2: Idempotency (Already Installed)${T_RESET}"
+    # Binary exists from step 1.
+    if install_github_binary "$repo" "$binary"; then
+        verify_install "$binary"
+    else
+        printErrMsg "Scenario 2 Failed"
+        exit 1
+    fi
 
-echo ""
-echo "=== Test Case 2: Older Version Installed ==="
-# Create a mock that reports an old version
-create_mock_binary "$BINARY" "commit=123 version=0.0.1 os=linux"
-echo "   [Setup] Created mock $BINARY v0.0.1"
+    # Scenario 3: Lower Version (Update)
+    echo ""
+    printMsg "${T_BOLD}Scenario 3: Update (Lower Version Installed)${T_RESET}"
+    create_mock_binary "$binary" "version=0.0.1"
+    if install_github_binary "$repo" "$binary"; then
+        verify_install "$binary"
+    else
+        printErrMsg "Scenario 3 Failed"
+        exit 1
+    fi
 
-if install_github_binary "$REPO" "$BINARY"; then
-    # Should overwrite the mock with the real binary
-    verify_install "$BINARY"
-else
-    printErrMsg "Function returned failure."
-    exit 1
-fi
+    # Scenario 4: Corrupt/Unknown Version
+    echo ""
+    printMsg "${T_BOLD}Scenario 4: Recovery (Corrupt/Unknown Version)${T_RESET}"
+    create_mock_binary "$binary" "Error: some error"
+    if install_github_binary "$repo" "$binary"; then
+        verify_install "$binary"
+    else
+        printErrMsg "Scenario 4 Failed"
+        exit 1
+    fi
+}
 
-echo ""
-echo "=== Test Case 3: Unknown/Garbage Version Installed ==="
-# Create a mock that reports garbage
-create_mock_binary "$BINARY" "Error: unknown command mock"
-echo "   [Setup] Created mock $BINARY with invalid version output"
+# 6. Execute Tests
 
-if install_github_binary "$REPO" "$BINARY"; then
-    verify_install "$BINARY"
-else
-    printErrMsg "Function returned failure."
-    exit 1
-fi
+TOOLS_TO_TEST=(
+    "jesseduffield/lazygit:lazygit"
+    "jesseduffield/lazydocker:lazydocker"
+)
+
+for tool_spec in "${TOOLS_TO_TEST[@]}"; do
+    IFS=':' read -r repo binary <<< "$tool_spec"
+    run_tool_tests "$repo" "$binary"
+done
 
 echo ""
 printOkMsg "${C_L_GREEN}All tests passed successfully!${T_RESET}"
