@@ -96,6 +96,7 @@ run_tool_tests() {
     local repo="$1"
     local binary="$2"
     
+    echo ""
     printBanner "Testing Tool: $binary"
     printInfoMsg "Repository: $repo"
 
@@ -150,6 +151,10 @@ TOOLS_TO_TEST=(
     "jesseduffield/lazygit:lazygit"
     "jesseduffield/lazydocker:lazydocker"
     "dandavison/delta:delta"
+    "BurntSushi/ripgrep:rg"
+    "sharkdp/fd:fd"
+    "sharkdp/bat:bat"
+    "eza-community/eza:eza"
 )
 
 for tool_spec in "${TOOLS_TO_TEST[@]}"; do
