@@ -159,14 +159,18 @@ print_usage() {
     printMsg "This script automates the setup of a new developer environment by installing"
     printMsg "essential tools and setting up a complete LazyVim configuration."
     printMsg "\n${T_ULINE}Usage:${T_RESET}"
-    printMsg "  $(basename "$0") [-h]"
+    printMsg "  $(basename "$0") [options]"
+    printMsg "\n${T_ULINE}Options:${T_RESET}"
+    printMsg "  -h, --help      Show this help message"
+    printMsg "  --no-vim        Skip Neovim installation and configuration"
+    printMsg "  --only-vim      Run ONLY Neovim installation and configuration"
     printMsg "\n${T_ULINE}What it does:${T_RESET}"
     printMsg "  1. Checks for a compatible system (Debian/Ubuntu-based Linux)."
-    printMsg "  2. Installs essential CLI tools referenced in '.bash_aliases'."
-    printMsg "  3. Copies the '.bash_aliases' file from this repository to '~/.bash_aliases'."
-    printMsg "  4. Executes the 'install-lazyvim.sh' script for a full Neovim setup."
-    printMsg "  5. Installs the latest versions of Go, lazygit, and lazydocker."
-    printMsg "  6. Provides final instructions for the user."
+    printMsg "  2. Installs essential CLI tools (curl, git, tmux, etc.)."
+    printMsg "  3. Installs modern utilities (ripgrep, fd, bat, eza) from GitHub."
+    printMsg "  4. Sets up shell environment (zoxide, starship, .bash_aliases)."
+    printMsg "  5. Installs dev tools (Go, lazygit, lazydocker, delta)."
+    printMsg "  6. Installs Neovim and configures LazyVim."
     printMsg "\nRun without arguments to start the setup."
 }
 
@@ -964,7 +968,6 @@ phase_user_binaries() {
     
     install_zoxide
     install_starship
-    install_neovim
     install_fzf_from_source
 }
 
@@ -984,23 +987,81 @@ phase_configuration() {
     configure_shell_environment
 }
 
+phase_neovim_binary() {
+    printBanner "Phase: Neovim Installation"
+    install_neovim
+}
+
 phase_neovim_setup() {
-    printBanner "Phase 6: Neovim Setup"
+    printBanner "Phase: Neovim Configuration"
     setup_lazyvim
 }
 
+phase_neovim_dependencies() {
+    printBanner "Phase: Neovim Dependencies"
+    printInfoMsg "Updating package lists..."
+    sudo apt-get update
+    
+    install_package "curl"
+    install_package "git"
+    install_package "build-essential"
+    install_package "cmake"
+    install_package "unzip"
+    install_package "jq"
+    install_package "fontconfig"
+    
+    install_github_binary "BurntSushi/ripgrep" "rg"
+    install_github_binary "sharkdp/fd" "fd"
+}
+
 main() {
-    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-        print_usage
-        exit 0
-    fi
+    local SKIP_VIM=false
+    local ONLY_VIM=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                print_usage
+                exit 0
+                ;;
+            --no-vim)
+                SKIP_VIM=true
+                shift
+                ;;
+            --only-vim)
+                ONLY_VIM=true
+                shift
+                ;;
+            *)
+                printErrMsg "Unknown argument: $1"
+                print_usage
+                exit 1
+                ;;
+        esac
+    done
 
     SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
     printBanner "Developer Machine Setup"
+    
+    if [[ "$ONLY_VIM" == "true" ]]; then
+        printInfoMsg "Mode: Only Neovim setup"
+    elif [[ "$SKIP_VIM" == "true" ]]; then
+        printInfoMsg "Mode: Skipping Neovim setup"
+    fi
+
     printWarnMsg "This script will install packages using sudo and modify shell configuration."
     if ! prompt_yes_no "Do you want to continue?" "y"; then
         printInfoMsg "Setup cancelled."
+        exit 0
+    fi
+
+    if [[ "$ONLY_VIM" == "true" ]]; then
+        phase_neovim_dependencies
+        phase_neovim_binary
+        install_nerd_fonts
+        phase_neovim_setup
+        printOkMsg "Neovim Setup Complete"
         exit 0
     fi
 
@@ -1010,9 +1071,13 @@ main() {
     phase_user_binaries
     phase_language_runtimes
     phase_configuration
-    phase_neovim_setup
+    
+    if [[ "$SKIP_VIM" == "false" ]]; then
+        phase_neovim_binary
+        phase_neovim_setup
+    fi
 
-    printBanner "Dev Machine Setup Complete!"
+    printBanner "Dev Machine Setup Complete"
     printOkMsg "All tasks have finished."
     printMsg "\n${T_ULINE}Final Steps:${T_RESET}"
     printMsg "\nTo apply all changes (new aliases, fzf, PATH) to your current session, please run:"
