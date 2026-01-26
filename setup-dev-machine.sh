@@ -507,6 +507,44 @@ install_neovim() {
     fi
 }
 
+# Backs up existing Neovim config and clones the LazyVim starter.
+setup_lazyvim() {
+    printBanner "Setting up LazyVim"
+    
+    local nvim_config_dir="${XDG_CONFIG_HOME}/nvim"
+    local lazyvim_json_path="${nvim_config_dir}/lazyvim.json"
+    
+    # Check if LazyVim is already installed by looking for lazyvim.json
+    if [[ -f "$lazyvim_json_path" ]]; then
+        printInfoMsg "LazyVim is already installed (found lazyvim.json). Skipping setup."
+        return
+    fi
+
+    # If not, check if a generic nvim config directory exists
+    if [[ -d "$nvim_config_dir" ]]; then
+        printWarnMsg "Found an existing Neovim configuration that is not LazyVim."
+        if prompt_yes_no "Do you want to back it up and replace it with the LazyVim starter?" "y"; then
+            local backup_dir="${nvim_config_dir}.bak_$(date +"%Y%m%d_%H%M%S")"
+            printInfoMsg "Backing up current config to ${backup_dir}..."
+            mv "$nvim_config_dir" "$backup_dir"
+            printOkMsg "Backup complete."
+        else
+            printInfoMsg "Skipping LazyVim setup as requested."
+            return
+        fi
+    fi
+
+    # Clone LazyVim starter
+    printInfoMsg "Cloning the LazyVim starter repository..."
+    if run_with_spinner "Cloning LazyVim..." git clone https://github.com/LazyVim/starter "$nvim_config_dir"; then
+        printOkMsg "LazyVim starter cloned to ${nvim_config_dir}."
+        printInfoMsg "You can now start Neovim by running: ${C_L_CYAN}nvim${T_RESET}"
+    else
+        printErrMsg "Failed to clone LazyVim starter repository."
+        return 1
+    fi
+}
+
 # Clones and installs fzf from the official GitHub repository.
 install_fzf_from_source() {
     printBanner "Installing fzf (from source)"
@@ -924,6 +962,11 @@ phase_configuration() {
     configure_shell_environment
 }
 
+phase_neovim_setup() {
+    printBanner "Phase 6: Neovim Setup"
+    setup_lazyvim
+}
+
 main() {
     if [[ "$1" == "-h" || "$1" == "--help" ]]; then
         print_usage
@@ -944,6 +987,7 @@ main() {
     phase_user_binaries
     phase_language_runtimes
     phase_configuration
+    phase_neovim_setup
 
     # Execute the LazyVim installer script
     bash "${SCRIPT_DIR}/install-lazyvim.sh"
