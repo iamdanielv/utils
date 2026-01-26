@@ -33,14 +33,14 @@ if command -v micro &>/dev/null; then
   alias nano='micro'
 fi
 
-# Use 'batcat' (or 'bat') for a 'cat' with syntax highlighting.
+# Use 'bat' (or 'batcat') for a 'cat' with syntax highlighting.
 _BAT_CMD="cat"
-if command -v batcat &>/dev/null; then
-  alias cat='batcat'
-  _BAT_CMD="batcat"
-elif command -v bat &>/dev/null; then
+if command -v bat &>/dev/null; then
   alias cat='bat'
   _BAT_CMD="bat"
+elif command -v batcat &>/dev/null; then
+  alias cat='batcat'
+  _BAT_CMD="batcat"
 fi
 
 # Use 'less' as a pager for 'ag' search results.
@@ -118,8 +118,14 @@ _FZF_CHEATSHEET_OPTS=(
 
 # --- FZF Environment & Bindings ---
 
+# Determine if we should use 'fd' or 'fdfind'
+_FD_CMD="fd"
+if ! command -v fd &>/dev/null && command -v fdfind &>/dev/null; then
+  _FD_CMD="fdfind"
+fi
+
 # Use fd as the default command for fzf to use for finding files.
-export FZF_DEFAULT_COMMAND='fd --hidden --follow --exclude ".git"'
+export FZF_DEFAULT_COMMAND="$_FD_CMD --hidden --follow --exclude \".git\""
 
 # Options for CTRL-T (insert file path in command line)
 export FZF_CTRL_T_OPTS="--style full \
@@ -158,10 +164,10 @@ export FZF_ALT_C_OPTS="--exact --style full \
 # --- FZF Completion Overrides ---
 # Use fd to power fzf's path and directory completion (**<TAB>).
 _fzf_compgen_path() {
-  fd --hidden --follow --exclude ".git" . "$1"
+  $_FD_CMD --hidden --follow --exclude ".git" . "$1"
 }
 _fzf_compgen_dir() {
-  fd --type d --hidden --follow --exclude ".git" . "$1"
+  $_FD_CMD --type d --hidden --follow --exclude ".git" . "$1"
 }
 
 # --- Custom FZF Functions ---
