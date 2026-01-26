@@ -906,6 +906,28 @@ install_nerd_fonts() {
 
 # --- Phases ---
 
+detect_system() {
+    printBanner "System Detection"
+    # OS Detection
+    if [[ "$(uname -s)" != "Linux" ]]; then
+        printErrMsg "Unsupported operating system: $(uname -s). This script only supports Linux."
+        exit 1
+    fi
+
+    # Architecture Detection
+    if [[ "$(uname -m)" != "x86_64" ]]; then
+        printErrMsg "Unsupported architecture: $(uname -m). This script only supports x86_64."
+        exit 1
+    fi
+
+    # Package Manager Detection
+    if ! command -v apt-get &>/dev/null; then
+        printErrMsg "Could not find 'apt'. This script only supports apt-based distributions (like Debian, Ubuntu)."
+        exit 1
+    fi
+    printOkMsg "System check passed: Linux x86_64 with apt."
+}
+
 phase_bootstrap() {
     printBanner "Phase 1: Bootstrap"
     printInfoMsg "Updating package lists..."
@@ -982,15 +1004,13 @@ main() {
         exit 0
     fi
 
+    detect_system
     phase_bootstrap
     phase_system_tools
     phase_user_binaries
     phase_language_runtimes
     phase_configuration
     phase_neovim_setup
-
-    # Execute the LazyVim installer script
-    bash "${SCRIPT_DIR}/install-lazyvim.sh"
 
     printBanner "Dev Machine Setup Complete!"
     printOkMsg "All tasks have finished."

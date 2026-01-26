@@ -40,20 +40,7 @@ Script to set up a new dev machine. It is designed to be **idempotent**, meaning
   - Configures `.bashrc` with necessary exports and integrations.
   - Copies `.bash_aliases` to `~/.bash_aliases`.
   - Sets up `tmux` configuration and plugins.
-- **Neovim**: Executes `install-lazyvim.sh` for a full Neovim environment.
-
-### 🚀 LazyVim Installer (`install-lazyvim.sh`)
-
-**Description:**
-A comprehensive script to automate the installation of LazyVim and all its prerequisites.
-
-- Supports Debian/Ubuntu-based Linux distributions on x86_64 architecture.
-- Installs dependencies like `ripgrep`, `fd`, and build tools.
-- Installs `fzf` from its official repository
-- Downloads, installs, and updates the latest stable Neovim AppImage
-- Installs the FiraCode Nerd Font for proper icon display
-- Sets up a custom fzf configuration in `.bashrc` for enhanced fuzzy finding
-- Backs up your existing Neovim config and sets up the LazyVim starter template
+- **Neovim**: Installs Neovim and sets up the LazyVim environment.
 
 ### 📝 Env Manager (`dv-env`)
 
