@@ -32,7 +32,7 @@ A Go-based TUI (Text User Interface) for managing `systemd` services.
 **Description:**
 Script to set up a new dev machine. It is designed to be **idempotent**, meaning you can run it multiple times safely to update your tools or configuration.
 
-- **Core Tools**: Installs essential CLI tools like `eza`, `ag`, `ripgrep`, `fd`, `bat`, `tmux`, `micro`, and `jq`.
+- **Core Tools**: Installs essential CLI tools. Modern tools like `eza`, `ripgrep`, `fd`, and `bat` are installed from GitHub releases to ensure the latest versions.
 - **Modern Shell**: Sets up `zoxide` (smarter cd) and `starship` (fast, customizable prompt).
 - **Git Enhancements**: Installs `lazygit` and configures `delta` as the default git pager for better diffs.
 - **Dev Tools**: Installs the latest versions of `lazydocker` and `golang`.
