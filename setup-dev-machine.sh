@@ -216,7 +216,7 @@ _gh_find_download_url() {
     local repo="$1"
     local asset_regex="${2:-}"
     curl -s "https://api.github.com/repos/${repo}/releases/latest" | \
-        jq -r --arg regex "$asset_regex" '.assets[] | select(.name | test("linux"; "i") and (test("amd64"; "i") or test("x86_64"; "i"))) | select($regex == "" or (.name | test($regex; "i"))) | .browser_download_url' | head -n 1
+        jq -r --arg regex "$asset_regex" '.assets[] | select(.name | test("linux"; "i") and (test("amd64"; "i") or test("x86_64"; "i"))) | select(.name | test("\\.tar\\.gz$|\\.zip$"; "i")) | select($regex == "" or (.name | test($regex; "i"))) | .browser_download_url' | head -n 1
 }
 
 # (Private) Downloads and installs the binary
@@ -364,24 +364,6 @@ install_golang() {
         fi
     else
         printErrMsg "Failed to download Go. Please try installing it manually."
-    fi
-}
-
-# Installs bat or batcat for file previews (used by fzf).
-install_bat_or_batcat() {
-    # fzf-preview.sh prefers 'batcat' then 'bat'.
-    if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
-        printInfoMsg "bat/batcat is already installed. Skipping."
-        return
-    fi
-
-    printInfoMsg "Attempting to install 'bat'..."
-    # Temporarily disable exit-on-error to allow fallback
-    if sudo apt-get install -y bat &>/dev/null; then
-        printOkMsg "Successfully installed bat."
-    else
-        printWarnMsg "'bat' installation failed, trying 'batcat'. This may not provide file previews."
-        install_package "batcat"
     fi
 }
 
@@ -787,7 +769,7 @@ install_nerd_fonts() {
         # Fetch version only once if needed
         if [[ -z "$latest_nerd_font_version" ]]; then
             printInfoMsg "Finding latest Nerd Fonts release..."
-            latest_nerd_font_version=$(curl -s "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest" | jq -r '.tag_name')
+            latest_nerd_font_version=$(_gh_get_latest_version "ryanoasis/nerd-fonts")
             
             if [[ -z "$latest_nerd_font_version" || "$latest_nerd_font_version" == "null" ]]; then
                 printErrMsg "Could not determine latest Nerd Fonts version from GitHub API. Skipping font installs."
@@ -838,17 +820,6 @@ phase_bootstrap() {
 phase_system_tools() {
     printBanner "Phase 2: System Tools (APT)"
     install_package "silversearcher-ag" "ag"
-    install_package "ripgrep" "rg"
-    install_package "fd-find" "fd"
-    
-    if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
-        printInfoMsg "Creating symlink for 'fd' from 'fdfind'..."
-        mkdir -p "${XDG_BIN_HOME}"
-        ln -sf "$(which fdfind)" "${XDG_BIN_HOME}/fd"
-    fi
-    
-    install_bat_or_batcat
-    install_package "eza"
     install_package "micro"
     install_package "tmux"
     install_package "jq"
@@ -863,6 +834,12 @@ phase_user_binaries() {
     install_github_binary "jesseduffield/lazygit" "lazygit"
     install_github_binary "jesseduffield/lazydocker" "lazydocker"
     install_github_binary "dandavison/delta" "delta"
+    
+    # Modern replacements for standard tools
+    install_github_binary "BurntSushi/ripgrep" "rg"
+    install_github_binary "sharkdp/fd" "fd"
+    install_github_binary "sharkdp/bat" "bat"
+    install_github_binary "eza-community/eza" "eza"
     
     install_zoxide
     install_starship
