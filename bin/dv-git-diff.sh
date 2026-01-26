@@ -35,11 +35,23 @@ do_preview() {
     local mode="$1"
     local file="$2"
     if [[ "$mode" == "staged" ]]; then
-        git diff --cached --color=always -- "$file"
+        if command -v delta &>/dev/null; then
+            git --no-pager diff --cached -- "$file" | delta --paging=never --file-style=omit
+        else
+            git --no-pager diff --cached --color=always -- "$file"
+        fi
     elif [[ "$mode" == "all" ]]; then
-        git diff HEAD --color=always -- "$file"
+        if command -v delta &>/dev/null; then
+            git --no-pager diff HEAD -- "$file" | delta --paging=never --file-style=omit
+        else
+            git --no-pager diff HEAD --color=always -- "$file"
+        fi
     else
-        git diff --color=always -- "$file"
+        if command -v delta &>/dev/null; then
+            git --no-pager diff -- "$file" | delta --paging=never --file-style=omit
+        else
+            git --no-pager diff --color=always -- "$file"
+        fi
     fi
 }
 

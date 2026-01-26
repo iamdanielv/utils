@@ -52,10 +52,18 @@ do_preview() {
         fi
     elif [[ "$status" == "M " || "$status" == "A " || "$status" == "D " || "$status" == "R " ]]; then
         echo "Staged changes (git diff --cached):"
-        git diff --cached --color=always -- "$file"
+        if command -v delta &>/dev/null; then
+            git --no-pager diff --cached -- "$file" | delta --paging=never --file-style=omit
+        else
+            git --no-pager diff --cached --color=always -- "$file"
+        fi
     else
         echo "Unstaged changes (git diff):"
-        git diff --color=always -- "$file"
+        if command -v delta &>/dev/null; then
+            git --no-pager diff -- "$file" | delta --paging=never --file-style=omit
+        else
+            git --no-pager diff --color=always -- "$file"
+        fi
     fi
 }
 
