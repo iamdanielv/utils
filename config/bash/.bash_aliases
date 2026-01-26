@@ -261,17 +261,6 @@ alias lg='lazygit'
 
 # --- Reusable Git Helper Variables & Functions ---
 
-# A compact, one-line format for git log commands.
-_GIT_LOG_COMPACT_FORMAT='%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset)%C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)'
-
-# A helper function to shorten the relative date output from git log.
-# Takes log output via stdin and pipes it through sed.
-_shorten_git_date() {
-  sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g'
-}
-# Export the function so it's available to subshells, like those used by fzf's preview.
-export -f _shorten_git_date
-
 # Helper to ensure the current directory is a git repository.
 _require_git_repo() {
   if ! git rev-parse --is-inside-work-tree &> /dev/null; then
@@ -286,7 +275,7 @@ _require_git_repo() {
 unalias gl 2>/dev/null
 gl() {
   _require_git_repo || return 1
-  git log --graph --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" "$@"
+  git log --graph --color=always --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset)%C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)' "$@"
 }
 
 # See the commit history for a specific file, tracking renames.
@@ -294,8 +283,7 @@ gl() {
 unalias glf 2>/dev/null
 glf() {
   _require_git_repo || return 1
-  # The '--' separates log options from file paths.
-  git log --follow --color=always --pretty=format:"${_GIT_LOG_COMPACT_FORMAT}" -- "$@"
+  git log --follow --color=always --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset)%C(bold cyan)%d%C(reset) %s %C(blue)<%an>%C(reset)' -- "$@"
 }
 
 # Helper to handle the selection from fgl and fzglfh.
@@ -331,22 +319,10 @@ _handle_git_hash_selection() {
 # Purpose: Interactively browse git commit history
 # Usage: fgl [git log options]
 fgl() {
-  _require_git_repo || return 1
-  local current_branch
-  current_branch=$(git branch --show-current)
-
   local selected
-  selected=$(git log --color=always \
-      --format="${_GIT_LOG_COMPACT_FORMAT}" "$@" |
-      _shorten_git_date | fzf "${_FZF_COMMON_OPTS[@]}" --no-sort --no-hscroll \
-      --header $'ENTER: view diff | CTRL-Y: pick hash\nSHIFT-UP/DOWN: scroll diff | CTRL-/: view' \
-      --border-label=" Git Log: $current_branch " \
-      --prompt='  Log❯ ' \
-      --bind 'enter:execute(git show --color=always {1} | less -R)' \
-      --bind 'ctrl-y:accept' \
-      --preview 'git show --color=always {1}' \
-      --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${_FZF_LBL_STYLE} Diff for [%s] ${_FZF_LBL_RESET}\" {1}")
-
+  # dv-git-log.sh will print the selected line to stdout when not in a tmux popup
+  # The _require_git_repo check is inside the subshell to prevent error messages from polluting the output if it fails.
+  selected=$(_require_git_repo && dv-git-log.sh "$@")
   _handle_git_hash_selection "$selected"
 }
 

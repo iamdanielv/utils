@@ -56,13 +56,16 @@ selected=$(git log --color=always --format="${_GIT_LOG_COMPACT_FORMAT}" | \
         --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${FZF_LBL_STYLE} Diff for [%s] ${FZF_LBL_RESET}\" {1}")
 
 if [[ -n "$selected" ]]; then
+    # If called from fgl (not in a tmux popup), print the raw selected line for _handle_git_hash_selection
+    if [[ -z "$TMUX_POPUP" ]]; then
+        echo "$selected"
+        exit 0
+    fi
+
+    # Otherwise (called from tmux popup), copy hash to buffer
     hash=$(echo "$selected" | sed $'s/\e\[[0-9;]*m//g' | awk '{print $1}')
     if [[ -n "$hash" ]]; then
-        if [[ -n "$TMUX" ]]; then
-            printf "%s" "$hash" | tmux load-buffer -
-            tmux display-message "Hash $hash copied to tmux buffer"
-        else
-            echo "Selected Hash: $hash"
-        fi
+        printf "%s" "$hash" | tmux load-buffer -
+        tmux display-message "Hash $hash copied to tmux buffer"
     fi
 fi
