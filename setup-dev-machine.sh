@@ -447,6 +447,66 @@ install_starship() {
     fi
 }
 
+# Downloads and installs the latest stable version of Neovim.
+install_neovim() {
+    printBanner "Installing/Updating Neovim (Latest Stable)"
+
+    local bin_dir="${XDG_BIN_HOME}"
+    local version_file="${XDG_STATE_HOME}/nvim-version"
+    mkdir -p "$bin_dir"
+    mkdir -p "$(dirname "$version_file")"
+
+    printInfoMsg "Checking for latest Neovim version..."
+    local latest_version_tag
+    latest_version_tag=$(_gh_get_latest_version "neovim/neovim")
+
+    if [[ -z "$latest_version_tag" || "$latest_version_tag" == "null" ]]; then
+        printErrMsg "Could not determine latest Neovim version from GitHub API."
+        return 1
+    fi
+    
+    local latest_version="${latest_version_tag#v}"
+    printInfoMsg "Latest stable version is: ${latest_version_tag}"
+
+    local installed_version="0"
+    if [[ -f "$version_file" ]]; then
+        installed_version=$(<"$version_file")
+    fi
+
+    # Also check for a system-installed nvim to report its version
+    if command -v nvim &>/dev/null; then
+        local system_version_output
+        system_version_output=$(nvim --version 2>/dev/null | head -n 1)
+        local system_version
+        system_version=$(echo "$system_version_output" | awk '{print $2}')
+        printInfoMsg "Found installed Neovim version: ${system_version} (managed by this script: v${installed_version})"
+    fi
+
+    if [[ "$installed_version" == "$latest_version" ]]; then
+        printOkMsg "You already have the latest version of Neovim (v${installed_version}). Skipping."
+        return 0
+    fi
+
+    if ! prompt_yes_no "Do you want to install/update Neovim to ${latest_version_tag}?" "y"; then
+        printInfoMsg "Neovim installation skipped."
+        return 0
+    fi
+
+    # Use AppImage for Linux
+    local nvim_appimage_path="${bin_dir}/nvim-linux-x86_64.appimage"
+    local nvim_url="https://github.com/neovim/neovim/releases/download/${latest_version_tag}/nvim-linux-x86_64.appimage"
+    
+    if run_with_spinner "Downloading Neovim AppImage ${latest_version_tag}..." curl -L -f "$nvim_url" -o "$nvim_appimage_path"; then
+        chmod +x "$nvim_appimage_path"
+        ln -sf "$nvim_appimage_path" "${bin_dir}/nvim"
+        echo "$latest_version" > "$version_file"
+        printOkMsg "Neovim ${latest_version_tag} installed to ${bin_dir}/nvim"
+    else
+        printErrMsg "Failed to download Neovim AppImage."
+        return 1
+    fi
+}
+
 # Clones and installs fzf from the official GitHub repository.
 install_fzf_from_source() {
     printBanner "Installing fzf (from source)"
@@ -844,6 +904,7 @@ phase_user_binaries() {
     
     install_zoxide
     install_starship
+    install_neovim
     install_fzf_from_source
 }
 
