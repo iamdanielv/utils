@@ -815,6 +815,7 @@ phase_bootstrap() {
     install_package "curl"
     install_package "git"
     install_package "build-essential"
+    install_package "cmake"
 }
 
 phase_system_tools() {
