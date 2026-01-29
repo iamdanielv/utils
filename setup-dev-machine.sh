@@ -549,6 +549,45 @@ setup_lazyvim() {
     fi
 }
 
+# Copies custom LazyVim plugin configs
+setup_lazyvim_plugins() {
+    printBanner "Setting up Custom LazyVim Plugins"
+    local source_plugins_dir="${SCRIPT_DIR}/config/nvim/lua/plugins"
+    local dest_plugins_dir="${XDG_CONFIG_HOME}/nvim/lua/plugins"
+
+    if [[ ! -d "$source_plugins_dir" ]] || [[ -z "$(ls -A "$source_plugins_dir")" ]]; then
+        printInfoMsg "No custom LazyVim plugins found to install. Skipping."
+        return
+    fi
+
+    # This function should only run if LazyVim is installed.
+    if [[ ! -d "${XDG_CONFIG_HOME}/nvim/lua" ]]; then
+        printWarnMsg "LazyVim installation not found at '${XDG_CONFIG_HOME}/nvim'. Skipping custom plugin setup."
+        return
+    fi
+
+    printInfoMsg "Copying nvim plugin configs to ${dest_plugins_dir}..."
+    mkdir -p "$dest_plugins_dir"
+
+    local file_copied=false
+    for src_file in "$source_plugins_dir"/*.lua; do
+        if [[ ! -f "$src_file" ]]; then continue; fi
+        
+        local filename; filename=$(basename "$src_file")
+        local dest_file="${dest_plugins_dir}/${filename}"
+
+        # For plugins, we just want to ensure they exist.
+        # We won't prompt for overwrite, just copy if it's not there.
+        if [[ ! -f "$dest_file" ]]; then
+            cp "$src_file" "$dest_file"
+            printOkMsg "Copied new plugin config '${filename}'."
+            file_copied=true
+        else
+            printInfoMsg "Plugin config '${filename}' already exists. Skipping."
+        fi
+    done
+}
+
 # Clones and installs fzf from the official GitHub repository.
 install_fzf_from_source() {
     printBanner "Installing fzf (from source)"
@@ -995,6 +1034,7 @@ phase_neovim_binary() {
 phase_neovim_setup() {
     printBanner "Phase: Neovim Configuration"
     setup_lazyvim
+    setup_lazyvim_plugins
 }
 
 phase_neovim_dependencies() {
