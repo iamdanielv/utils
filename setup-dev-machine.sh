@@ -659,14 +659,14 @@ configure_shell_environment() {
     config_block+="export PATH=\"\$PATH:/usr/local/go/bin:\$HOME/go/bin\"\n"
     
     # Tool Integrations
-    if command -v zoxide &>/dev/null; then
-        config_block+="\n# Zoxide (better cd)\n"
-        config_block+="eval \"\$(zoxide init bash)\"\n"
-    fi
-
     if command -v starship &>/dev/null; then
         config_block+="\n# Starship (prompt)\n"
         config_block+="eval \"\$(starship init bash)\"\n"
+    fi
+
+    if command -v zoxide &>/dev/null; then
+        config_block+="\n# Zoxide (better cd)\n"
+        config_block+="eval \"\$(zoxide init bash)\"\n"
     fi
     config_block+="${marker_end}"
     
