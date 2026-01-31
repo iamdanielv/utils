@@ -28,6 +28,10 @@ _SED_DATE="sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day
 _PREVIEW_LIMITED="git log --follow -n 20 --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | ${_SED_DATE}"
 _PREVIEW_FULL="git log --follow --color=always --format=\"${_GIT_LOG_COMPACT_FORMAT}\" -- {} | ${_SED_DATE}"
 
+# Define Headers
+_HEADER_LIMITED="${ansi_yellow}Limited History (20)${C_RESET}"$'\n'"CTRL-F: Switch to ${ansi_green}Full${C_RESET} | ENTER: Select"
+_HEADER_FULL="${ansi_green}Full History${C_RESET}"$'\n'"CTRL-L: Switch to ${ansi_yellow}Limited${C_RESET} | ENTER: Select"
+
 # --- Main Logic ---
 
 require_git_repo
@@ -37,16 +41,16 @@ while true; do
   # Preview limited to 20 commits for performance optimization
   selected_file=$(git ls-files | dv_run_fzf \
     --tiebreak=index --header-first \
-    --header "ENTER: inspect commits | ESC: quit"$'\n'"CTRL-F: ${ansi_green}full history${C_RESET} | CTRL-L: ${ansi_yellow}limited (20)${C_RESET}" \
-    --border-label=" $icon_git File History ${ansi_yellow}(Limited)${C_RESET} " \
+    --header "${_HEADER_LIMITED}" \
+    --border-label=" $icon_git File History " \
     --border-label-pos='3' \
     --preview-label-pos='3' \
     --preview-window 'right,60%,border,wrap' \
     --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)' \
     --preview "${_PREVIEW_LIMITED}" \
     --prompt='  File❯ ' \
-    --bind "ctrl-f:change-preview(${_PREVIEW_FULL})+change-border-label( $icon_git File History ${ansi_green}(Full)${C_RESET} )" \
-    --bind "ctrl-l:change-preview(${_PREVIEW_LIMITED})+change-border-label( $icon_git File History ${ansi_yellow}(Limited)${C_RESET} )" \
+    --bind "ctrl-f:change-preview(${_PREVIEW_FULL})+change-header(${_HEADER_FULL})" \
+    --bind "ctrl-l:change-preview(${_PREVIEW_LIMITED})+change-header(${_HEADER_LIMITED})" \
     --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${FZF_LBL_STYLE} History for [%s] ${FZF_LBL_RESET}\" {}")
 
   if [[ -z "$selected_file" ]]; then
