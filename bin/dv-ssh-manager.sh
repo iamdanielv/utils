@@ -2690,6 +2690,27 @@ interactive_port_forward_view() {
 
 # --- Host-Centric Main View Helpers ---
 
+# Wrapper to run SSH interactively, handling errors without closing the script immediately.
+connect_host() {
+    local host_alias="$1"
+
+    clear_screen
+    printMsgNoNewline "${T_CURSOR_SHOW}" >/dev/tty
+
+    # Run SSH as a child process
+    ssh "$host_alias"
+    local exit_code=$?
+
+    printMsgNoNewline "${T_CURSOR_HIDE}" >/dev/tty
+
+    if [[ $exit_code -ne 0 ]]; then
+        echo # Ensure newline after SSH output
+        printErrMsg "Connection to '${host_alias}' failed (Exit Code: ${exit_code})."
+        prompt_to_continue
+    fi
+    return $exit_code
+}
+
 _host_centric_view_draw_footer() {
     # This function now depends on _HOST_VIEW_FOOTER_EXPANDED being set in its calling scope.
     local filter_text=""
@@ -2731,12 +2752,8 @@ _host_centric_view_key_handler() {
             ;;
         "$KEY_ENTER")
             if [[ -n "$selected_host" ]]; then
-                {
-                    clear_screen
-                    exec ssh "$selected_host"
-                } >/dev/tty
-                # If exec fails, we might get here. Redraw to be safe.
-                    out_result="refresh"
+                connect_host "$selected_host"
+                out_result="refresh"
             fi
             ;;
         'a'|'A')
@@ -2942,12 +2959,10 @@ direct_connect() {
     local selected_host
     selected_host=$(select_ssh_host "Select a host to connect to:")
     if [[ $? -eq 0 ]]; then
-        # Clear the screen before exec'ing to avoid leaving the TUI visible.
-        clear_screen; exec ssh "$selected_host"
+        connect_host "$selected_host"
+        exit $?
     fi
-    # If selection is cancelled, the script will just exit.
-    # select_ssh_host prints a cancellation message, so we exit with a non-zero status
-    # to indicate the requested action was not completed.
+    # If selection is cancelled
     exit 1
 }
 
