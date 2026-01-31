@@ -937,12 +937,14 @@ _get_tags_for_host() {
     host_block=$(_process_ssh_config_blocks "$host_alias" "$SSH_CONFIG_PATH" "keep")
 
     if [[ -n "$host_block" ]]; then
-        # Grep for the tags line, cut out the prefix, and trim whitespace.
-        # This pipeline handles multiple "# Tags:" lines by joining them with commas.
-        echo "$host_block" | grep -o -E '^\s*#\s*Tags:\s*.*' \
-            | sed -E 's/^\s*#\s*Tags:\s*//' \
-            | sed 's/^\s*//;s/\s*$//' \
-            | paste -sd, -
+        # Optimization: Use a single awk command instead of grep | sed | sed | paste
+        echo "$host_block" | awk '
+            /^[[:space:]]*#[[:space:]]*Tags:/ {
+                sub(/^[[:space:]]*#[[:space:]]*Tags:[[:space:]]*/, "");
+                if (tags != "") tags = tags "," $0; else tags = $0
+            }
+            END { print tags }
+        '
     fi
 }
 
@@ -1075,8 +1077,16 @@ get_detailed_ssh_hosts_menu_options() {
 # Returns the selected host alias via stdout. Returns exit code 1 if no host is selected.
 select_ssh_host() {
     local prompt="$1"; local single_line="${2:-false}"
+
+    # UX Improvement: Show loading indicator
+    printMsgNoNewline "${T_INFO_ICON} Loading hosts..." >/dev/tty
+
     local -a menu_options data_payloads
     get_detailed_ssh_hosts_menu_options menu_options data_payloads "$single_line" "" # No filter
+
+    # Clear loading indicator
+    clear_current_line >/dev/tty
+
     if [[ ${#menu_options[@]} -eq 0 ]]; then printInfoMsg "No hosts found in your SSH config file."; return 1; fi
     local selected_index
     local header; header=$(printf "%-20s ${C_WHITE}%s${T_RESET}" "HOST ALIAS" "user@hostname[:port]")
