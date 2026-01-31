@@ -10,6 +10,7 @@
 format = """
 $username\
 $hostname\
+${custom.hostname_local}\
 $directory\
 $git_branch\
 $git_commit\
@@ -36,14 +37,23 @@ format = '[$user]($style)'
 disabled = false
 
 [hostname]
-ssh_only = false
-ssh_symbol = ''
-format = '@[$ssh_symbol](bold blue)[$hostname](bold blue)'
+ssh_only = true
+ssh_symbol = ' '
+format = '[$ssh_symbol](bold yellow)[$hostname](bold blue)'
+disabled = false
+
+[custom.hostname_local]
+command = 'hostname'
+when = 'test -z "$SSH_CONNECTION"'
+format = '@[$output]($style)'
+style = 'bold blue'
 disabled = false
 
 [directory]
 truncation_symbol = '…/'
-fish_style_pwd_dir_length = 2
+truncation_length = 3
+truncate_to_repo = false
+# fish_style_pwd_dir_length = 4
 format = ':[$path]($style)[$read_only]($read_only_style) '
 
 #[git_branch]

@@ -848,6 +848,36 @@ setup_tmux_config() {
     fi
 }
 
+# Copies the starship.toml configuration to ~/.config/starship.toml
+setup_starship_config() {
+    printBanner "Setting up Starship Configuration"
+    local source_config="${SCRIPT_DIR}/config/starship.toml"
+    local dest_config="${XDG_CONFIG_HOME}/starship.toml"
+
+    if [[ ! -f "$source_config" ]]; then
+        printWarnMsg "Could not find 'starship.toml' in: ${source_config}"
+        return
+    fi
+
+    if [[ -f "$dest_config" ]]; then
+        if cmp -s "$source_config" "$dest_config"; then
+            printInfoMsg "'starship.toml' is identical to source. Skipping."
+        elif prompt_yes_no "File '${dest_config}' already exists. Back it up and overwrite it?" "y"; then
+            local backup_file="${dest_config}.bak_$(date +"%Y%m%d_%H%M%S")"
+            printInfoMsg "Backing up current file to ${backup_file}..."
+            cp "$dest_config" "$backup_file"
+            cp "$source_config" "$dest_config"
+            printOkMsg "Backup created and 'starship.toml' has been overwritten."
+        else
+            printInfoMsg "Skipping 'starship.toml' setup."
+        fi
+    else
+        mkdir -p "$(dirname "$dest_config")"
+        cp "$source_config" "$dest_config"
+        printOkMsg "Copied 'starship.toml' to '${dest_config}'."
+    fi
+}
+
 # Installs Tmux Plugin Manager and plugins
 install_tpm() {
     printBanner "Installing Tmux Plugin Manager (TPM)"
@@ -1018,6 +1048,7 @@ phase_language_runtimes() {
 phase_configuration() {
     printBanner "Phase 5: Configuration & Dotfiles"
     setup_bash_aliases
+    setup_starship_config
     setup_tmux_config
     install_tpm
     setup_fzf_config

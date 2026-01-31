@@ -23,6 +23,7 @@ Usage: $(basename "$0") [options]
 Quickly syncs local configuration to system paths for rapid development.
 Targets:
   - Tmux: ~/.config/tmux
+  - Starship: ~/.config/starship.toml
   - Bash: ~/.bash_aliases
   - Bin:  ~/.local/bin
 
@@ -58,6 +59,10 @@ DEST_TMUX_BASE_DIR="${HOME}/.config/tmux"
 # Bash Paths
 SRC_BASH_ALIASES="${SCRIPT_DIR}/config/bash/.bash_aliases"
 DEST_BASH_ALIASES="${HOME}/.bash_aliases"
+
+# Starship Paths
+SRC_STARSHIP_CONF="${SCRIPT_DIR}/config/starship.toml"
+DEST_STARSHIP_CONF="${HOME}/.config/starship.toml"
 
 # Bin Paths
 SRC_BIN_DIR="${SCRIPT_DIR}/bin"
@@ -116,8 +121,9 @@ perform_cleanup() {
     
     tmux_backups=$(find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null)
     bash_backups=$(find "${HOME}" -maxdepth 1 -type f -name ".bash_aliases.bak_*" 2>/dev/null)
+    starship_backups=$(find "${HOME}/.config" -maxdepth 1 -type f -name "starship.toml.bak_*" 2>/dev/null)
     
-    all_backups=$(printf "%s\n%s" "$tmux_backups" "$bash_backups" | grep -v "^$")
+    all_backups=$(printf "%s\n%s\n%s" "$tmux_backups" "$bash_backups" "$starship_backups" | grep -v "^$")
     total_count=$(echo "$all_backups" | grep -c -v "^$")
 
     if [ "$total_count" -gt 0 ]; then
@@ -200,6 +206,8 @@ if [ "$LIST_BACKUPS" = true ]; then
     find "${HOME}/.config" -maxdepth 1 -type d -name "tmux.bak_*" 2>/dev/null | sort | sed 's/^/  - /'
     # Find bash backups
     find "${HOME}" -maxdepth 1 -type f -name ".bash_aliases.bak_*" 2>/dev/null | sort | sed 's/^/  - /'
+    # Find starship backups
+    find "${HOME}/.config" -maxdepth 1 -type f -name "starship.toml.bak_*" 2>/dev/null | sort | sed 's/^/  - /'
     exit 0
 fi
 
@@ -217,13 +225,19 @@ if ! sync_dir_contents "$SRC_TMUX_SCRIPTS" "$DEST_TMUX_SCRIPTS_DIR" "*.sh"; then
     echo "  ${C_RED}[✗] Error:${T_RESET} Source scripts directory not found at $SRC_TMUX_SCRIPTS"
 fi
 
-# 2. Bash Sync
+# 2. Starship Sync
+echo ""
+echo "${C_BLUE}[i] Syncing Starship Config...${T_RESET}"
+backup_path "$DEST_STARSHIP_CONF"
+sync_file "$SRC_STARSHIP_CONF" "$DEST_STARSHIP_CONF"
+
+# 3. Bash Sync
 echo ""
 echo "${C_BLUE}[i] Syncing Bash Aliases...${T_RESET}"
 backup_path "$DEST_BASH_ALIASES"
 sync_file "$SRC_BASH_ALIASES" "$DEST_BASH_ALIASES"
 
-# 3. Bin Sync
+# 4. Bin Sync
 echo ""
 echo "${C_BLUE}[i] Syncing Binaries...${T_RESET}"
 if ! sync_dir_contents "$SRC_BIN_DIR" "$DEST_BIN_DIR" "dv-*"; then
@@ -234,7 +248,7 @@ if [ -f "$DEST_BIN_DIR/dv-common.sh" ]; then
     chmod -x "$DEST_BIN_DIR/dv-common.sh"
 fi
 
-# 4. Post-Sync Actions
+# 5. Post-Sync Actions
 echo ""
 if [ -n "$TMUX" ]; then
     tmux source-file "$DEST_TMUX_CONF"
