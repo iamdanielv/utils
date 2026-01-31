@@ -53,6 +53,14 @@ while true; do
     break
   fi
 
+  if command -v delta &>/dev/null; then
+      _SHOW_PREVIEW="git show {1} -- \"$selected_file\" | delta --paging=never"
+      _SHOW_ENTER="git show {1} -- \"$selected_file\" | delta"
+  else
+      _SHOW_PREVIEW="git show --color=always {1} -- \"$selected_file\""
+      _SHOW_ENTER="git show --color=always {1} -- \"$selected_file\" | less -R"
+  fi
+
   # 2. Select Commit
   # Full history is shown here for the specific file
   selected_commit=$(git log --follow --color=always \
@@ -65,9 +73,9 @@ while true; do
         --preview-label-pos='3' \
         --preview-window 'right,60%,border,wrap' \
         --bind 'ctrl-/:change-preview-window(down,70%,border-top|hidden|)' \
-        --bind "enter:execute(git show --color=always {1} -- \"$selected_file\" | less -R)" \
+        --bind "enter:execute($_SHOW_ENTER)" \
         --bind 'ctrl-y:accept' \
-        --preview "git show --color=always {1} -- \"$selected_file\"" \
+        --preview "$_SHOW_PREVIEW" \
         --prompt='  Commit❯ ' \
         --input-label ' Filter Commits ' \
         --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${FZF_LBL_STYLE} Diff for [%s] ${FZF_LBL_RESET}\" {1}")
