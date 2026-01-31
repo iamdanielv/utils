@@ -193,7 +193,7 @@ verify_tmux_bindings() {
                 echo "      ${C_GREEN}[✓] $script_name${T_RESET} ($label)"
             fi
         else
-            echo "      ${C_YELLOW}[!] $script_name${T_RESET} (Not bound)"
+            echo "      ${C_YELLOW}/!\ $script_name${T_RESET} (Not bound)"
         fi
     done
 }
