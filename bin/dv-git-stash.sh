@@ -148,6 +148,13 @@ if [ -z "$($LIST_CMD)" ]; then
      fi
 fi
 
+# --- Delta Integration ---
+if command -v delta &>/dev/null; then
+    _PREVIEW_CMD="git stash show -p \$(echo {} | awk -F: '{print \$1}') | delta --paging=never"
+else
+    _PREVIEW_CMD="git stash show --color=always -p \$(echo {} | awk -F: '{print \$1}')"
+fi
+
 $LIST_CMD | dv_run_fzf \
     --tiebreak=index --header-first \
     --no-sort \
@@ -158,7 +165,7 @@ $LIST_CMD | dv_run_fzf \
     --border-label-pos='3' \
     --header "$header" \
     --prompt='  Stash❯ ' \
-    --preview "git stash show --color=always -p \$(echo {} | awk -F: '{print \$1}')" \
+    --preview "$_PREVIEW_CMD" \
     --bind "enter:execute($0 --apply {})+reload($LIST_CMD)" \
     --bind "ctrl-p:execute($0 --pop {})+reload($LIST_CMD)" \
     --bind "ctrl-n:execute($0 --create)+reload($LIST_CMD)" \
