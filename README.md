@@ -282,6 +282,17 @@ A TUI (Text User Interface) for managing KVM/QEMU virtual machines using `virsh`
 ╰            │ [S]tart/Stop │ [R]eboot │ [F]orce Stop        │ [Q]uit
 ```
 
+### 🔐 SSH Manager (dv-ssh-manager)
+
+**Description**:
+An interactive TUI for managing and connecting to SSH hosts defined in ~/.ssh/config.
+
+- **Host Management**: Add, Edit, Delete, and Clone SSH host configurations interactively.
+- **Connection**: Quickly connect to hosts or test connectivity (single or batch).
+- **Key Management**: Generate new SSH keys (ed25519/rsa) and copy them to remote servers (ssh-copy-id).
+- **Port Forwarding**: Manage and persist local/remote port forwarding configurations.
+- **Safety**: Automatically backs up ~/.ssh/config before making changes.
+
 ### 🐚 Interactive Shell Workflow
 
 **Description:**
@@ -615,6 +626,7 @@ A highly configured Tmux setup (`tmux.conf`) focused on speed and integration wi
 
 **Execute Menu (`Prefix + e`):**
 Opens a menu to launch utilities:
+
 - **Find File**: `dv-find`
 - **Find in Files**: `dv-fif`
 - **Process Killer**: `dv-kill`
@@ -623,6 +635,7 @@ Opens a menu to launch utilities:
 - **Man Pages**: `dv-man`
 - **LazyDocker**: `lazydocker`
 - **Env Manager**: `dv-env`
+- **SSH Manager**: `dv-ssh-manager`
 - **System Update**: `dv-update`
 
 **Git Integration (`Prefix + g`):**
