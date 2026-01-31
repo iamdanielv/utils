@@ -2690,6 +2690,31 @@ interactive_port_forward_view() {
 
 # --- Host-Centric Main View Helpers ---
 
+# (Private) Displays a message using dv-input.sh if available in Tmux, otherwise falls back to TUI.
+# Usage: _show_popup_message "Message" ["type"]
+_show_popup_message() {
+    local msg="$1"
+    local type="${2:-info}"
+    local input_script="$HOME/.config/tmux/scripts/dv/dv-input.sh"
+
+    # Check if we are in Tmux and the helper script exists
+    if [[ -n "$TMUX" && -x "$input_script" ]]; then
+        "$input_script" --type "$type" --message "$msg"
+    else
+        # Fallback to standard TUI output
+        if [[ "$type" == "error" ]]; then
+            printErrMsg "$msg"
+        elif [[ "$type" == "success" ]]; then
+            printOkMsg "$msg"
+        elif [[ "$type" == "warning" ]]; then
+            printWarnMsg "$msg"
+        else
+            printInfoMsg "$msg"
+        fi
+        prompt_to_continue
+    fi
+}
+
 # Wrapper to run SSH interactively, handling errors without closing the script immediately.
 connect_host() {
     local host_alias="$1"
@@ -2705,8 +2730,7 @@ connect_host() {
 
     if [[ $exit_code -ne 0 ]]; then
         echo # Ensure newline after SSH output
-        printErrMsg "Connection to '${host_alias}' failed (Exit Code: ${exit_code})."
-        prompt_to_continue
+        _show_popup_message "Connection to '${host_alias}' failed (Exit Code: ${exit_code})." "error"
     fi
     return $exit_code
 }
