@@ -1420,6 +1420,14 @@ _select_and_get_existing_key() {
     return 0
 }
 
+# (Private) Creates a timestamped backup of the SSH config file.
+_backup_ssh_config() {
+    if [[ -f "$SSH_CONFIG_PATH" ]]; then
+        local backup_path="${SSH_CONFIG_PATH}.bak_$(date +%Y%m%d_%H%M%S)"
+        cp "$SSH_CONFIG_PATH" "$backup_path"
+    fi
+}
+
 # (Private) Builds a host block as a string. Does not write to any file.
 # Usage: _build_host_block_string <alias> <hostname> <user> <port> [identity_file]
 _build_host_block_string() {
@@ -1457,6 +1465,8 @@ _append_host_to_config() {
     local port="$4"
     local identity_file="$5"
     local tags="$6"
+
+    _backup_ssh_config
 
     (
         echo "" # Separator
@@ -1824,6 +1834,8 @@ edit_ssh_host() {
         fi
     fi
 
+    _backup_ssh_config
+
     local config_without_host; config_without_host=$(_remove_host_block_from_config "$original_alias")
     local new_host_block; new_host_block=$(_build_host_block_string "$new_alias" "$new_hostname" "$new_user" "$new_port" "$new_identityfile" "$new_tags")
     printf '%s\n\n%s' "$config_without_host" "$new_host_block" | cat -s > "$SSH_CONFIG_PATH"
@@ -2003,6 +2015,8 @@ _remove_host_and_cleanup() {
     # Get the IdentityFile path *before* removing the host from the config.
     local identity_file_to_check
     identity_file_to_check=$(_get_explicit_ssh_config_value "$host_to_remove" "IdentityFile")
+
+    _backup_ssh_config
 
     # Get the config content without the specified host block
     local new_config_content
