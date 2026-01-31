@@ -1019,6 +1019,7 @@ phase_system_tools() {
     install_package "jq"
     install_package "unzip"
     install_package "fontconfig" "fc-cache"
+    install_package "openssh-client" "ssh"
 }
 
 phase_user_binaries() {
