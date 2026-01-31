@@ -817,31 +817,21 @@ _get_explicit_ssh_config_value() {
     fi
 }
 
-# (Private) Gets all relevant config values for a given host in one go.
-# Returns a string of `eval`-safe variable assignments.
+# (Private) Gets resolved config values for a given host in a fixed order.
+# Returns: hostname, user, port (one per line)
 # Usage:
-#   local details; details=$(_get_all_ssh_config_values_as_string <host_alias>)
-#   eval "$details"
-_get_all_ssh_config_values_as_string() {
+#   mapfile -t details < <(_get_resolved_host_details <host_alias>)
+#   hostname="${details[0]}" ...
+_get_resolved_host_details() {
     local host_alias="$1"
-    # Call ssh -G once per host and parse all required values in a single awk command.
-    # This is much more efficient than calling ssh -G multiple times.
     ssh -G "$host_alias" 2>/dev/null | awk '
-        # Map ssh -G output keys to the shell variable names we want to use.
-        BEGIN {
-            keys["hostname"] = "current_hostname"
-            keys["user"] = "current_user"
-            # identityfile is now handled separately to avoid ssh -G defaults
-            keys["port"] = "current_port"
-        }
-        # If the first field is one of our target keys, process it.
-        $1 in keys {
-            var_name = keys[$1]
-            # Reconstruct the value, which might contain spaces.
-            val = ""
-            for (i = 2; i <= NF; i++) { val = (val ? val " " : "") $i }
-            # Print in KEY="VALUE" format for safe evaluation in the shell.
-            printf "%s=\"%s\"\n", var_name, val
+        $1 == "hostname" { h = ""; for (i=2; i<=NF; i++) h = (h ? h " " : "") $i }
+        $1 == "user"     { u = ""; for (i=2; i<=NF; i++) u = (u ? u " " : "") $i }
+        $1 == "port"     { p = $2 }
+        END {
+            print h
+            print u
+            print p
         }
     '
 }
@@ -1046,12 +1036,13 @@ get_detailed_ssh_hosts_menu_options() {
 
     for host_alias in "${hosts[@]}"; do
         local display_alias; display_alias=$(_format_fixed_width_string "$host_alias" 20)
-        # Declare local variables and use eval to populate them from the awk output.
-        # This is safe because the input is controlled (from ssh -G) and the awk script
-        # only processes specific, known keys.
-        local current_hostname current_user current_identityfile current_port
-        local details; details=$(_get_all_ssh_config_values_as_string "$host_alias")
-        eval "$details" # Sets the variables
+
+        local current_hostname current_user current_port current_identityfile
+        local -a details
+        mapfile -t details < <(_get_resolved_host_details "$host_alias")
+        current_hostname="${details[0]}"
+        current_user="${details[1]}"
+        current_port="${details[2]}"
 
         # Now, explicitly get the identity file to avoid using ssh -G defaults.
         # Also get tags.
@@ -1797,9 +1788,12 @@ edit_ssh_host() {
 
     # Get original values to compare against for changes.
     local original_hostname original_user original_port original_identityfile original_tags
-    local details; details=$(_get_all_ssh_config_values_as_string "$original_alias")
-    # Use parameter expansion to rename the 'current_*' variables from the helper to 'original_*'.
-    eval "${details//current/original}" # Sets original_hostname, original_user, original_port
+    local -a details
+    mapfile -t details < <(_get_resolved_host_details "$original_alias")
+    original_hostname="${details[0]}"
+    original_user="${details[1]}"
+    original_port="${details[2]}"
+
     original_identityfile=$(_get_explicit_ssh_config_value "$original_alias" "IdentityFile")
     original_tags=$(_get_tags_for_host "$original_alias")
     [[ -z "$original_port" ]] && original_port="22"
@@ -1916,8 +1910,12 @@ clone_ssh_host() {
 
     # Get original values from the source host.
     local original_hostname original_user original_port original_identityfile original_tags
-    local details; details=$(_get_all_ssh_config_values_as_string "$host_to_clone")
-    eval "${details//current/original}" # Sets original_hostname, original_user, original_port
+    local -a details
+    mapfile -t details < <(_get_resolved_host_details "$host_to_clone")
+    original_hostname="${details[0]}"
+    original_user="${details[1]}"
+    original_port="${details[2]}"
+
     original_identityfile=$(_get_explicit_ssh_config_value "$host_to_clone" "IdentityFile")
     original_tags=$(_get_tags_for_host "$host_to_clone")
     [[ -z "$original_port" ]] && original_port="22"
