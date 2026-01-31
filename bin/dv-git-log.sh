@@ -28,6 +28,15 @@ _GIT_LOG_COMPACT_FORMAT='%C(yellow)%h%C(reset) %C(green)(%cr)%C(reset)%C(bold cy
 # Date shortener
 _SED_DATE="sed -E 's/ months? ago/ mon/g; s/ weeks? ago/ wk/g; s/ days? ago/ day/g; s/ hours? ago/ hr/g; s/ minutes? ago/ min/g; s/ seconds? ago/ sec/g'"
 
+# --- Delta Integration ---
+if command -v delta &>/dev/null; then
+    _PREVIEW_CMD="git show {1} | delta --paging=never"
+    _ENTER_CMD="git show {1} | delta"
+else
+    _PREVIEW_CMD="git show --color=always {1}"
+    _ENTER_CMD="git show --color=always {1} | less -R"
+fi
+
 # --- Main Logic ---
 
 require_git_repo
@@ -50,8 +59,8 @@ selected=$(git log --color=always --format="${_GIT_LOG_COMPACT_FORMAT}" | \
         --header "$header" \
         --color "preview-border:${thm_gray},preview-label:white:regular" \
         --prompt='  Log❯ ' \
-        --preview "git show --color=always {1}" \
-        --bind "enter:execute(git show --color=always {1} | less -R)" \
+        --preview "$_PREVIEW_CMD" \
+        --bind "enter:execute($_ENTER_CMD)" \
         --bind "ctrl-y:accept" \
         --bind "focus:transform-preview-label:[[ -n {} ]] && printf \"${FZF_LBL_STYLE} Diff for [%s] ${FZF_LBL_RESET}\" {1}")
 
