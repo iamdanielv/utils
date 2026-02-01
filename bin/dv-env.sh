@@ -330,8 +330,8 @@ ERROR_MESSAGE="" # Holds the current validation error message
 function parse_env_file() {
     local file_to_parse="$1"
     # Reset state
-    ENV_VARS=()
-    ENV_COMMENTS=()
+    declare -gA ENV_VARS=()
+    declare -gA ENV_COMMENTS=()
     ENV_ORDER=()
     DISPLAY_ORDER=()
     ERROR_MESSAGE=""
@@ -1046,8 +1046,8 @@ declare -a SYS_ENV_DISPLAY_ORDER
 
 # Loads system environment variables into global arrays.
 function load_system_env() {
-    SYS_ENV_VARS=()
-    SYS_ENV_ORDER=()
+    declare -gA SYS_ENV_VARS=()
+    declare -ga SYS_ENV_ORDER=()
     local var_names
     # Use compgen to get exported variables, sort them
     mapfile -t var_names < <(compgen -e | sort)
