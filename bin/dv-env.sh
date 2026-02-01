@@ -180,7 +180,7 @@ show_timed_message() {
     local buffer=""
     buffer+=$(printBanner "${T_RESET}${title} " "${color}")
     buffer+="\n"
-    buffer+="${color}╰${T_RESET} ${message}"
+    buffer+="${color}╰${T_RESET} ${message}${T_CLEAR_LINE}"
     
     printMsg "$buffer" >/dev/tty
     sleep "$duration"
@@ -206,7 +206,7 @@ prompt_yes_no() {
     local buffer=""
     buffer+=$(printBanner "Confirmation" "${C_YELLOW}")
     buffer+="\n"
-    buffer+="${C_YELLOW}╰${T_RESET} ${T_BOLD}${question} ${prompt_suffix}${T_RESET}"
+    buffer+="${C_YELLOW}╰${T_RESET} ${T_BOLD}${question} ${prompt_suffix}${T_RESET}${T_CLEAR_LINE}"
     printMsgNoNewline "$buffer" >/dev/tty
 
     while true; do
@@ -232,7 +232,7 @@ prompt_for_input() {
     local buffer=""
     buffer+=$(printBanner "Input - ${prompt_text}" "${C_CYAN}")
     buffer+="\n"
-    buffer+="${C_CYAN}╰❱${T_RESET} "
+    buffer+="${C_CYAN}╰❱${T_RESET} ${T_CLEAR_LINE}"
     printMsgNoNewline "$buffer" >/dev/tty
 
     # Calculate prefix length for cursor positioning: "╰❱ " (3 chars)
@@ -575,13 +575,13 @@ _draw_variable_editor() {
     local value_display; value_display=$(_get_combined_display "value" "$current_value" "$pending_value")
     local comment_display; comment_display=$(_get_combined_display "comment" "$current_comment" "$pending_comment")
 
-    printf "${C_CYAN}│${T_RESET} ${C_WHITE}${T_BOLD}${T_ULINE}Choose an option to configure:${T_RESET}\n"
+    printf "${C_CYAN}│${T_RESET} ${C_WHITE}${T_BOLD}${T_ULINE}Choose an option to configure:${T_RESET}${T_CLEAR_LINE}\n"
     _print_menu_item "1" "Name" "$name_display"
     _print_menu_item "2" "Value" "$value_display"
     _print_menu_item "3" "Comment" "$comment_display"
 
-    printf "${C_CYAN}│\n╰ ${C_GREEN}S)${T_RESET} Stage | ${C_YELLOW}D)${T_RESET} Discard | ${C_RED}Q)${T_RESET} Quit"
-    printf "\n  ${C_YELLOW}What is your choice?\n"
+    printf "${C_CYAN}│${T_CLEAR_LINE}\n╰ ${C_GREEN}S)${T_RESET} Stage | ${C_YELLOW}D)${T_RESET} Discard | ${C_RED}Q)${T_RESET} Quit${T_CLEAR_LINE}"
+    printf "\n  ${C_YELLOW}What is your choice?${T_CLEAR_LINE}\n"
 }
 
 # (Private) Escapes special characters in a string variable by reference.
@@ -846,7 +846,7 @@ function draw_var_list() {
 
 # Draws the header for the variable list.
 function draw_header() {
-    printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-45s${T_RESET}" "NAME" "VALUE"
+    printf "${C_CYAN}│${T_RESET} ${T_BOLD}${T_ULINE}%-22s${T_RESET} ${T_BOLD}${T_ULINE}%-45s${T_RESET}${T_CLEAR_LINE}" "NAME" "VALUE"
 }
 
 # Helper to draw the footer banner with filter info
