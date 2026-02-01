@@ -131,7 +131,14 @@ render_buffer() { printf "${T_CURSOR_HOME}%b${T_CLEAR_SCREEN_DOWN}" "$1"; }
 
 # Calculates the available height for the list view.
 _calc_viewport_height() {
-    local term_height; term_height=$(tput lines)
+    local term_height
+    # Prioritize stty size (driver) over tput (env) to fix tmux popup race conditions
+    if command -v stty &>/dev/null; then
+        read -r term_height _ < <(stty size < /dev/tty 2>/dev/null)
+    fi
+    # Fallback
+    if [[ -z "$term_height" ]]; then term_height=$(tput lines); fi
+
     # banner(1) + header(1) + footer(3) + buffer(1) = 6
     local extra=6
     local available=$(( term_height - extra ))
@@ -141,8 +148,14 @@ _calc_viewport_height() {
 
 # User Input
 read_single_char() {
-    local char; local seq; IFS= read -rsn1 char < /dev/tty
-    if [[ -z "$char" ]]; then echo "$KEY_ENTER"; return; fi
+    local timeout="${1:-}"
+    local char; local seq
+    if [[ -n "$timeout" ]]; then
+        if ! IFS= read -rsn1 -t "$timeout" char < /dev/tty; then return 1; fi
+    else
+        IFS= read -rsn1 char < /dev/tty
+    fi
+    if [[ -z "$char" ]]; then echo "$KEY_ENTER"; return 0; fi
     if [[ "$char" == "$KEY_ESC" ]]; then
         if IFS= read -rsn1 -t 0.001 seq < /dev/tty; then char+="$seq"; if [[ "$seq" == "[" || "$seq" == "O" ]]; then while IFS= read -rsn1 -t 0.001 seq < /dev/tty; do char+="$seq"; if [[ "$seq" =~ [a-zA-Z~] ]]; then break; fi; done; fi; fi
     fi
@@ -1315,12 +1328,17 @@ function system_env_manager() {
 SHOW_VALUES=true
 
 function interactive_manager() {
+    # Force bash to update LINES/COLUMNS after each command
+    shopt -s checkwinsize
+
     local current_option=0
     local list_offset=0
     local search_query=""
+    local needs_redraw=true
 
     _im_apply_filter() {
         filter_items ENV_ORDER ENV_VARS DISPLAY_ORDER "$search_query"
+        needs_redraw=true
     }
 
     # --- Key Handler ---
@@ -1499,8 +1517,10 @@ function interactive_manager() {
 
     local _tui_resized=0
     trap '_tui_resized=1' WINCH
+
     while true; do
             # --- Recalculate and Redraw ---
+            if [[ "$needs_redraw" == "true" ]]; then
             viewport_height=$(_calc_viewport_height)
             num_options=${#DISPLAY_ORDER[@]}
 
@@ -1546,14 +1566,23 @@ function interactive_manager() {
             screen_buffer+=$'\n'
             screen_buffer+=$(draw_footer "$search_query")
             render_buffer "$screen_buffer"
+            needs_redraw=false
+            fi
 
             # --- Handle Input ---
-            local key; key=$(read_single_char)
+            local key
+            if ! key=$(read_single_char 0.1); then
+                if [[ $_tui_resized -eq 1 ]]; then
+                    _tui_resized=0
+                    needs_redraw=true
+                fi
+                continue
+            fi
             local handler_result="noop"
 
             if [[ $_tui_resized -eq 1 ]]; then
                 _tui_resized=0
-                handler_result="redraw"
+                needs_redraw=true
             fi
 
             case "$key" in
@@ -1587,6 +1616,9 @@ function interactive_manager() {
                 if (( current_option >= ${#DISPLAY_ORDER[@]} )); then current_option=$(( ${#DISPLAY_ORDER[@]} - 1 )); fi
                 if (( current_option < 0 )); then current_option=0; fi
                 # The main loop will handle redrawing.
+                needs_redraw=true
+            elif [[ "$handler_result" == "redraw" ]]; then
+                needs_redraw=true
             fi
         done
     clear
