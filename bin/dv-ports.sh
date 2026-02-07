@@ -80,9 +80,43 @@ generate_list() {
 if [[ "$RAW_MODE" == "true" ]]; then
     generate_list
 else
+    # Preview: Extract PID and show details
+    # We try to use dv-kill.sh's preview if available, otherwise fallback to ps
+    preview_cmd="pid=\$(echo {} | grep -o 'pid=[0-9]*' | cut -d= -f2); \
+        if [ -n \"\$pid\" ]; then \
+            if [ -x \"$script_dir/dv-kill.sh\" ]; then \
+                \"$script_dir/dv-kill.sh\" --preview \"\$pid\"; \
+            else \
+                ps -fp \"\$pid\"; \
+            fi \
+        else \
+            echo 'No PID found (try running as root)'; \
+        fi"
+
+    # Browser: Extract port and open localhost
+    open_cmd="xdg-open"
+    if command -v open &>/dev/null; then open_cmd="open"; fi
+    
+    browser_cmd="port=\$(echo {} | sed 's/\x1b\[[0-9;]*m//g' | awk '{print \$3}' | awk -F: '{print \$NF}'); \
+        if [[ \"\$port\" =~ ^[0-9]+$ ]]; then \
+            $open_cmd http://localhost:\"\$port\"; \
+        fi"
+
+    # Kill: Extract PID and kill
+    kill_cmd="pid=\$(echo {} | grep -o 'pid=[0-9]*' | cut -d= -f2); \
+        if [ -n \"\$pid\" ]; then \
+            kill \"\$pid\"; \
+        fi"
+
     generate_list | dv_run_fzf \
         --header-lines=1 \
         --no-sort \
         --prompt="Ports> " \
-        --border-label=" Network Ports "
+        --border-label=" Network Ports " \
+        --header "ENTER: Refresh | CTRL-K: Kill | CTRL-O: Open Browser" \
+        --preview "$preview_cmd" \
+        --preview-window="bottom:40%:wrap" \
+        --bind "enter:reload($0 --raw)" \
+        --bind "ctrl-k:execute($kill_cmd)+reload($0 --raw)" \
+        --bind "ctrl-o:execute($browser_cmd)"
 fi
