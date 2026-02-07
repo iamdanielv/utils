@@ -4,29 +4,48 @@
 # Description: List listening TCP/UDP ports with process info.
 # Keybinding:  None
 # Config:      alias ports='dv-ports.sh'
-# Dependencies: ss, awk
+# Dependencies: ss, awk, fzf
 # ===============
+
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+source "$script_dir/dv-common.sh"
 
 # --- Configuration ---
 C_RESET=$'\033[0m'
-C_GREEN=$'\033[1;32m'
-C_YELLOW=$'\033[1;33m'
-C_BLUE=$'\033[1;34m'
-C_MAGENTA=$'\033[1;35m'
-C_CYAN=$'\033[1;36m'
 C_BOLD=$'\033[1m'
 C_ULINE=$'\033[4m'
 
-# Header
-printf "${C_BOLD}${C_ULINE}%-1s %-6s %21s %21s %s${C_RESET}\n" "P" "STATUS" "LOCAL:Port " "REMOTE:Port " "PROGRAM/PID"
+print_usage() {
+    echo "Usage: $(basename "$0") [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --raw       Output raw table (no FZF)"
+    echo "  -h, --help  Show this help"
+}
 
-ss -tulpn | awk \
-  -v c_reset="${C_RESET}" \
-  -v c_green="${C_GREEN}" \
-  -v c_yellow="${C_YELLOW}" \
-  -v c_blue="${C_BLUE}" \
-  -v c_magenta="${C_MAGENTA}" \
-  -v c_cyan="${C_CYAN}" '
+RAW_MODE=false
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --raw) RAW_MODE=true ;;
+        -h|--help) print_usage; exit 0 ;;
+        *) echo "Unknown option: $1"; print_usage; exit 1 ;;
+    esac
+    shift
+done
+
+generate_list() {
+    # Header
+    printf "${C_BOLD}${C_ULINE}%-1s %-6s %21s %21s %s${C_RESET}\n" "P" "STATUS" "LOCAL:Port " "REMOTE:Port " "PROGRAM/PID"
+
+    ss -tulpn | awk \
+      -v c_reset="${C_RESET}" \
+      -v c_green="${ansi_green}" \
+      -v c_yellow="${ansi_yellow}" \
+      -v c_blue="${ansi_blue}" \
+      -v c_magenta="${ansi_magenta}" \
+      -v c_cyan="${ansi_cyan}" '
 
   function split_addr(addr, parts) {
     match(addr, /:[^:]*$/)
@@ -56,3 +75,14 @@ ss -tulpn | awk \
       c_reset, proc_info
   }
 '
+}
+
+if [[ "$RAW_MODE" == "true" ]]; then
+    generate_list
+else
+    generate_list | dv_run_fzf \
+        --header-lines=1 \
+        --no-sort \
+        --prompt="Ports> " \
+        --border-label=" Network Ports "
+fi
