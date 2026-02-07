@@ -62,7 +62,7 @@ A utility to clean up unused Docker resources like containers, images, networks,
 - Supports dry-run mode (`--dry-run`).
 - Force option (`-f`) to skip confirmation.
 
-### 🌐 IP Viewer (`dv-ip`)
+### 🌐 IP Viewer (`dv-ip.sh`)
 
 **Description:**
 A simplified, color-coded network interface viewer. It provides a clean, at-a-glance alternative to the output of `ip a`.
@@ -71,7 +71,7 @@ A simplified, color-coded network interface viewer. It provides a clean, at-a-gl
 - **Color-Coded Status**: `UP` interfaces are green, `DOWN` interfaces are red.
 - **Dependencies**: `ip` (from `iproute2`) and `jq`.
 
-#### `dv-ip` - Example Usage
+#### `dv-ip.sh` - Example Usage
 
 ```text
   INTERFACE           STATE    IPv4                  IPv6                                          MAC
@@ -650,6 +650,7 @@ Opens a menu to launch utilities:
 - **Process Killer**: `dv-kill`
 - **System Monitor**: `btop`
 - **Ports**: `dv-ports`
+- **IP Viewer**: `dv-ip.sh`
 - **Man Pages**: `dv-man`
 - **LazyDocker**: `lazydocker`
 - **Env Manager**: `dv-env`
