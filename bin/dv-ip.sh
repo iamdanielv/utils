@@ -34,8 +34,8 @@ export T_WARN_ICON="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
 #endregion Colors and Styles
 
 #region Logging
-printMsg() { printf '%b\n' "$1"; }
-printMsgNoNewline() { printf '%b' "$1"; }
+printMsg() { printf '%b\n' "$1" >&2; }
+printMsgNoNewline() { printf '%b' "$1" >&2; }
 printErrMsg() { printMsg "${T_ERR_ICON}${T_BOLD}${C_L_RED} ${1} ${T_RESET}"; }
 printWarnMsg() { printMsg "${T_WARN_ICON} ${1}${T_RESET}"; }
 #endregion Logging
