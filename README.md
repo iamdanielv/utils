@@ -62,6 +62,24 @@ A utility to clean up unused Docker resources like containers, images, networks,
 - Supports dry-run mode (`--dry-run`).
 - Force option (`-f`) to skip confirmation.
 
+### 🌐 IP Viewer (`dv-ip`)
+
+**Description:**
+A simplified, color-coded network interface viewer. It provides a clean, at-a-glance alternative to the output of `ip a`.
+
+- **Clean Table View**: Displays interfaces, state, IPv4, IPv6, and MAC addresses in a table.
+- **Color-Coded Status**: `UP` interfaces are green, `DOWN` interfaces are red.
+- **Dependencies**: `ip` (from `iproute2`) and `jq`.
+
+#### `dv-ip` - Example Usage
+
+```text
+  INTERFACE           STATE    IPv4                  IPv6                                          MAC
+  lo                  UP       127.0.0.1/8           ::1/128                                       00:00:00:00:00:00
+  eth0                UP       192.168.1.105/24      fe80::c2a0:30ff:fe39:8b4a/64                  c0:a0:30:39:8b:4a
+  docker0             DOWN     172.17.0.1/16         -                                             02:42:ac:11:00:01
+```
+
 ### 🐳 Docker Compose Autoscaler (`docker-autoscale.sh`)
 
 **Description:**
