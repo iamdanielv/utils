@@ -108,12 +108,17 @@ else
             kill \"\$pid\"; \
         fi"
 
+    # Styled Header
+    header="${C_BOLD}ENTER${C_RESET}: Refresh • ${C_BOLD}CTRL-K${C_RESET}: Kill • ${C_BOLD}CTRL-O${C_RESET}: Open Browser"
+
     generate_list | dv_run_fzf \
         --header-lines=1 \
         --no-sort \
         --prompt="Ports> " \
         --border-label=" Network Ports " \
-        --header "ENTER: Refresh | CTRL-K: Kill | CTRL-O: Open Browser" \
+        --border-label-pos='3' \
+        --header-first \
+        --header "$header" \
         --preview "$preview_cmd" \
         --preview-window="bottom:40%:wrap" \
         --bind "enter:reload($0 --raw)" \
