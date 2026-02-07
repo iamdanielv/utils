@@ -694,8 +694,9 @@ configure_shell_environment() {
     # Construct the configuration block
     local config_block=""
     config_block+="${marker_start}\n"
-    config_block+="export PATH=\"\$HOME/.local/bin:\$PATH\"\n"
-    config_block+="export PATH=\"\$PATH:/usr/local/go/bin:\$HOME/go/bin\"\n"
+    config_block+="[[ \":\$PATH:\" != *\":\$HOME/.local/bin:\"* ]] && export PATH=\"\$HOME/.local/bin:\$PATH\"\n"
+    config_block+="[[ \":\$PATH:\" != *\":/usr/local/go/bin:\"* ]] && export PATH=\"\$PATH:/usr/local/go/bin\"\n"
+    config_block+="[[ \":\$PATH:\" != *\":\$HOME/go/bin:\"* ]] && export PATH=\"\$PATH:\$HOME/go/bin\"\n"
     
     # Tool Integrations
     if command -v starship &>/dev/null; then
