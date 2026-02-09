@@ -71,6 +71,11 @@ main() {
         exit 1
     fi
 
+    if [[ -z "$(docker ps -q)" ]]; then
+        printMsg "${T_INFO_ICON} No running containers found."
+        exit 0
+    fi
+
     # Format: ID, Names, Image, Status
     local format="table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
     
