@@ -29,6 +29,18 @@ export T_BOLD=$'\033[1m'
 export T_ERR_ICON="[${T_BOLD}${C_RED}✗${T_RESET}]"
 export T_OK_ICON="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
 export T_INFO_ICON="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
+export T_QST_ICON="[${T_BOLD}${C_L_CYAN}?${T_RESET}]"
+
+# FZF Styling (Tokyo Night)
+export FZF_COMMON_OPTS=(
+  --ansi --reverse --tiebreak=index --border=top
+  --preview-window 'down,50%,border,wrap'
+  --border-label-pos='2'
+  --preview-label-pos='3'
+  --bind 'ctrl-/:change-preview-window(right,60%,border-top|hidden|)'
+  --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
+  --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
+)
 #endregion Colors and Styles
 
 #region Logging
@@ -61,6 +73,46 @@ prereq_checks() {
 }
 #endregion
 
+#region Actions
+run_new_container() {
+    # Check if there are any images
+    if [[ -z "$(docker images -q)" ]]; then
+        printErrMsg "No docker images found locally."
+        return 1
+    fi
+
+    local format="table {{.Repository}}:{{.Tag}}\t{{.ID}}\t{{.Size}}"
+    
+    local selected_line
+    # Filter out dangling images for cleaner list
+    selected_line=$(docker images -f "dangling=false" --format "$format" | \
+        fzf "${FZF_COMMON_OPTS[@]}" \
+            --header-lines=1 \
+            --border-label=" Run New Container " \
+            --prompt="  Image❯ " \
+            --preview='docker history {1} | head -n 20' \
+    )
+
+    if [[ -z "$selected_line" ]]; then
+        return 0
+    fi
+
+    local image_name
+    image_name=$(echo "$selected_line" | awk '{print $1}')
+
+    # Simple heuristic for shell preference
+    local shell_cmd="/bin/bash"
+    if [[ "$image_name" == *"alpine"* ]]; then
+        shell_cmd="/bin/sh"
+    fi
+
+    printMsg "${T_INFO_ICON} Starting container from ${C_L_CYAN}${image_name}${T_RESET}..."
+    
+    # Try preferred shell, fallback to sh if it fails
+    docker run -it --rm "$image_name" "$shell_cmd" || docker run -it --rm "$image_name" "/bin/sh"
+}
+#endregion
+
 #endregion
 
 main() {
@@ -73,22 +125,19 @@ main() {
 
     if [[ -z "$(docker ps -q)" ]]; then
         printMsg "${T_INFO_ICON} No running containers found."
+        
+        printf "%s Start a new container? (y/N) " "${T_QST_ICON}"
+        read -r -n 1 response
+        echo # newline
+        if [[ "$response" =~ ^[yY]$ ]]; then
+             run_new_container
+             exit $?
+        fi
         exit 0
     fi
 
     # Format: ID, Names, Image, Status
     local format="table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"
-    
-    # FZF Styling (Tokyo Night)
-    local FZF_COMMON_OPTS=(
-      --ansi --reverse --tiebreak=index --border=top
-      --preview-window 'down,50%,border,wrap'
-      --border-label-pos='2'
-      --preview-label-pos='3'
-      --bind 'ctrl-/:change-preview-window(right,60%,border-top|hidden|)'
-      --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
-      --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
-    )
 
     local selected_line
     # We use --header-lines=1 to treat the first line (headers) as static
