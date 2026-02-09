@@ -9,6 +9,10 @@
 
 set -o pipefail
 
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+source "$script_dir/dv-common.sh"
+
 #region Library Functions
 
 #region Colors and Styles
@@ -31,16 +35,6 @@ export T_OK_ICON="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
 export T_INFO_ICON="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
 export T_QST_ICON="[${T_BOLD}${C_L_CYAN}?${T_RESET}]"
 
-# FZF Styling (Tokyo Night)
-export FZF_COMMON_OPTS=(
-  --ansi --reverse --tiebreak=index --border=top
-  --preview-window 'down,50%,border,wrap'
-  --border-label-pos='2'
-  --preview-label-pos='3'
-  --bind 'ctrl-/:change-preview-window(right,60%,border-top|hidden|)'
-  --color 'border:#99ccff,label:#99ccff:reverse,preview-border:#2d3f76,preview-label:white:regular,header-border:#6699cc,header-label:#99ccff'
-  --color 'bg+:#2d3f76,bg:#1e2030,gutter:#1e2030,prompt:#cba6f7'
-)
 #endregion Colors and Styles
 
 #region Logging
@@ -86,11 +80,16 @@ run_new_container() {
     local selected_line
     # Filter out dangling images for cleaner list
     selected_line=$(docker images -f "dangling=false" --format "$format" | \
-        fzf "${FZF_COMMON_OPTS[@]}" \
+        dv_run_fzf \
+            --height 100% \
             --header-lines=1 \
             --border-label=" Run New Container " \
-            --prompt="  Image❯ " \
+            --border-label-pos='3' \
+            --prompt="Image> " \
             --preview='docker history {1} | head -n 20' \
+            --preview-window='down:50%:wrap' \
+            --preview-label-pos='2' \
+            --bind "focus:transform-preview-label:[[ -n {} ]] && printf \" History for [%s] \" {1}" \
     )
 
     if [[ -z "$selected_line" ]]; then
@@ -118,6 +117,11 @@ run_new_container() {
 main() {
     prereq_checks "docker" "fzf"
 
+    if [[ "$1" == "--run-new" ]]; then
+        run_new_container
+        exit $?
+    fi
+
     if ! docker ps &>/dev/null; then
         printErrMsg "Docker daemon is not running or current user cannot access it."
         exit 1
@@ -142,7 +146,19 @@ main() {
     local selected_line
     # We use --header-lines=1 to treat the first line (headers) as static
     selected_line=$(docker ps --format "$format" | \
-        fzf "${FZF_COMMON_OPTS[@]}" --header-lines=1 --border-label=" Docker Shell " --prompt="  Container❯ " --preview='docker logs --tail 50 {1}' \
+        dv_run_fzf \
+            --height 100% \
+            --header-lines=1 \
+            --border-label=" Docker Shell " \
+            --border-label-pos='3' \
+            --prompt="Container> " \
+            --header-first \
+            --header="${T_BOLD}${ansi_cyan}CTRL-N${T_RESET}: Run New Container" \
+            --bind "ctrl-n:execute('$0' --run-new)" \
+            --preview='docker logs --tail 50 {1}' \
+            --preview-window='down:50%:wrap' \
+            --preview-label-pos='2' \
+            --bind "focus:transform-preview-label:[[ -n {} ]] && printf \" Logs for [%s] \" {2}" \
     )
 
     if [[ -z "$selected_line" ]]; then
