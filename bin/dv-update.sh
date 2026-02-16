@@ -33,12 +33,21 @@ run_transient() {
   # Using 'if' ensures set -e doesn't crash the script on failure before we handle it.
   if eval "$cmd" | tee "$temp_log"; then
     # Success
-    local line_count
-    line_count=$(wc -l < "$temp_log")
+    local cols
+    cols=$(tput cols 2>/dev/null || echo 80)
+    [[ -z "$cols" || "$cols" -lt 1 ]] && cols=80
+
+    # Calculate visual lines occupied by the output
+    local visual_lines
+    visual_lines=$(
+      sed "s/$(printf '\033')\[[0-9;]*[a-zA-Z]//g" "$temp_log" | \
+      awk -v cols="$cols" '{ len=length($0); lines = int(len / cols) + 1; total += lines } END { print total }'
+    )
+    visual_lines=${visual_lines:-0}
     
     # Move cursor up and clear lines
-    if [ "$line_count" -gt 0 ]; then
-      for ((i=0; i<line_count; i++)); do
+    if [ "$visual_lines" -gt 0 ]; then
+      for ((i=0; i<visual_lines; i++)); do
         tput cuu1
         tput el
       done
