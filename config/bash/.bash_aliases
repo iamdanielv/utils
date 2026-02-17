@@ -20,8 +20,10 @@ _C_DARK_GRAY=$'\033[38;5;237m' # xterm-256 Color 237
 # General Purpose
 # -------------------
 
-# Safer 'rm' by prompting for confirmation before deleting.
+# Safer file operations by prompting for confirmation.
 alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
 
 # Use Neovim instead of Vim for a better editing experience.
 if command -v nvim &>/dev/null; then
