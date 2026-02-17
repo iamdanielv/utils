@@ -189,32 +189,22 @@ unset -f dv-fif
 # Usage: fhistory
 fhistory() {
   local output
-  local cmd
   local key
-  local line
+  local cmd
 
-  # Get history, reverse it (newest first), and feed to fzf.
-  # HISTTIMEFORMAT="" ensures no timestamps in output.
-  # --expect=ctrl-e allows distinguishing between Execute (Enter) and Edit (Ctrl-E).
-  output=$(HISTTIMEFORMAT="" history | tac | fzf "${_FZF_COMMON_OPTS[@]}" \
-    --no-sort \
-    --border-label=' Command History ' \
-    --border-label-pos='2' \
-    --prompt='  History❯ ' \
-    --header 'ENTER: Select | CTRL-E: Execute | CTRL-/: View' \
-    --expect=ctrl-e \
-    --preview 'echo {} | sed -E "s/^[ ]*[0-9]+[ ]*//"' \
-    --preview-window='down,20%,border,wrap,hidden' \
-    --bind 'ctrl-/:change-preview-window(down,20%,border,wrap|hidden)' \
-    --query "$READLINE_LINE")
+  # Pipe history into the standalone script.
+  # We pass the current readline buffer as the initial query.
+  # HISTTIMEFORMAT="" ensures no timestamps are passed to the script.
+  output=$(HISTTIMEFORMAT="" history | dv-history.sh "$READLINE_LINE")
+  
+  # If the script exited with non-zero (cancelled), do nothing.
+  [[ $? -ne 0 ]] && return
 
+  # Parse output: Line 1 is Key, Line 2 is Command
   key=$(head -1 <<< "$output")
-  line=$(tail -n +2 <<< "$output")
+  cmd=$(tail -n +2 <<< "$output")
 
-  if [[ -n "$line" ]]; then
-    # Remove the history number (e.g., "  123  cmd" -> "cmd")
-    cmd=$(echo "$line" | sed -E 's/^[ ]*[0-9]+[ ]*//')
-
+  if [[ -n "$cmd" ]]; then
     if [[ "$key" == "ctrl-e" ]]; then
       # Execute mode: Run the command immediately
       # Add to history so it appears as the most recent command
@@ -608,6 +598,17 @@ bind -x '"\exk": dv-kill.sh'
 # Bind Alt+x g l to the fgl function.
 bind -x '"\exgl": fgl'
 
+# Bind Alt+x g b to dv-git-branch.
+bind -x '"\exgb": _require_git_repo && dv-git-branch.sh'
+
+# Bind Alt+x g h to dv-git-history.
+bind -x '"\exgh": _require_git_repo && dv-git-history.sh'
+
+# Bind Alt+x g g to 'lg' (lazygit).
+bind -x '"\exgg": lazygit'
+
+# Bind Alt+x t to tmux_launch.
+bind -x '"\ext": tmux_launch'
 # Bind Alt+x g b to dv-git-branch.
 bind -x '"\exgb": _require_git_repo && dv-git-branch.sh'
 
