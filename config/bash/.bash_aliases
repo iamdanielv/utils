@@ -463,6 +463,13 @@ tmux_launch() {
 alias t='tmux_launch'
 
 # -------------------
+# Custom Utilities
+# -------------------
+alias dsh='dv-dsh.sh'
+alias path='dv-path.sh'
+alias sshm='dv-ssh-manager.sh'
+
+# -------------------
 # Interactive Tools & Keybindings
 # -------------------
 
