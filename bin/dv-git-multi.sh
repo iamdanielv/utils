@@ -1,9 +1,9 @@
 #!/bin/bash
 # ===============
-# Script Name: dv-git-bulk.sh
-# Description: Bulk Git Repository Manager (Status, Fetch, Pull).
-# Keybinding:  None
-# Config:      None
+# Script Name: dv-git-multi.sh
+# Description: Multi-Repo Git Manager (Status, Fetch, Pull).
+# Keybinding:  Prefix + g -> m
+# Config:      bind g display-menu ...
 # Dependencies: git, fzf, awk
 # ===============
 
@@ -132,7 +132,7 @@ if [[ "$1" == "--open" ]]; then open_repo "$2"; exit 0; fi
 # --- Interactive Mode ---
 
 controls="${ansi_cyan}CTRL-F${ansi_gray}: Fetch All ${ansi_gray}• ${ansi_cyan}CTRL-P${ansi_gray}: Pull Selected ${ansi_gray}• ${ansi_cyan}ENTER${ansi_gray}: Status"
-header="${ansi_blue}${C_REVERSE} Git Bulk Manager ${C_RESET}"$'\n'"${controls}"
+header="${ansi_blue}${C_REVERSE} Git Multi Manager ${C_RESET}"$'\n'"${controls}"
 
 $0 --generate | dv_run_fzf \
     --multi \
