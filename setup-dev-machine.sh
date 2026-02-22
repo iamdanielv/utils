@@ -151,6 +151,24 @@ run_with_spinner() {
 
 # --- Global Variables ---
 SCRIPT_DIR=""
+VERIFY_MODE=false
+
+# --- Verification Helper ---
+report_verify() {
+    local item="$1"
+    local status="$2"
+    local details="$3"
+    local color="${C_GREEN}"
+    local icon="${T_OK_ICON}"
+
+    if [[ "$status" == "Missing" ]]; then
+        color="${C_RED}"; icon="${T_ERR_ICON}"
+    elif [[ "$status" == "Outdated" || "$status" == "Modified" || "$status" == "Differs" ]]; then
+        color="${C_YELLOW}"; icon="${T_WARN_ICON}"
+    fi
+
+    printf " %s %-25s %s%-12s%s %s\n" "$icon" "$item" "$color" "$status" "$T_RESET" "$details"
+}
 
 # --- Script Functions ---
 
@@ -162,6 +180,7 @@ print_usage() {
     printMsg "  $(basename "$0") [options]"
     printMsg "\n${T_ULINE}Options:${T_RESET}"
     printMsg "  -h, --help      Show this help message"
+    printMsg "  --verify        Check system state without making changes"
     printMsg "  --no-vim        Skip Neovim installation and configuration"
     printMsg "  --only-vim      Run ONLY Neovim installation and configuration"
     printMsg "\n${T_ULINE}What it does:${T_RESET}"
@@ -179,6 +198,15 @@ print_usage() {
 install_package() {
     local package_name="$1"
     local command_to_check="${2:-$1}"
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if command -v "$command_to_check" &>/dev/null; then
+            report_verify "$package_name" "Installed" ""
+        else
+            report_verify "$package_name" "Missing" "Action: Install via apt"
+        fi
+        return
+    fi
 
     if command -v "$command_to_check" &>/dev/null; then
         printInfoMsg "'${package_name}' is already installed. Skipping."
@@ -264,6 +292,22 @@ install_github_binary() {
     # Optional regex to match specific assets (e.g., "musl", "amd64"). Case-insensitive.
     local asset_regex="${3:-}"
 
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        local installed_version_string
+        installed_version_string=$(_gh_get_installed_version "$binary_name")
+        
+        if [[ "$installed_version_string" == "Not installed" ]]; then
+             report_verify "$binary_name" "Missing" "Repo: $repo"
+        else
+             # Fetch latest to compare
+             local latest_version; latest_version=$(_gh_get_latest_version "$repo")
+             local norm_latest="${latest_version#v}"; local norm_installed="${installed_version_string#v}"
+             if [[ "$norm_latest" == "$norm_installed" ]]; then report_verify "$binary_name" "Installed" "v$norm_installed";
+             else report_verify "$binary_name" "Outdated" "v$norm_installed -> $latest_version"; fi
+        fi
+        return
+    fi
+
     if [[ "$(uname -m)" != "x86_64" ]]; then
         printErrMsg "Unsupported architecture for ${binary_name}: $(uname -m). Only x86_64 is supported."
         return 1
@@ -311,6 +355,20 @@ install_github_binary() {
 # Installs or updates Go (Golang) to the latest stable version.
 install_golang() {
     printBanner "Install/Update Go (Golang)"
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        local installed_version="Not installed"
+        if command -v go &>/dev/null; then installed_version=$(go version | awk '{print $3}'); fi
+        
+        if [[ "$installed_version" == "Not installed" ]]; then
+            report_verify "Go (Golang)" "Missing" ""
+        else
+            local latest_version; latest_version=$(curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version')
+            if [[ "$installed_version" == "$latest_version" ]]; then report_verify "Go (Golang)" "Installed" "$installed_version";
+            else report_verify "Go (Golang)" "Outdated" "$installed_version -> $latest_version"; fi
+        fi
+        return
+    fi
 
     # Determine architecture for download URL
     local arch
@@ -377,6 +435,18 @@ install_zoxide() {
     local repo="ajeetdsouza/zoxide"
     local binary_name="zoxide"
 
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        local installed_version_string; installed_version_string=$(_gh_get_installed_version "$binary_name")
+        if [[ "$installed_version_string" == "Not installed" ]]; then report_verify "zoxide" "Missing" "";
+        else
+            local latest_version; latest_version=$(_gh_get_latest_version "$repo")
+            local norm_latest="${latest_version#v}"; local norm_installed="${installed_version_string#v}"
+            if [[ "$norm_latest" == "$norm_installed" ]]; then report_verify "zoxide" "Installed" "v$norm_installed";
+            else report_verify "zoxide" "Outdated" "v$norm_installed -> $latest_version"; fi
+        fi
+        return
+    fi
+
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
 
@@ -417,6 +487,18 @@ install_starship() {
     local repo="starship/starship"
     local binary_name="starship"
 
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        local installed_version_string; installed_version_string=$(_gh_get_installed_version "$binary_name")
+        if [[ "$installed_version_string" == "Not installed" ]]; then report_verify "starship" "Missing" "";
+        else
+            local latest_version; latest_version=$(_gh_get_latest_version "$repo")
+            local norm_latest="${latest_version#v}"; local norm_installed="${installed_version_string#v}"
+            if [[ "$norm_latest" == "$norm_installed" ]]; then report_verify "starship" "Installed" "v$norm_installed";
+            else report_verify "starship" "Outdated" "v$norm_installed -> $latest_version"; fi
+        fi
+        return
+    fi
+
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
 
@@ -454,6 +536,22 @@ install_starship() {
 # Downloads and installs the latest stable version of Neovim.
 install_neovim() {
     printBanner "Installing/Updating Neovim (Latest Stable)"
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        local installed_version="0"
+        local version_file="${XDG_STATE_HOME}/nvim-version"
+        if [[ -f "$version_file" ]]; then installed_version=$(<"$version_file"); fi
+        
+        if [[ "$installed_version" == "0" ]]; then
+            report_verify "Neovim (AppImage)" "Missing" ""
+        else
+            local latest_version_tag; latest_version_tag=$(_gh_get_latest_version "neovim/neovim")
+            local latest_version="${latest_version_tag#v}"
+            if [[ "$installed_version" == "$latest_version" ]]; then report_verify "Neovim" "Installed" "v$installed_version";
+            else report_verify "Neovim" "Outdated" "v$installed_version -> $latest_version"; fi
+        fi
+        return
+    fi
 
     local bin_dir="${XDG_BIN_HOME}"
     local version_file="${XDG_STATE_HOME}/nvim-version"
@@ -518,6 +616,15 @@ setup_lazyvim() {
     local nvim_config_dir="${XDG_CONFIG_HOME}/nvim"
     local lazyvim_json_path="${nvim_config_dir}/lazyvim.json"
     
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if [[ -f "$lazyvim_json_path" ]]; then
+            report_verify "LazyVim Config" "Installed" ""
+        else
+            report_verify "LazyVim Config" "Missing" "lazyvim.json not found"
+        fi
+        return
+    fi
+
     # Check if LazyVim is already installed by looking for lazyvim.json
     if [[ -f "$lazyvim_json_path" ]]; then
         printInfoMsg "LazyVim is already installed (found lazyvim.json). Skipping setup."
@@ -554,6 +661,12 @@ setup_lazyvim_plugins() {
     printBanner "Setting up Custom LazyVim Plugins"
     local source_plugins_dir="${SCRIPT_DIR}/config/nvim/lua/plugins"
     local dest_plugins_dir="${XDG_CONFIG_HOME}/nvim/lua/plugins"
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        # Just check if dest dir exists for now, deep check is complex
+        if [[ -d "$dest_plugins_dir" ]]; then report_verify "LazyVim Plugins" "Installed" ""; else report_verify "LazyVim Plugins" "Missing" ""; fi
+        return
+    fi
 
     if [[ ! -d "$source_plugins_dir" ]] || [[ -z "$(ls -A "$source_plugins_dir")" ]]; then
         printInfoMsg "No custom LazyVim plugins found to install. Skipping."
@@ -593,6 +706,11 @@ install_fzf_from_source() {
     printBanner "Installing fzf (from source)"
     local fzf_dir="${XDG_DATA_HOME}/fzf"
     
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if [[ -d "$fzf_dir" ]]; then report_verify "fzf (source)" "Installed" ""; else report_verify "fzf (source)" "Missing" ""; fi
+        return
+    fi
+
     if [[ -d "$fzf_dir" ]]; then
         printInfoMsg "fzf is already installed. Updating..."
         if ! run_with_spinner "Updating fzf repo..." git -C "$fzf_dir" pull; then
@@ -624,6 +742,11 @@ setup_fzf_config() {
     local bin_dir="${XDG_BIN_HOME}"
     mkdir -p "$bin_dir"
 
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if [[ -f "${bin_dir}/fzf-preview.sh" ]]; then report_verify "fzf-preview.sh" "Installed" ""; else report_verify "fzf-preview.sh" "Missing" ""; fi
+        return
+    fi
+
     # --- Download fzf-preview.sh script ---
     local preview_script_path="${bin_dir}/fzf-preview.sh"
     local preview_script_url="https://raw.githubusercontent.com/junegunn/fzf/master/bin/fzf-preview.sh"
@@ -641,6 +764,12 @@ setup_fzf_config() {
 # Configures git to use delta as the default pager
 configure_git_delta() {
     # Ensure local bin is in PATH so we can detect delta if it was just installed
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        local current_pager; current_pager=$(git config --global core.pager || true)
+        if [[ "$current_pager" == "delta" ]]; then report_verify "Git Delta" "Configured" ""; else report_verify "Git Delta" "Not Configured" "core.pager != delta"; fi
+        return
+    fi
+
     export PATH="${XDG_BIN_HOME}:${PATH}"
 
     if ! command -v delta &>/dev/null; then
@@ -677,6 +806,11 @@ configure_shell_environment() {
     local bashrc="${HOME}/.bashrc"
     local marker_start="# --- DEV MACHINE SETUP START ---"
     local marker_end="# --- DEV MACHINE SETUP END ---"
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if grep -qF "$marker_start" "$bashrc"; then report_verify ".bashrc config" "Present" ""; else report_verify ".bashrc config" "Missing" "Setup block not found"; fi
+        return
+    fi
 
     if [[ ! -f "$bashrc" ]]; then
         printWarnMsg "Could not find ${bashrc}. Skipping shell configuration."
@@ -748,6 +882,12 @@ setup_binaries() {
     local source_bin_path="${SCRIPT_DIR}/bin"
     local dest_bin_path="${XDG_BIN_HOME}"
 
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        # Simple check: count files
+        if [[ -d "$dest_bin_path" ]]; then report_verify "Custom Binaries" "Installed" "$(ls "$dest_bin_path"/dv-* 2>/dev/null | wc -l) scripts"; else report_verify "Custom Binaries" "Missing" ""; fi
+        return
+    fi
+
     if [[ ! -d "$source_bin_path" ]] || [[ -z "$(ls -A "$source_bin_path")" ]]; then
         printInfoMsg "No custom binaries found in '${source_bin_path}'. Skipping."
         return
@@ -772,6 +912,13 @@ setup_bash_aliases() {
     printBanner "Setting up .bash_aliases"
     local source_aliases_path="${SCRIPT_DIR}/config/bash/.bash_aliases"
     local dest_aliases_path="${HOME}/.bash_aliases"
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if [[ ! -f "$dest_aliases_path" ]]; then report_verify ".bash_aliases" "Missing" "";
+        elif cmp -s "$source_aliases_path" "$dest_aliases_path"; then report_verify ".bash_aliases" "Synced" "";
+        else report_verify ".bash_aliases" "Differs" "Content mismatch"; fi
+        return
+    fi
 
     if [[ ! -f "$source_aliases_path" ]]; then
         printErrMsg "Could not find '.bash_aliases' in the script directory: ${SCRIPT_DIR}"
@@ -806,6 +953,13 @@ setup_tmux_config() {
     local source_conf_path="${SCRIPT_DIR}/config/tmux/tmux.conf"
     local dest_conf_dir="${XDG_CONFIG_HOME}/tmux"
     local dest_conf_path="${dest_conf_dir}/tmux.conf"
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if [[ ! -f "$dest_conf_path" ]]; then report_verify "tmux.conf" "Missing" "";
+        elif cmp -s "$source_conf_path" "$dest_conf_path"; then report_verify "tmux.conf" "Synced" "";
+        else report_verify "tmux.conf" "Differs" "Content mismatch"; fi
+        return
+    fi
 
     if [[ ! -f "$source_conf_path" ]]; then
         printWarnMsg "Could not find 'tmux.conf' in: ${source_conf_path}"
@@ -855,6 +1009,13 @@ setup_starship_config() {
     local source_config="${SCRIPT_DIR}/config/starship.toml"
     local dest_config="${XDG_CONFIG_HOME}/starship.toml"
 
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if [[ ! -f "$dest_config" ]]; then report_verify "starship.toml" "Missing" "";
+        elif cmp -s "$source_config" "$dest_config"; then report_verify "starship.toml" "Synced" "";
+        else report_verify "starship.toml" "Differs" "Content mismatch"; fi
+        return
+    fi
+
     if [[ ! -f "$source_config" ]]; then
         printWarnMsg "Could not find 'starship.toml' in: ${source_config}"
         return
@@ -884,6 +1045,11 @@ install_tpm() {
     printBanner "Installing Tmux Plugin Manager (TPM)"
     local tpm_dir="${XDG_CONFIG_HOME}/tmux/plugins/tpm"
 
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if [[ -d "$tpm_dir" ]]; then report_verify "TPM" "Installed" ""; else report_verify "TPM" "Missing" ""; fi
+        return
+    fi
+
     if [[ -d "$tpm_dir" ]]; then
         printInfoMsg "TPM is already installed. Updating..."
         if ! run_with_spinner "Updating TPM repo..." git -C "$tpm_dir" pull; then
@@ -912,6 +1078,11 @@ install_tpm() {
 # Downloads and installs Nerd Fonts
 install_nerd_fonts() {
     printBanner "Installing Nerd Fonts"
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        # Skip font verification for now as it's complex to check properly without fc-list
+        return
+    fi
 
     # An associative array mapping the font's display name to its ZipFileName.
     declare -A font_map=(
@@ -982,6 +1153,11 @@ install_nerd_fonts() {
 
 detect_system() {
     printBanner "System Detection"
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        report_verify "OS" "Linux" "$(uname -s)"
+        report_verify "Arch" "x86_64" "$(uname -m)"
+        return
+    fi
     # OS Detection
     if [[ "$(uname -s)" != "Linux" ]]; then
         printErrMsg "Unsupported operating system: $(uname -s). This script only supports Linux."
@@ -1004,6 +1180,7 @@ detect_system() {
 
 phase_bootstrap() {
     printBanner "Phase 1: Bootstrap"
+    if [[ "$VERIFY_MODE" == "true" ]]; then return; fi
     printInfoMsg "Updating package lists..."
     sudo apt-get update
     install_package "curl"
@@ -1105,6 +1282,10 @@ main() {
                 ONLY_VIM=true
                 shift
                 ;;
+            --verify)
+                VERIFY_MODE=true
+                shift
+                ;;
             *)
                 printErrMsg "Unknown argument: $1"
                 print_usage
@@ -1115,6 +1296,11 @@ main() {
 
     SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        printMsg "${C_L_BLUE}${T_BOLD}Running in Verification Mode (Read-Only)${T_RESET}\n"
+        # Fall through to run phases, but they will now use report_verify
+    fi
+
     printBanner "Developer Machine Setup"
     
     if [[ "$ONLY_VIM" == "true" ]]; then
@@ -1123,10 +1309,12 @@ main() {
         printInfoMsg "Mode: Skipping Neovim setup"
     fi
 
-    printWarnMsg "This script will install packages using sudo and modify shell configuration."
-    if ! prompt_yes_no "Do you want to continue?" "y"; then
-        printInfoMsg "Setup cancelled."
-        exit 0
+    if [[ "$VERIFY_MODE" == "false" ]]; then
+        printWarnMsg "This script will install packages using sudo and modify shell configuration."
+        if ! prompt_yes_no "Do you want to continue?" "y"; then
+            printInfoMsg "Setup cancelled."
+            exit 0
+        fi
     fi
 
     if [[ "$ONLY_VIM" == "true" ]]; then
@@ -1148,6 +1336,11 @@ main() {
     if [[ "$SKIP_VIM" == "false" ]]; then
         phase_neovim_binary
         phase_neovim_setup
+    fi
+
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        printMsg "\n${T_BOLD}Verification Complete.${T_RESET}"
+        exit 0
     fi
 
     printBanner "Dev Machine Setup Complete"
