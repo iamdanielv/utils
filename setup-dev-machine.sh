@@ -18,6 +18,7 @@ C_L_RED=$'\033[31;1m'
 C_L_GREEN=$'\033[32m'
 C_L_YELLOW=$'\033[33m'
 C_L_BLUE=$'\033[34m'
+C_L_MAGENTA=$'\033[35;1m'
 C_L_CYAN=$'\033[36m'
 C_GRAY=$'\033[38;5;244m'
 T_RESET=$'\033[0m'
@@ -68,13 +69,18 @@ _truncate_string() {
 }
 
 generate_banner_string() {
-    local text="$1"; local total_width=70; local prefix="┏"; local line
-    printf -v line '%*s' "$((total_width - 1))" ""; line="${line// /━}"; printf '%s' "${C_L_BLUE}${prefix}${line}${T_RESET}"; printf '\r'
+    local text="$1"
+    local color="${2:-$C_L_BLUE}"
+    local line_char="${3:-━}"
+    local prefix="${4:-┏}"
+    local total_width=70; local line
+    printf -v line '%*s' "$((total_width - 1))" ""; line="${line// /${line_char}}"; printf '%s' "${color}${prefix}${line}${T_RESET}"; printf '\r'
     local text_to_print; text_to_print=$(_truncate_string "$text" $((total_width - 3)))
-    printf '%s' "${C_L_BLUE}${prefix} ${text_to_print} ${T_RESET}"
+    printf '%s' "${color}${prefix} ${text_to_print} ${T_RESET}"
 }
 
-printBanner() { printMsg "$(generate_banner_string "$1")"; }
+printBanner() { printMsg "$(generate_banner_string "$1" "${C_L_BLUE}" "─" "─")"; }
+printPhaseBanner() { printMsg "$(generate_banner_string "$1" "${C_L_MAGENTA}" "━" "┏")"; }
 
 # Terminal Control
 clear_current_line() { printf '\033[2K\r' >/dev/tty; }
@@ -173,7 +179,7 @@ report_verify() {
 # --- Script Functions ---
 
 print_usage() {
-    printBanner "Developer Machine Setup Script"
+    printPhaseBanner "Developer Machine Setup Script"
     printMsg "This script automates the setup of a new developer environment by installing"
     printMsg "essential tools and setting up a complete LazyVim configuration."
     printMsg "\n${T_ULINE}Usage:${T_RESET}"
@@ -1152,7 +1158,7 @@ install_nerd_fonts() {
 # --- Phases ---
 
 detect_system() {
-    printBanner "System Detection"
+    printPhaseBanner "System Detection"
     if [[ "$VERIFY_MODE" == "true" ]]; then
         report_verify "OS" "Linux" "$(uname -s)"
         report_verify "Arch" "x86_64" "$(uname -m)"
@@ -1179,18 +1185,21 @@ detect_system() {
 }
 
 phase_bootstrap() {
-    printBanner "Phase 1: Bootstrap"
-    if [[ "$VERIFY_MODE" == "true" ]]; then return; fi
-    printInfoMsg "Updating package lists..."
-    sudo apt-get update
+    printPhaseBanner "Phase 1: Bootstrap"
+
+    if [[ "$VERIFY_MODE" != "true" ]]; then
+        printInfoMsg "Updating package lists..."
+        sudo apt-get update
+    fi
+
     install_package "curl"
     install_package "git"
-    install_package "build-essential"
+    install_package "build-essential" "gcc"
     install_package "cmake"
 }
 
 phase_system_tools() {
-    printBanner "Phase 2: System Tools (APT)"
+    printPhaseBanner "Phase 2: System Tools (APT)"
     install_package "silversearcher-ag" "ag"
     install_package "micro"
     install_package "tmux"
@@ -1201,7 +1210,7 @@ phase_system_tools() {
 }
 
 phase_user_binaries() {
-    printBanner "Phase 3: User Binaries (~/.local/bin)"
+    printPhaseBanner "Phase 3: User Binaries (~/.local/bin)"
     setup_binaries
     
     install_github_binary "jesseduffield/lazygit" "lazygit"
@@ -1220,12 +1229,12 @@ phase_user_binaries() {
 }
 
 phase_language_runtimes() {
-    printBanner "Phase 4: Language Runtimes"
+    printPhaseBanner "Phase 4: Language Runtimes"
     install_golang
 }
 
 phase_configuration() {
-    printBanner "Phase 5: Configuration & Dotfiles"
+    printPhaseBanner "Phase 5: Configuration & Dotfiles"
     setup_bash_aliases
     setup_starship_config
     setup_tmux_config
@@ -1237,18 +1246,18 @@ phase_configuration() {
 }
 
 phase_neovim_binary() {
-    printBanner "Phase: Neovim Installation"
+    printPhaseBanner "Phase: Neovim Installation"
     install_neovim
 }
 
 phase_neovim_setup() {
-    printBanner "Phase: Neovim Configuration"
+    printPhaseBanner "Phase: Neovim Configuration"
     setup_lazyvim
     setup_lazyvim_plugins
 }
 
 phase_neovim_dependencies() {
-    printBanner "Phase: Neovim Dependencies"
+    printPhaseBanner "Phase: Neovim Dependencies"
     printInfoMsg "Updating package lists..."
     sudo apt-get update
     
@@ -1301,7 +1310,7 @@ main() {
         # Fall through to run phases, but they will now use report_verify
     fi
 
-    printBanner "Developer Machine Setup"
+    printPhaseBanner "Developer Machine Setup"
     
     if [[ "$ONLY_VIM" == "true" ]]; then
         printInfoMsg "Mode: Only Neovim setup"
@@ -1343,7 +1352,7 @@ main() {
         exit 0
     fi
 
-    printBanner "Dev Machine Setup Complete"
+    printPhaseBanner "Dev Machine Setup Complete"
     printOkMsg "All tasks have finished."
     printMsg "\n${T_ULINE}Final Steps:${T_RESET}"
     printMsg "\nTo apply all changes (new aliases, fzf, PATH) to your current session, please run:"
