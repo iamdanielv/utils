@@ -1200,28 +1200,38 @@ phase_bootstrap() {
 
 phase_system_tools() {
     printPhaseBanner "Phase 2: System Tools (APT)"
-    install_package "silversearcher-ag" "ag"
-    install_package "micro"
-    install_package "tmux"
-    install_package "jq"
-    install_package "unzip"
-    install_package "fontconfig" "fc-cache"
-    install_package "openssh-client" "ssh"
+    local -a packages=(
+        "silversearcher-ag:ag"
+        "micro"
+        "tmux"
+        "jq"
+        "unzip"
+        "fontconfig:fc-cache"
+        "openssh-client:ssh"
+    )
+    for pkg_spec in "${packages[@]}"; do
+        IFS=':' read -r pkg cmd <<< "$pkg_spec"
+        install_package "$pkg" "${cmd:-$pkg}"
+    done
 }
 
 phase_user_binaries() {
     printPhaseBanner "Phase 3: User Binaries (~/.local/bin)"
     setup_binaries
     
-    install_github_binary "jesseduffield/lazygit" "lazygit"
-    install_github_binary "jesseduffield/lazydocker" "lazydocker"
-    install_github_binary "dandavison/delta" "delta"
-    
-    # Modern replacements for standard tools
-    install_github_binary "BurntSushi/ripgrep" "rg"
-    install_github_binary "sharkdp/fd" "fd"
-    install_github_binary "sharkdp/bat" "bat"
-    install_github_binary "eza-community/eza" "eza"
+    local -a gh_tools=(
+        "jesseduffield/lazygit:lazygit"
+        "jesseduffield/lazydocker:lazydocker"
+        "dandavison/delta:delta"
+        "BurntSushi/ripgrep:rg"
+        "sharkdp/fd:fd"
+        "sharkdp/bat:bat"
+        "eza-community/eza:eza"
+    )
+    for tool in "${gh_tools[@]}"; do
+        IFS=':' read -r repo binary <<< "$tool"
+        install_github_binary "$repo" "$binary"
+    done
     
     install_zoxide
     install_starship
@@ -1261,16 +1271,16 @@ phase_neovim_dependencies() {
     printInfoMsg "Updating package lists..."
     sudo apt-get update
     
-    install_package "curl"
-    install_package "git"
-    install_package "build-essential"
-    install_package "cmake"
-    install_package "unzip"
-    install_package "jq"
-    install_package "fontconfig"
+    local -a packages=("curl" "git" "build-essential" "cmake" "unzip" "jq" "fontconfig")
+    for pkg in "${packages[@]}"; do
+        install_package "$pkg"
+    done
     
-    install_github_binary "BurntSushi/ripgrep" "rg"
-    install_github_binary "sharkdp/fd" "fd"
+    local -a gh_tools=("BurntSushi/ripgrep:rg" "sharkdp/fd:fd")
+    for tool in "${gh_tools[@]}"; do
+        IFS=':' read -r repo binary <<< "$tool"
+        install_github_binary "$repo" "$binary"
+    done
 }
 
 main() {
