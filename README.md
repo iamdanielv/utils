@@ -40,6 +40,23 @@ Script to set up a new dev machine. It is designed to be **idempotent**, meaning
   - Sets up `tmux` configuration and plugins.
 - **Neovim**: Installs Neovim and sets up the LazyVim environment.
 
+#### Neovim Enhancements
+
+The setup includes plugins to improve the editing experience:
+
+| Plugin | Purpose | Keybindings |
+| :--- | :--- | :--- |
+| **flash.nvim** | **Fast navigation** Jump to a visible character by typing its label. | `s` (Jump), `S` (Treesitter select), `r` (Remote) |
+| **trouble.nvim** | **Diagnostics & Symbols** For project errors, warnings, and code structure. | `<leader>xx` (Project), `<leader>xX` (Buffer), `<leader>cs` (Symbols) |
+| **todo-comments.nvim** | **Task Tracking.** Automatically highlights and indexes `TODO`, `FIXME`, and `BUG` comments. | `]t` (Next), `[t` (Prev) |
+| **harpoon (v2)** | **Context Switching.** Mark your most frequent files and jump between them instantly. | `<leader>a` (Add), `<C-e>` (Menu), `<leader>1-4` (Quick Jump) |
+
+**Usage Tips:**
+
+- **Flash**: Press `s`, start typing what you see, then press the highlighted label to teleport your cursor.
+- **Harpoon**: Use `<leader>a` on the 2 or 3 files you are currently working on. Use `<leader>1`, `<leader>2` etc., to switch between them without using a buffer list or file tree.
+- **Trouble**: Use `<leader>xx` to see a "command center" view of all linting errors or LSP warnings in your current project.
+
 ### 📝 Env Manager (`dv-env`)
 
 **Description:**
