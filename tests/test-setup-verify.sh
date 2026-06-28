@@ -15,6 +15,8 @@ fi
 
 # Source the script to load functions but NOT run main (guarded by if check in script)
 source "$SETUP_SCRIPT"
+# Redefine SCRIPT_DIR because sourcing setup-dev-machine.sh overrides it to empty
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 2. Mock Helpers
 # Override GitHub API helper to return a fixed version
@@ -41,9 +43,24 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_STATE_HOME="$HOME/.local/state"
 export XDG_BIN_HOME="$HOME/.local/bin"
-export PATH="$XDG_BIN_HOME:$PATH"
+
+# Sanitize PATH to exclude user paths where zoxide/starship might be installed
+REQUIRED_TOOLS="curl jq tar gzip grep sed awk head mv chmod rm mktemp uname find file cat unzip basename ls mkdir wc sleep ps tail tr cut cmp date touch dirname printf echo git cp"
+CLEAN_BIN_DIR="$TEST_DIR/sys-bin"
+mkdir -p "$CLEAN_BIN_DIR"
+
+for tool in $REQUIRED_TOOLS; do
+    if tool_path=$(command -v "$tool"); then
+        ln -sf "$tool_path" "$CLEAN_BIN_DIR/$tool"
+    fi
+done
+
+export PATH="$XDG_BIN_HOME:$CLEAN_BIN_DIR"
 
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_BIN_HOME"
+
+# Create a blank .bashrc so grep doesn't fail or warn
+touch "$HOME/.bashrc"
 
 # Helper to create mock binaries in the test PATH
 create_mock_bin() {

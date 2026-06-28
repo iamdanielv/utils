@@ -110,6 +110,15 @@ show_timed_message() {
 
 prompt_yes_no() {
     local question="$1"; local default_answer="${2:-}"; local has_error=false; local answer; local prompt_suffix
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        if [[ "$default_answer" == "n" ]]; then
+            printInfoMsg "[Non-Interactive] ${question} -> Auto-answering NO"
+            return 1
+        else
+            printInfoMsg "[Non-Interactive] ${question} -> Auto-answering YES"
+            return 0
+        fi
+    fi
     if [[ "$default_answer" == "y" ]]; then prompt_suffix="(Y/n)"; elif [[ "$default_answer" == "n" ]]; then prompt_suffix="(y/N)"; else prompt_suffix="(y/n)"; fi
     local question_lines; question_lines=$(echo -e "$question" | wc -l)
     _clear_all_prompt_content() { clear_current_line >/dev/tty; if (( question_lines > 1 )); then clear_lines_up $(( question_lines - 1 )); fi; if $has_error; then clear_lines_up 1; fi; }
@@ -158,6 +167,7 @@ run_with_spinner() {
 # --- Global Variables ---
 SCRIPT_DIR=""
 VERIFY_MODE=false
+NON_INTERACTIVE=false
 
 # --- Verification Helper ---
 report_verify() {
@@ -186,6 +196,8 @@ print_usage() {
     printMsg "  $(basename "$0") [options]"
     printMsg "\n${T_ULINE}Options:${T_RESET}"
     printMsg "  ${C_L_BLUE}-h, --help${T_RESET}      Show this help message"
+    printMsg "  ${C_L_BLUE}-y, --yes, --non-interactive${T_RESET}"
+    printMsg "                      Skip all confirmation prompts and use default answers"
     printMsg "  ${C_L_BLUE}--verify${T_RESET}        Check system state without making changes"
     printMsg "  ${C_L_BLUE}--no-vim${T_RESET}        Skip Neovim installation and configuration"
     printMsg "  ${C_L_BLUE}--only-vim${T_RESET}      Run ONLY Neovim installation and configuration"
@@ -228,10 +240,52 @@ install_package() {
     fi
 }
 
+# (Private) Helper to query GitHub API and parse error responses
+_gh_api_request() {
+    local endpoint="$1"
+    local response
+    local http_code
+    local temp_file
+    temp_file=$(mktemp)
+
+    local headers=()
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        headers+=("-H" "Authorization: token $GITHUB_TOKEN")
+    fi
+
+    # Retrieve response body and HTTP status code
+    http_code=$(curl -s -w "%{http_code}" "${headers[@]}" "$endpoint" -o "$temp_file")
+    response=$(<"$temp_file")
+    rm -f "$temp_file"
+
+    if (( http_code >= 400 )); then
+        local error_msg
+        error_msg=$(echo "$response" | jq -r '.message' 2>/dev/null || true)
+        if [[ -z "$error_msg" || "$error_msg" == "null" ]]; then
+            error_msg="HTTP status $http_code"
+        fi
+
+        if [[ "$error_msg" == *"rate limit"* ]]; then
+            printErrMsg "GitHub API rate limit exceeded. Please set GITHUB_TOKEN or try again later." >&2
+        else
+            printErrMsg "GitHub API error: ${error_msg}" >&2
+        fi
+        return 1
+    fi
+
+    echo "$response"
+    return 0
+}
+
 # (Private) Fetches the latest version tag from GitHub API
 _gh_get_latest_version() {
     local repo="$1"
-    curl -s "https://api.github.com/repos/${repo}/releases/latest" | jq -r '.tag_name'
+    local response
+    if response=$(_gh_api_request "https://api.github.com/repos/${repo}/releases/latest"); then
+        echo "$response" | jq -r '.tag_name'
+    else
+        echo ""
+    fi
 }
 
 # (Private) Gets the installed version of a binary
@@ -253,8 +307,13 @@ _gh_get_installed_version() {
 _gh_find_download_url() {
     local repo="$1"
     local asset_regex="${2:-}"
-    curl -s "https://api.github.com/repos/${repo}/releases/latest" | \
-        jq -r --arg regex "$asset_regex" '.assets[] | select(.name | test("linux"; "i") and (test("amd64"; "i") or test("x86_64"; "i"))) | select(.name | test("\\.tar\\.gz$|\\.zip$"; "i")) | select($regex == "" or (.name | test($regex; "i"))) | .browser_download_url' | head -n 1
+    local response
+    if response=$(_gh_api_request "https://api.github.com/repos/${repo}/releases/latest"); then
+        echo "$response" | \
+            jq -r --arg regex "$asset_regex" '.assets[] | select(.name | test("linux"; "i") and (test("amd64"; "i") or test("x86_64"; "i"))) | select(.name | test("\\.tar\\.gz$|\\.zip$"; "i")) | select($regex == "" or (.name | test($regex; "i"))) | .browser_download_url' | head -n 1
+    else
+        echo ""
+    fi
 }
 
 # (Private) Downloads and installs the binary
@@ -1198,6 +1257,33 @@ phase_bootstrap() {
     install_package "cmake"
 }
 
+check_docker() {
+    if [[ "$VERIFY_MODE" == "true" ]]; then
+        if command -v docker &>/dev/null; then
+            if docker info &>/dev/null; then
+                report_verify "Docker" "Running" ""
+            else
+                report_verify "Docker" "Installed" "Daemon not running or no permissions"
+            fi
+        else
+            report_verify "Docker" "Missing" "Action: Install Docker Engine manually"
+        fi
+        return
+    fi
+
+    printInfoMsg "Checking for Docker..."
+    if ! command -v docker &>/dev/null; then
+        printWarnMsg "Docker is not installed. Note: 'lazydocker' will not work without Docker."
+        printInfoMsg "  To install Docker, visit: https://docs.docker.com/engine/install/"
+    elif ! docker info &>/dev/null; then
+        printWarnMsg "Docker is installed, but the daemon is not running or current user has no permissions."
+        printInfoMsg "  Ensure the docker service is started: sudo systemctl start docker"
+        printInfoMsg "  And your user is in the docker group: sudo usermod -aG docker \$USER"
+    else
+        printOkMsg "Docker is installed and running."
+    fi
+}
+
 phase_system_tools() {
     printPhaseBanner "Phase 2: System Tools (APT)"
     local -a packages=(
@@ -1213,6 +1299,7 @@ phase_system_tools() {
         IFS=':' read -r pkg cmd <<< "$pkg_spec"
         install_package "$pkg" "${cmd:-$pkg}"
     done
+    check_docker
 }
 
 phase_user_binaries() {
@@ -1292,6 +1379,10 @@ main() {
             -h|--help)
                 print_usage
                 exit 0
+                ;;
+            -y|--yes|--non-interactive)
+                NON_INTERACTIVE=true
+                shift
                 ;;
             --no-vim)
                 SKIP_VIM=true

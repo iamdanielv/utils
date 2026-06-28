@@ -30,7 +30,7 @@ log_phase() {
 }
 
 # Override functions
-detect_system() { log_phase "detect_system"; }
+detect_system() { log_phase "detect_system (non_interactive=$NON_INTERACTIVE)"; }
 phase_bootstrap() { log_phase "phase_bootstrap"; }
 phase_system_tools() { log_phase "phase_system_tools"; }
 phase_user_binaries() { log_phase "phase_user_binaries"; }
@@ -111,6 +111,23 @@ run_test_case "Only Vim" "--only-vim" "$EXPECTED_ONLY_VIM"
 # Verify exclusion of standard phases
 if grep -q "phase_bootstrap" "$LOG_FILE" || grep -q "phase_system_tools" "$LOG_FILE"; then
     printErrMsg "FAIL: Standard phases ran despite --only-vim"
+fi
+
+# Test 4: --non-interactive / -y / --yes
+EXPECTED_NON_INT="detect_system phase_bootstrap phase_system_tools phase_user_binaries phase_language_runtimes phase_configuration phase_neovim_binary phase_neovim_setup"
+run_test_case "Non-Interactive (--non-interactive)" "--non-interactive" "$EXPECTED_NON_INT"
+if ! grep -q "detect_system (non_interactive=true)" "$LOG_FILE"; then
+    printErrMsg "FAIL: NON_INTERACTIVE was not set to true"
+fi
+
+run_test_case "Non-Interactive (-y)" "-y" "$EXPECTED_NON_INT"
+if ! grep -q "detect_system (non_interactive=true)" "$LOG_FILE"; then
+    printErrMsg "FAIL: NON_INTERACTIVE was not set to true"
+fi
+
+run_test_case "Non-Interactive (--yes)" "--yes" "$EXPECTED_NON_INT"
+if ! grep -q "detect_system (non_interactive=true)" "$LOG_FILE"; then
+    printErrMsg "FAIL: NON_INTERACTIVE was not set to true"
 fi
 
 echo ""
