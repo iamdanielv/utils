@@ -328,7 +328,18 @@ An interactive TUI for managing and connecting to SSH hosts defined in ~/.ssh/co
 - **Port Forwarding**: Manage and persist local/remote port forwarding configurations.
 - **Safety**: Automatically backs up ~/.ssh/config before making changes.
 
+### 🔄 Remote Tunnel (`dv-remote-tunnel.sh`)
+
+**Description**:
+Reverse-tunnels local internet connectivity to a remote system via SSH SOCKS5 to perform system updates, run interactive shells, or execute commands without internet gateway access.
+
+- **Modes**: Auto package updates (`update`), interactive shell (`--shell`), or command execution (`--command`).
+- **Zero Disk Mutation**: Applies proxy dynamically via CLI flags and env variables without altering remote `/etc/` configs.
+- **Flexible Targets**: Supports `user@host` or `user host`, custom ports (`-p`), and SSH identities (`-i`).
+- **Dry Run**: Validate connectivity and proxy tunnels without upgrading packages (`-d`).
+
 ### 🐚 Interactive Shell Workflow
+
 
 **Description:**
 A set of FZF-powered interactive tools and aliases defined in `.bash_aliases` to enhance the terminal experience.
