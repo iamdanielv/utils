@@ -57,22 +57,24 @@ Usage: $(basename "$0") [OPTIONS] <remote_user> <remote_host>
        $(basename "$0") [OPTIONS] <remote_user@remote_host>
 
 Description:
-  Reverse-tunnels local internet connectivity to a remote system via SSH SOCKS5
-  and performs system package upgrades, runs an interactive shell, or executes commands.
+  Reverse-tunnels local internet connectivity to a remote system via SSH SOCKS5.
+  By default, opens an interactive remote shell with proxy environment variables configured.
 
 Options:
-  -d, --dry-run          Validate connectivity and tunnel configuration without package upgrades.
-  -s, --shell            Open an interactive remote shell with traffic routed through the host.
+  -u, --update           Execute automated OS package upgrades through the tunnel and exit.
   -c, --command <CMD>    Execute a specific command on the remote system through the tunnel.
+  -k, --keep-alive       Hold the tunnel open in foreground without launching an interactive shell.
+  -s, --shell            Open an interactive remote shell (default behavior).
+  -d, --dry-run          Validate connectivity and tunnel configuration without running session.
   -p, --port <PORT>      Specify remote SSH port (default: 22).
   -i, --identity <KEY>   Specify SSH private key file path.
   -h, --help             Display this help menu and exit (code 0).
 
 Examples:
   $(basename "$0") admin 192.168.1.50
-  $(basename "$0") -d admin@server.internal
-  $(basename "$0") -p 2222 -i ~/.ssh/id_ed25519 root@10.0.0.5
-  $(basename "$0") --shell root@10.0.0.5
+  $(basename "$0") root@isolated-host
+  $(basename "$0") -u admin@server.internal
+  $(basename "$0") -k -p 2222 root@10.0.0.5
   $(basename "$0") -c "git clone https://github.com/org/repo.git" admin@isolated-host
 EOF
     exit 0
@@ -92,7 +94,7 @@ EOF
 
 # --- CLI ARGUMENT PARSING ---
 DRY_RUN=false
-EXEC_MODE="update"
+EXEC_MODE="shell"
 COMMAND_PAYLOAD=""
 SSH_PORT=""
 SSH_IDENTITY=""
@@ -108,8 +110,16 @@ while [[ "$#" -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        -u|--update)
+            EXEC_MODE="update"
+            shift
+            ;;
         -s|--shell)
             EXEC_MODE="shell"
+            shift
+            ;;
+        -k|--keep-alive|--hold)
+            EXEC_MODE="keep-alive"
             shift
             ;;
         -c|--command)
@@ -142,6 +152,7 @@ while [[ "$#" -gt 0 ]]; do
             ;;
     esac
 done
+
 
 # Positional arguments: user@host or user host
 if [ "$#" -eq 1 ]; then
@@ -306,6 +317,12 @@ case "$EXEC_MODE" in
         echo "           Type 'exit' to close session."
         exec bash -i
         ;;
+    keep-alive)
+        echo "🔗 [REMOTE] Tunnel active on port ${TUNNEL_PORT}."
+        echo "           (http_proxy, https_proxy, ALL_PROXY active)"
+        echo "           Holding connection open. Press Ctrl+C locally to stop."
+        while true; do sleep 3600; done
+        ;;
     command)
         echo "⚡ [REMOTE] Executing custom command..."
         eval "$COMMAND_PAYLOAD"
@@ -356,11 +373,13 @@ MIN=$((DURATION / 60))
 SEC=$((DURATION % 60))
 
 printMsg "=========================================================="
-if [ $SSH_EXIT_CODE -eq 0 ]; then
+if [ $SSH_EXIT_CODE -eq 0 ] || [ $SSH_EXIT_CODE -eq 130 ]; then
     if [ "$DRY_RUN" = true ]; then
         printOkMsg "DRY RUN SUCCESS: Tunnel and remote connection verified."
     elif [ "$EXEC_MODE" = "shell" ]; then
         printOkMsg "SESSION CLOSED: Remote shell session terminated."
+    elif [ "$EXEC_MODE" = "keep-alive" ]; then
+        printOkMsg "TUNNEL CLOSED: Keep-alive session terminated."
     elif [ "$EXEC_MODE" = "command" ]; then
         printOkMsg "COMMAND SUCCESS: Remote command completed successfully."
     else
@@ -369,6 +388,7 @@ if [ $SSH_EXIT_CODE -eq 0 ]; then
 else
     printErrMsg "FAILURE: Remote connection dropped or exited with error code ${SSH_EXIT_CODE}"
 fi
+
 printMsg "⏱️  ELAPSED TIME: ${MIN}m ${SEC}s"
 printMsg "END TIME:     $(date)"
 printMsg "=========================================================="

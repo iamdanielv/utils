@@ -331,12 +331,16 @@ An interactive TUI for managing and connecting to SSH hosts defined in ~/.ssh/co
 ### 🔄 Remote Tunnel (`dv-remote-tunnel.sh`)
 
 **Description**:
-Reverse-tunnels local internet connectivity to a remote system via SSH SOCKS5 to perform system updates, run interactive shells, or execute commands without internet gateway access.
+Reverse-tunnels local internet connectivity to a remote system via SSH SOCKS5. By default, opens an interactive remote shell with `http_proxy`, `https_proxy`, and `ALL_PROXY` configured to route all traffic through the host.
 
-- **Modes**: Auto package updates (`update`), interactive shell (`--shell`), or command execution (`--command`).
-- **Zero Disk Mutation**: Applies proxy dynamically via CLI flags and env variables without altering remote `/etc/` configs.
+- **Default Shell**: Connects and opens an interactive shell with immediate internet routing.
+- **Update Mode**: Run automated package upgrades through the tunnel (`-u` / `--update`).
+- **Command Mode**: Execute a specific command on the target through the tunnel (`-c` / `--command "<cmd>"`).
+- **Keep-Alive Mode**: Keep tunnel open in foreground without opening a shell (`-k` / `--keep-alive`).
+- **Zero Disk Mutation**: Applies proxy dynamically via CLI flags and environment variables without altering remote `/etc/` configs.
 - **Flexible Targets**: Supports `user@host` or `user host`, custom ports (`-p`), and SSH identities (`-i`).
-- **Dry Run**: Validate connectivity and proxy tunnels without upgrading packages (`-d`).
+- **Dry Run**: Validate connectivity and proxy tunnels safely (`-d`).
+
 
 ### 🐚 Interactive Shell Workflow
 
