@@ -282,7 +282,7 @@ A TUI (Text User Interface) for managing KVM/QEMU virtual machines using `virsh`
 - **Controls**: Start, shutdown, reboot, or force stop VMs.
 - **Details View**: Inspect VM specifics like network interfaces (IP addresses), storage devices, and guest agent status.
 
-**VM Manager - Main View**
+#### **VM Manager - Main View**
 
 ```text
 ╭─VM Manager────────────────────────────────────────────────────────────
@@ -297,7 +297,7 @@ A TUI (Text User Interface) for managing KVM/QEMU virtual machines using `virsh`
 ╰ [jk]Select │ [I]nfo/Enter │ [C]lone  │ [D]elete            │ [Q]uit
 ```
 
-**VM Detail view**
+#### **VM Detail view**
 
 ```text
 ╭─VM Details: ubuntu-server ( ✔ running )───────────────────────────────
@@ -341,9 +341,7 @@ Reverse-tunnels local internet connectivity to a remote system via SSH SOCKS5. B
 - **Flexible Targets**: Supports `user@host` or `user host`, custom ports (`-p`), and SSH identities (`-i`).
 - **Dry Run**: Validate connectivity and proxy tunnels safely (`-d`).
 
-
 ### 🐚 Interactive Shell Workflow
-
 
 **Description:**
 A set of FZF-powered interactive tools and aliases defined in `.bash_aliases` to enhance the terminal experience.
@@ -453,7 +451,6 @@ Find files and open them in Neovim
 
 View all TMUX available key bindings.
 
-
 ```text
 ╭─ TMUX KEY BINDINGS ──────────────────────────────────────╮
 │ >                             │ C-h:                     │
@@ -523,7 +520,7 @@ View all custom keybindings and functions.
 
 ### Alias Cheatsheet (`Alt+x ?`)
 
-```
+```shell
 ╭─ Alias Cheatsheet ───────────────────────────────────────╮
 │   Run❯                                                   │
 │   26/26 ──────────────────────────────────────────────── │
@@ -540,7 +537,6 @@ View all custom keybindings and functions.
 │   ip       : IP with color (ip -c)                       │
 ╰──────────────────────────────────────────────────────────╯
 ```
-
 
 **Utilities:**
 
@@ -591,6 +587,7 @@ Checks if a system reboot is required.
 ```shell
 ✓ No Reboot Required
 ```
+
 or
 
 ```shell
@@ -603,6 +600,7 @@ or
 A highly configured Tmux setup (`tmux.conf`) focused on speed and integration with Vim.
 
 ### Session Manager
+
 ```text
 ╭ 󰖲 Session Manager ──────────────────────────────────────────────────────────────────────────╮
 │    New Session                      ╭ 󰖲 Preview: main ───────────────────────────────────╮ │
@@ -641,6 +639,7 @@ Opens a menu to launch utilities:
 
 **Git Integration (`Prefix + g`):**
 Opens a menu with interactive tools:
+
 - **Branch Manager**: Checkout, delete, and track branches.
 - **Git Log**: Browse commit history with diff previews.
 - **Git Status**: View and act on changed files.
