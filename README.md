@@ -16,7 +16,33 @@ This repository contains shell scripts for:
 
 All tools are designed to be run in Unix-like environments.
 
-## 🧩 Scripts & Tools
+## 🧩 Project Structure
+
+The repository is organized by area:
+
+- `dev-setup/` — machine setup and configuration automation
+  - `dev-setup/setup-dev-machine.sh`
+  - `dev-setup/sync-utils.sh`
+  - `dev-setup/bin/`
+  - `dev-setup/config/`
+  - `dev-setup/tests/`
+- `general/` — standalone utilities and shell reference patterns
+  - `general/SHELL_PATTERNS.sh`
+  - smaller helper scripts like `colors.sh`, `git-utils.sh`, and `random-string.sh`
+- `observability/docker/` — optional Docker log aggregation stack
+  - log viewer wrapper
+  - Grafana/Loki/Promtail config
+- `docker/` and `centurion/` — service and runtime workspaces
+- root `Makefile` — developer convenience commands
+
+## 🚀 Quick Start
+
+```bash
+make help
+make setup
+make logs-start
+make logs-open
+```
 
 ### 🏛️ Centurion (`centurion/`)
 
@@ -27,7 +53,7 @@ A Go-based TUI (Text User Interface) for managing `systemd` services.
 - **Controls**: Start, stop, and restart units.
 - **Logs**: Integrated journalctl log viewing.
 
-### 💻 Developer Machine Setup (`setup-dev-machine.sh`)
+### 💻 Developer Machine Setup (`dev-setup/setup-dev-machine.sh`)
 
 **Description:**
 Script to set up a new dev machine. It is designed to be **idempotent**, meaning you can run it multiple times safely to update your tools or configuration.
@@ -39,6 +65,20 @@ Script to set up a new dev machine. It is designed to be **idempotent**, meaning
   - Copies `.bash_aliases` to `~/.bash_aliases`.
   - Sets up `tmux` configuration and plugins.
 - **Neovim**: Installs Neovim and sets up the LazyVim environment.
+- **Entry point**: prefer `make setup` from the repo root, or run `bash dev-setup/setup-dev-machine.sh` directly.
+
+### 📊 Observability Stack (`observability/docker/`)
+
+**Description:**
+Optional on-demand log aggregation for Docker and system logs using Grafana, Loki, and Promtail.
+
+- Start with `make logs-start`
+- Open UI with `make logs-open`
+- Stop with `make logs-stop`
+- Default Grafana login: `admin` / `admin`
+- Grafana URL: `http://localhost:3000`
+
+The stack is intentionally optional and not always running, which keeps local resources free until you need log inspection.
 
 #### Neovim Enhancements
 
