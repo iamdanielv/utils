@@ -23,10 +23,10 @@ setup-verify:
 	@bash dev-setup/tests/test-setup-verify.sh
 
 logs-start:
-	@docker compose -f observability/docker/docker-compose.yml up -d
+	@./observability/docker/dv-docker-log-viewer.sh start
 
 logs-stop:
-	@docker compose -f observability/docker/docker-compose.yml down
+	@./observability/docker/dv-docker-log-viewer.sh stop
 
 logs-view:
 	@xdg-open http://localhost:3000 2>/dev/null || printf '%s\n' 'Open http://localhost:3000 in your browser.'
@@ -35,4 +35,4 @@ logs-open:
 	@xdg-open http://localhost:3000 2>/dev/null || printf '%s\n' 'Open http://localhost:3000 in your browser.'
 
 clean:
-	@docker compose -f observability/docker/docker-compose.yml down -v --remove-orphans 2>/dev/null || true
+	@./observability/docker/dv-docker-log-viewer.sh clean

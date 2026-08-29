@@ -57,8 +57,13 @@ case "$ACTION" in
     help|-h|--help)
         usage
         ;;
+    clean)
+        require_docker
+        docker compose -f "$COMPOSE_FILE" down -v --remove-orphans 2>/dev/null
+        echo "Docker log stack cleaned up."
+        ;;
     *)
-        echo "Unknown action: $ACTION" >&2
+        echo "Error: Invalid action '$ACTION'. Usage:" >&2
         usage >&2
         exit 1
         ;;
