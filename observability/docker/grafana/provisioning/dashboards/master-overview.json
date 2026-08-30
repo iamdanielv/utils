@@ -101,13 +101,13 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (compose_service) (count_over_time({job=\"docker\", compose_project=\"$compose_project\"}[5m]))",
-          "legendFormat": "{{compose_service}}",
+          "expr": "sum by (job) (count_over_time({job=~\"docker|varlogs\"}[5m]))",
+          "legendFormat": "{{job}}",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Log volume by service",
+      "title": "Log volume by source",
       "type": "timeseries"
     },
     {
@@ -138,12 +138,12 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{job=\"docker\", compose_project=\"$compose_project\"}",
+          "expr": "{job=\"docker\"}",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Recent docker logs for selected compose project",
+      "title": "Recent docker logs",
       "type": "logs"
     },
     {
@@ -189,33 +189,11 @@
   "tags": [
     "docker",
     "logs",
-    "loki",
-    "compose"
+    "system",
+    "overview"
   ],
   "templating": {
-    "list": [
-      {
-        "name": "compose_project",
-        "type": "custom",
-        "includeAll": false,
-        "multi": false,
-        "current": {
-          "text": "docker",
-          "value": "docker"
-        },
-        "options": [
-          {
-            "text": "docker",
-            "value": "docker"
-          },
-          {
-            "text": "sample-stack",
-            "value": "sample-stack"
-          }
-        ],
-        "label": "Compose project"
-      }
-    ]
+    "list": []
   },
   "time": {
     "from": "now-1h",
@@ -223,8 +201,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Docker Compose Overview",
-  "uid": "docker-compose-overview",
+  "title": "System Overview",
+  "uid": "system-overview",
   "version": 1,
   "weekStart": ""
 }

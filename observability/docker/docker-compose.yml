@@ -8,7 +8,7 @@ services:
     volumes:
       - loki_data:/loki
     networks:
-      - log-net
+      - obs-net
 
   promtail:
     image: grafana/promtail:2.9.4
@@ -16,12 +16,12 @@ services:
     command: -config.file=/etc/promtail/config.yml
     volumes:
       - ./promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/log:/var/log:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     depends_on:
       - loki
     networks:
-      - log-net
+      - obs-net
 
   grafana:
     image: grafana/grafana:11.2.0
@@ -37,10 +37,10 @@ services:
     depends_on:
       - loki
     networks:
-      - log-net
+      - obs-net
 
 networks:
-  log-net:
+  obs-net:
     driver: bridge
 
 volumes:

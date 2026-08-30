@@ -1,0 +1,12 @@
+name: sample-stack
+
+services:
+  test-api-service:
+    image: busybox:latest
+    container_name: test-api-service
+    command: >
+      sh -c "echo 'sample-stack service started'; while true; do echo 'sample-stack heartbeat $(date -u +%H:%M:%S)'; sleep 5; done"
+    labels:
+      - "com.docker.compose.project=sample-stack"
+      - "com.docker.compose.service=test-api-service"
+
