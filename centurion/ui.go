@@ -224,6 +224,7 @@ func (m model) ShortHelp() []key.Binding {
 		key.NewBinding(key.WithKeys("s"), key.WithHelp("(s)tart/stop", "")),
 		key.NewBinding(key.WithKeys("r"), key.WithHelp("(r)estart", "")),
 		key.NewBinding(key.WithKeys("l"), key.WithHelp("(l)ogs", "")),
+		key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "details")),
 		key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "more")),
 	}
@@ -255,6 +256,7 @@ func (m model) FullHelp() [][]key.Binding {
 			key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start/stop service")),
 			key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart service")),
 			key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "view logs")),
+			key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter services")),
 		},
 		{
 			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "service details")),
