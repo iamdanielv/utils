@@ -5,10 +5,12 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -187,6 +189,10 @@ type model struct {
 	showFilter     bool
 	rawLogContent  string
 	isLogView      bool
+	isLoading      bool
+	statusMsg      string
+	transientMsg   string
+	spinner        spinner.Model
 }
 
 func (m model) ShortHelp() []key.Binding {
@@ -284,7 +290,19 @@ func initialModel() model {
 	h.FullSeparator = " "
 
 	vp := viewport.New(0, 0)
-	return model{list: l, viewport: vp, help: h, textInput: ti}
+
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+
+	return model{
+		list:      l,
+		viewport:  vp,
+		help:      h,
+		textInput: ti,
+		isLoading: true,
+		statusMsg: "Starting service query...",
+		spinner:   s,
+	}
 }
 
 func filterContains(term string, targets []string) []list.Rank {
@@ -323,6 +341,22 @@ func fetchServices() tea.Cmd {
 type statusMsg string
 type logsMsg string
 
+type transientMsg string
+type clearTransientMsg struct{}
+
+func setTransient(text string) tea.Cmd {
+	return tea.Sequence(
+		func() tea.Msg { return transientMsg(text) },
+		setTransientClear(),
+	)
+}
+
+func setTransientClear() tea.Cmd {
+	return tea.Tick(3*time.Second, func(time.Time) tea.Msg {
+		return clearTransientMsg{}
+	})
+}
+
 func fetchStatus(name string) tea.Cmd {
 	return func() tea.Msg {
 		status, _ := GetUnitStatus(name)
@@ -357,19 +391,27 @@ func performAction(action, name string) tea.Cmd {
 }
 
 func (m model) Init() tea.Cmd {
-	return fetchServices()
+	return tea.Batch(m.spinner.Tick, fetchServices())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case servicesMsg:
+		wasLoading := m.isLoading
 		m.units = msg
+		m.isLoading = false
 		items := make([]list.Item, len(msg))
 		for i, u := range msg {
 			items[i] = item{u}
 		}
 		m.list.SetItems(items)
+		if !wasLoading {
+			return m, setTransient(fmt.Sprintf("Updated %d services", len(msg)))
+		}
+	case spinner.TickMsg:
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	case statusMsg:
 		m.viewport.SetContent(string(msg))
 		m.isLogView = false
@@ -388,6 +430,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case errMsg:
 		m.err = msg
+		m.isLoading = false
+	case transientMsg:
+		m.transientMsg = string(msg)
+	case clearTransientMsg:
+		m.transientMsg = ""
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -552,7 +599,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.err != nil {
-		return fmt.Sprintf("Error: %v\nPress q to quit.", m.err)
+		return m.errorView()
+	}
+	if m.isLoading {
+		return m.loadingView()
 	}
 	if m.width == 0 {
 		return "Loading..."
@@ -587,7 +637,75 @@ func (m model) View() string {
 
 	banner := renderBanner(m.list.Title, m.width)
 
-	return lipgloss.JoinVertical(lipgloss.Left, banner, m.list.View(), m.help.View(m))
+	listView := m.list.View()
+	if m.transientMsg != "" {
+		flash := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("42")).
+			Padding(0, 1).
+			Render(" " + m.transientMsg + " ")
+		listView = lipgloss.JoinVertical(lipgloss.Left, flash, listView)
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, banner, listView, m.help.View(m))
+}
+
+func (m model) loadingView() string {
+	width := m.width
+	if width == 0 {
+		width = 60
+	}
+	height := m.height
+	if height == 0 {
+		height = 10
+	}
+
+	spinnerText := m.spinner.View()
+	msg := m.statusMsg
+	spinnerArea := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("42")).
+		Render(spinnerText)
+
+	body := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62")).
+		Padding(1, 2).
+		Width(width - 6).
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Center,
+				spinnerArea,
+				"",
+				lipgloss.NewStyle().Bold(true).Render(msg),
+			),
+		)
+
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, body)
+}
+
+func (m model) errorView() string {
+	if m.width == 0 {
+		return fmt.Sprintf("Error: %v\nPress q to quit.", m.err)
+	}
+	msg := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("196")).
+		Bold(true).
+		Render("ERROR")
+	body := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("196")).
+		Padding(1, 2).
+		Width(m.width - 6).
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Left,
+				msg,
+				"",
+				m.err.Error(),
+				"",
+				lipgloss.NewStyle().Foreground(lipgloss.Color("243")).Render("Press q to quit."),
+			),
+		)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, body)
 }
 
 func filterLogs(content, term string) string {
