@@ -442,7 +442,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 		bannerHeight := lipgloss.Height(renderBanner("", m.width))
 		helpHeight := lipgloss.Height(m.help.View(m))
-		listHeight := msg.Height - bannerHeight - helpHeight
+		listHeight := msg.Height - bannerHeight - helpHeight - 1
 		if listHeight < 0 {
 			listHeight = 0
 		}
@@ -548,7 +548,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.help.ShowAll = !m.help.ShowAll
 				bannerHeight := lipgloss.Height(renderBanner("", m.width))
 				helpHeight := lipgloss.Height(m.help.View(m))
-				m.list.SetSize(m.width, m.height-bannerHeight-helpHeight)
+				m.list.SetSize(m.width, m.height-bannerHeight-helpHeight-1)
 			case "s":
 				if i, ok := m.list.SelectedItem().(item); ok {
 					if i.ActiveState == "active" || i.ActiveState == "reloading" || i.ActiveState == "activating" {
