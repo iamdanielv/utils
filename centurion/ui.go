@@ -153,7 +153,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		fmt.Fprint(w, selectedStyle.Render(lipgloss.JoinVertical(lipgloss.Left, title, desc)))
 	} else {
 		title := "  " + i.RenderTitle(true)
-		desc := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("   " + i.Description())
+		desc := lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Render("   " + i.Description())
 		fmt.Fprint(w, title+"\n"+desc)
 	}
 }
@@ -270,6 +270,8 @@ func initialModel() model {
 	l.SetShowStatusBar(false)
 	l.SetShowHelp(false)
 	l.Filter = filterContains
+	l.Paginator.ActiveDot = lipgloss.NewStyle().Foreground(lipgloss.Color("254")).SetString("•").String()
+	l.Paginator.InactiveDot = lipgloss.NewStyle().Foreground(lipgloss.Color("243")).SetString("•").String()
 
 	ti := textinput.New()
 	ti.Placeholder = "Filter logs..."
