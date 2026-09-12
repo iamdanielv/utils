@@ -168,6 +168,75 @@ run_with_spinner() {
 SCRIPT_DIR=""
 VERIFY_MODE=false
 NON_INTERACTIVE=false
+SUMMARY_ENABLED=false
+declare -A SUMMARY_RESULTS
+
+# --- Summary Reporting ---
+record_summary() {
+    if [[ "$SUMMARY_ENABLED" == "true" ]]; then
+        local task="$1"
+        local status="$2"
+        local detail="$3"
+        SUMMARY_RESULTS["$task"]="$status|$detail"
+    fi
+}
+
+printSummaryBanner() {
+    local line_char="━"
+    local total_width=61
+    local line
+    printf -v line '%*s' "$((total_width - 1))" ""; line="${line// /${line_char}}"; printf '%s%s%s\n' "${C_L_BLUE}" "${line}" "${T_RESET}"
+}
+
+print_summary_report() {
+    if [[ "$SUMMARY_ENABLED" != "true" ]]; then return; fi
+
+    printMsg ""
+    printSummaryBanner
+    printMsg " INSTALLATION SUMMARY REPORT"
+    printSummaryBanner
+
+    # Sort tasks alphabetically for consistent reporting
+    local sorted_tasks
+    sorted_tasks=$(printf '%s\n' "${!SUMMARY_RESULTS[@]}" | sort)
+
+    while IFS= read -r task; do
+        if [[ -z "$task" ]]; then continue; fi
+        local data="${SUMMARY_RESULTS[$task]}"
+        local status="${data%|*}"
+        local detail="${data#*|}"
+
+        local icon=""
+        local color=""
+
+        case "$status" in
+            "Installed")
+                icon="${T_BOLD}${C_GREEN}✓${T_RESET}"
+                color="${C_GREEN}"
+                ;;
+            "Updated")
+                icon="${T_BOLD}${C_L_BLUE}↑${T_RESET}"
+                color="${C_L_BLUE}"
+                ;;
+            "Already Present")
+                icon="${T_BOLD}${C_GRAY}~${T_RESET}"
+                color="${C_GRAY}"
+                ;;
+            "Skipped")
+                icon="${T_BOLD}${C_L_CYAN}?${T_RESET}"
+                color="${C_L_CYAN}"
+                ;;
+            "Failed")
+                icon="${T_BOLD}${C_L_RED}✗${T_RESET}"
+                color="${C_L_RED}"
+                ;;
+        esac
+
+        printf " %s %-20s ${color}%s${T_RESET}\n" "$icon" "$task" "$detail"
+    done <<< "$sorted_tasks"
+
+    printSummaryBanner
+}
 
 # --- Verification Helper ---
 report_verify() {
