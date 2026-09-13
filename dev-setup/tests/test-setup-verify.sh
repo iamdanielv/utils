@@ -19,9 +19,10 @@ source "$SETUP_SCRIPT"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 2. Mock Helpers
-# Override GitHub API helper to return a fixed version
+# Verification must not query remote release APIs.
 _gh_get_latest_version() {
-    echo "v1.0.0"
+    echo "Unexpected remote version request" >&2
+    return 99
 }
 
 # Override curl to mock Go version check
@@ -76,13 +77,19 @@ create_mock_bin() {
 
 printBanner "Test 1: Clean Environment (Expect Missing)"
 # Run main in verify mode
-OUTPUT=$(main --verify)
+VERIFY_STATUS=0
+OUTPUT=$(main --verify) || VERIFY_STATUS=$?
 
 if echo "$OUTPUT" | grep -q "zoxide.*Missing"; then
     printOkMsg "Clean env: zoxide missing detected."
 else
     printErrMsg "Clean env: zoxide missing NOT detected."
     echo "$OUTPUT"
+    exit 1
+fi
+
+if [[ "$VERIFY_STATUS" -eq 0 ]]; then
+    printErrMsg "Clean env: verification should fail when required tools are missing."
     exit 1
 fi
 
@@ -96,7 +103,8 @@ create_mock_bin "go" "go version go1.0.0 linux/amd64"
 mkdir -p "$XDG_CONFIG_HOME/tmux"
 cp "$SCRIPT_DIR/../config/tmux/tmux.conf" "$XDG_CONFIG_HOME/tmux/tmux.conf"
 
-OUTPUT=$(main --verify)
+VERIFY_STATUS=0
+OUTPUT=$(main --verify) || VERIFY_STATUS=$?
 
 if echo "$OUTPUT" | grep -q "zoxide.*Installed"; then
     printOkMsg "Installed env: zoxide installed detected."
@@ -114,19 +122,20 @@ else
     exit 1
 fi
 
-printBanner "Test 3: Outdated & Differs (Expect Warnings)"
-# Setup "Outdated" state (v0.9.0 vs v1.0.0 mocked latest)
+printBanner "Test 3: Installed & Differs (Expect Warnings)"
+# Setup a locally installed version and a differing config.
 create_mock_bin "zoxide" "zoxide v0.9.0"
 
 # Setup "Differs" config
 echo "different content" > "$XDG_CONFIG_HOME/tmux/tmux.conf"
 
-OUTPUT=$(main --verify)
+VERIFY_STATUS=0
+OUTPUT=$(main --verify) || VERIFY_STATUS=$?
 
-if echo "$OUTPUT" | grep -q "zoxide.*Outdated"; then
-    printOkMsg "Outdated env: zoxide outdated detected."
+if echo "$OUTPUT" | grep -q "zoxide.*Installed"; then
+    printOkMsg "Local env: zoxide installed detected."
 else
-    printErrMsg "Outdated env: zoxide outdated NOT detected."
+    printErrMsg "Local env: zoxide installed NOT detected."
     echo "$OUTPUT"
     exit 1
 fi

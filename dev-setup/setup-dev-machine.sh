@@ -175,8 +175,11 @@ VERIFY_MODE=false
 NON_INTERACTIVE=false
 SUMMARY_ENABLED=true
 SETUP_FAILED=false
+VERIFY_FAILED=false
 declare -A SUMMARY_RESULTS
 SUMMARY_ORDER=()
+declare -A VERIFY_RESULTS
+VERIFY_ORDER=()
 
 # --- Summary Reporting ---
 record_summary() {
@@ -274,12 +277,32 @@ print_summary_report() {
     print_report_footer
 }
 
+print_verification_report() {
+    print_report_header "Dev Machine Verification"
+
+    local item
+    for item in "${VERIFY_ORDER[@]}"; do
+        local data="${VERIFY_RESULTS[$item]}"
+        local status="${data%%|*}"
+        local detail="${data#*|}"
+        print_report_row "$item" "$status" "$detail"
+    done
+
+    print_report_footer
+}
+
 # --- Verification Helper ---
 report_verify() {
     local item="$1"
     local status="$2"
     local details="$3"
-    print_report_row "$item" "$status" "$details"
+    if [[ "$status" == "Missing" || "$status" == "Differs" || "$status" == "Not Configured" || "$status" == "Unavailable" || "$status" == "Unknown" || "$status" == "Outdated" ]]; then
+        VERIFY_FAILED=true
+    fi
+    if [[ -z "${VERIFY_RESULTS[$item]+x}" ]]; then
+        VERIFY_ORDER+=("$item")
+    fi
+    VERIFY_RESULTS["$item"]="$status|$details"
 }
 
 # --- Script Functions ---
@@ -464,11 +487,7 @@ install_github_binary() {
         if [[ "$installed_version_string" == "Not installed" ]]; then
              report_verify "$binary_name" "Missing" "Repo: $repo"
         else
-             # Fetch latest to compare
-             local latest_version; latest_version=$(_gh_get_latest_version "$repo")
-             local norm_latest="${latest_version#v}"; local norm_installed="${installed_version_string#v}"
-             if [[ "$norm_latest" == "$norm_installed" ]]; then report_verify "$binary_name" "Installed" "v$norm_installed";
-             else report_verify "$binary_name" "Outdated" "v$norm_installed -> $latest_version"; fi
+               report_verify "$binary_name" "Installed" "v${installed_version_string#v}"
         fi
         return
     fi
@@ -543,9 +562,7 @@ install_golang() {
         if [[ "$installed_version" == "Not installed" ]]; then
             report_verify "Go (Golang)" "Missing" ""
         else
-            local latest_version; latest_version=$(curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version')
-            if [[ "$installed_version" == "$latest_version" ]]; then report_verify "Go (Golang)" "Installed" "$installed_version";
-            else report_verify "Go (Golang)" "Outdated" "$installed_version -> $latest_version"; fi
+            report_verify "Go (Golang)" "Installed" "$installed_version"
         fi
         return
     fi
@@ -631,12 +648,7 @@ install_zoxide() {
     if [[ "$VERIFY_MODE" == "true" ]]; then
         local installed_version_string; installed_version_string=$(_gh_get_installed_version "$binary_name")
         if [[ "$installed_version_string" == "Not installed" ]]; then report_verify "zoxide" "Missing" "";
-        else
-            local latest_version; latest_version=$(_gh_get_latest_version "$repo")
-            local norm_latest="${latest_version#v}"; local norm_installed="${installed_version_string#v}"
-            if [[ "$norm_latest" == "$norm_installed" ]]; then report_verify "zoxide" "Installed" "v$norm_installed";
-            else report_verify "zoxide" "Outdated" "v$norm_installed -> $latest_version"; fi
-        fi
+        else report_verify "zoxide" "Installed" "v${installed_version_string#v}"; fi
         return
     fi
 
@@ -691,12 +703,7 @@ install_starship() {
     if [[ "$VERIFY_MODE" == "true" ]]; then
         local installed_version_string; installed_version_string=$(_gh_get_installed_version "$binary_name")
         if [[ "$installed_version_string" == "Not installed" ]]; then report_verify "starship" "Missing" "";
-        else
-            local latest_version; latest_version=$(_gh_get_latest_version "$repo")
-            local norm_latest="${latest_version#v}"; local norm_installed="${installed_version_string#v}"
-            if [[ "$norm_latest" == "$norm_installed" ]]; then report_verify "starship" "Installed" "v$norm_installed";
-            else report_verify "starship" "Outdated" "v$norm_installed -> $latest_version"; fi
-        fi
+        else report_verify "starship" "Installed" "v${installed_version_string#v}"; fi
         return
     fi
 
@@ -754,10 +761,7 @@ install_neovim() {
         if [[ "$installed_version" == "0" ]]; then
             report_verify "Neovim (AppImage)" "Missing" ""
         else
-            local latest_version_tag; latest_version_tag=$(_gh_get_latest_version "neovim/neovim")
-            local latest_version="${latest_version_tag#v}"
-            if [[ "$installed_version" == "$latest_version" ]]; then report_verify "Neovim" "Installed" "v$installed_version";
-            else report_verify "Neovim" "Outdated" "v$installed_version -> $latest_version"; fi
+            report_verify "Neovim" "Installed" "v$installed_version"
         fi
         return
     fi
@@ -1413,6 +1417,22 @@ install_nerd_fonts() {
 
     if [[ "$VERIFY_MODE" == "true" ]]; then
         # Skip font verification for now as it's complex to check properly without fc-list
+        local font_name
+        local font_zip_name
+        local font_dir
+        for font_name in "FiraCode Nerd Font" "Meslo Nerd Font" "CaskaydiaCove Nerd Font"; do
+            case "$font_name" in
+                "FiraCode Nerd Font") font_zip_name="FiraCode" ;;
+                "Meslo Nerd Font") font_zip_name="Meslo" ;;
+                "CaskaydiaCove Nerd Font") font_zip_name="CascadiaCode" ;;
+            esac
+            font_dir="${XDG_DATA_HOME}/fonts/${font_zip_name}NerdFont"
+            if [[ -d "$font_dir" ]]; then
+                report_verify "$font_name" "Installed" "font directory exists"
+            else
+                report_verify "$font_name" "Optional" "not installed"
+            fi
+        done
         return
     fi
 
@@ -1543,10 +1563,10 @@ check_docker() {
             if docker info &>/dev/null; then
                 report_verify "Docker" "Running" ""
             else
-                report_verify "Docker" "Installed" "Daemon not running or no permissions"
+                report_verify "Docker" "Optional" "daemon not running or no permissions"
             fi
         else
-            report_verify "Docker" "Missing" "Action: Install Docker Engine manually"
+            report_verify "Docker" "Optional" "not installed"
         fi
         return
     fi
@@ -1685,6 +1705,12 @@ main() {
     done
 
     SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+    SUMMARY_RESULTS=()
+    SUMMARY_ORDER=()
+    VERIFY_RESULTS=()
+    VERIFY_ORDER=()
+    SETUP_FAILED=false
+    VERIFY_FAILED=false
 
     if [[ "$VERIFY_MODE" == "true" ]]; then
         printMsg "${C_L_BLUE}${T_BOLD}Running in Verification Mode (Read-Only)${T_RESET}\n"
@@ -1712,6 +1738,11 @@ main() {
         phase_neovim_binary
         install_nerd_fonts
         phase_neovim_setup
+        if [[ "$VERIFY_MODE" == "true" ]]; then
+            print_verification_report
+            if [[ "$VERIFY_FAILED" == "true" ]]; then return 1; fi
+            return 0
+        fi
         printOkMsg "Neovim Setup Complete"
         print_summary_report
         if [[ "$SETUP_FAILED" == "true" ]]; then return 1; fi
@@ -1734,7 +1765,8 @@ main() {
     fi
 
     if [[ "$VERIFY_MODE" == "true" ]]; then
-        printMsg "\n${T_BOLD}Verification Complete.${T_RESET}"
+        print_verification_report
+        if [[ "$VERIFY_FAILED" == "true" ]]; then return 1; fi
         return 0
     fi
 
