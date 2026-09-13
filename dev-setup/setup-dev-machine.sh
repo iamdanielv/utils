@@ -173,7 +173,7 @@ run_with_spinner() {
 SCRIPT_DIR=""
 VERIFY_MODE=false
 NON_INTERACTIVE=false
-SUMMARY_ENABLED=false
+SUMMARY_ENABLED=true
 declare -A SUMMARY_RESULTS
 SUMMARY_ORDER=()
 
@@ -320,15 +320,19 @@ install_package() {
 
     if command -v "$command_to_check" &>/dev/null; then
         printInfoMsg "'${package_name}' is already installed. Skipping."
-        return
+        record_summary "$package_name" "Already Present" "${command_to_check} available"
+        return 0
     fi
 
     printInfoMsg "Installing '${package_name}'..."
     if ! sudo apt-get install -y "$package_name"; then
         printErrMsg "Failed to install '${package_name}'. Please try installing it manually."
-        # We don't exit here to allow the rest of the setup to continue.
+        record_summary "$package_name" "Failed" "apt install failed"
+        return 1
     else
         printOkMsg "Successfully installed '${package_name}'."
+        record_summary "$package_name" "Installed" "apt package installed"
+        return 0
     fi
 }
 
@@ -467,6 +471,7 @@ install_github_binary() {
 
     if [[ "$(uname -m)" != "x86_64" ]]; then
         printErrMsg "Unsupported architecture for ${binary_name}: $(uname -m). Only x86_64 is supported."
+        record_summary "$binary_name" "Failed" "unsupported architecture"
         return 1
     fi
     
@@ -477,6 +482,7 @@ install_github_binary() {
     
     if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
         printErrMsg "Could not determine latest ${binary_name} version from GitHub API."
+        record_summary "$binary_name" "Failed" "latest version unavailable"
         return 1
     fi
     printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
@@ -490,11 +496,13 @@ install_github_binary() {
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
         printOkMsg "You already have the latest version of ${binary_name} (${latest_version}). Skipping."
+        record_summary "$binary_name" "Already Present" "$latest_version"
         return 0
     fi
 
     if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
         printInfoMsg "${binary_name} installation skipped."
+        record_summary "$binary_name" "Skipped" "user declined"
         return 0
     fi
 
@@ -503,10 +511,21 @@ install_github_binary() {
 
     if [[ -z "$download_url" ]]; then
         printErrMsg "Could not find a compatible download asset for ${repo} on Linux x86_64."
+        record_summary "$binary_name" "Failed" "compatible asset unavailable"
         return 1
     fi
 
-    _gh_download_and_install "$download_url" "$binary_name" "$latest_version"
+    if _gh_download_and_install "$download_url" "$binary_name" "$latest_version"; then
+        local result_status="Installed"
+        if [[ "$installed_version_string" != "Not installed" ]]; then
+            result_status="Updated"
+        fi
+        record_summary "$binary_name" "$result_status" "$installed_version_string -> $latest_version"
+        return 0
+    fi
+
+    record_summary "$binary_name" "Failed" "binary installation failed"
+    return 1
 }
 
 # Installs or updates Go (Golang) to the latest stable version.
