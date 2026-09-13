@@ -359,6 +359,8 @@ install_package() {
         return
     fi
 
+    print_report_row "$package_name" "Checking" "package availability"
+
     if command -v "$command_to_check" &>/dev/null; then
         record_summary "$package_name" "Current" "${command_to_check} available"
         return 0
@@ -366,11 +368,11 @@ install_package() {
 
     printInfoMsg "Installing '${package_name}'..."
     if ! sudo apt-get install -y "$package_name"; then
-        printErrMsg "Failed to install '${package_name}'. Please try installing it manually."
+        print_report_row "$package_name" "Failed" "apt install failed"
         record_summary "$package_name" "Failed" "apt install failed"
         return 1
     else
-        printOkMsg "Successfully installed '${package_name}'."
+        print_report_row "$package_name" "Installed" "apt package installed"
         record_summary "$package_name" "Installed" "apt package installed"
         return 0
     fi
@@ -497,7 +499,6 @@ _gh_download_and_install() {
         mkdir -p "${XDG_BIN_HOME}"
         run_with_spinner "Installing to ${XDG_BIN_HOME}/${binary_name}..." mv "$found_bin" "${XDG_BIN_HOME}/${binary_name}"
         chmod +x "${XDG_BIN_HOME}/${binary_name}"
-        printOkMsg "Successfully installed ${binary_name} ${version}."
     else
         printErrMsg "Binary '${binary_name}' not found in extracted archive."; ls -R "$temp_dir"; return 1
     fi
