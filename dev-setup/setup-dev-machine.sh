@@ -862,8 +862,6 @@ install_neovim() {
 
 # Backs up existing Neovim config and clones the LazyVim starter.
 setup_lazyvim() {
-    printBanner "Setting up LazyVim"
-    
     local nvim_config_dir="${XDG_CONFIG_HOME}/nvim"
     local lazyvim_json_path="${nvim_config_dir}/lazyvim.json"
     
@@ -875,6 +873,8 @@ setup_lazyvim() {
         fi
         return
     fi
+
+    print_report_row "LazyVim Config" "Checking" "starter configuration"
 
     # Check if LazyVim is already installed by looking for lazyvim.json
     if [[ -f "$lazyvim_json_path" ]]; then
@@ -893,7 +893,7 @@ setup_lazyvim() {
                 record_summary "LazyVim Config" "Failed" "backup failed"
                 return 1
             fi
-            printOkMsg "Backup complete."
+            printInfoMsg "Backup created at: ${backup_dir}"
         else
             printInfoMsg "Skipping LazyVim setup as requested."
             record_summary "LazyVim Config" "Skipped" "user declined"
@@ -904,8 +904,8 @@ setup_lazyvim() {
     # Clone LazyVim starter
     printInfoMsg "Cloning the LazyVim starter repository..."
     if run_with_spinner "Cloning LazyVim..." git clone https://github.com/LazyVim/starter "$nvim_config_dir"; then
-        printOkMsg "LazyVim starter cloned to ${nvim_config_dir}."
         printInfoMsg "You can now start Neovim by running: ${C_L_CYAN}nvim${T_RESET}"
+        print_report_row "LazyVim Config" "Installed" "starter config ready"
         record_summary "LazyVim Config" "Installed" "starter config ready"
         return 0
     else
@@ -917,7 +917,6 @@ setup_lazyvim() {
 
 # Copies custom LazyVim plugin configs
 setup_lazyvim_plugins() {
-    printBanner "Setting up Custom LazyVim Plugins"
     local source_plugins_dir="${SCRIPT_DIR}/config/nvim/lua/plugins"
     local dest_plugins_dir="${XDG_CONFIG_HOME}/nvim/lua/plugins"
 
@@ -926,6 +925,8 @@ setup_lazyvim_plugins() {
         if [[ -d "$dest_plugins_dir" ]]; then report_verify "LazyVim Plugins" "Installed" ""; else report_verify "LazyVim Plugins" "Missing" ""; fi
         return
     fi
+
+    print_report_row "LazyVim Plugins" "Checking" "plugin configurations"
 
     if [[ ! -d "$source_plugins_dir" ]] || [[ -z "$(ls -A "$source_plugins_dir")" ]]; then
         printInfoMsg "No custom LazyVim plugins found to install. Skipping."
@@ -958,7 +959,7 @@ setup_lazyvim_plugins() {
                 record_summary "LazyVim Plugins" "Failed" "copy failed"
                 return 1
             fi
-            printOkMsg "Copied new plugin config '${filename}'."
+            print_report_row "LazyVim Plugins" "Installed" "copied ${filename}"
             file_copied=true
         else
             printInfoMsg "Plugin config '${filename}' already exists. Skipping."
@@ -1458,8 +1459,6 @@ install_tpm() {
 
 # Downloads and installs Nerd Fonts
 install_nerd_fonts() {
-    printBanner "Installing Nerd Fonts"
-
     if [[ "$VERIFY_MODE" == "true" ]]; then
         # Skip font verification for now as it's complex to check properly without fc-list
         local font_name
@@ -1501,8 +1500,10 @@ install_nerd_fonts() {
             continue
         fi
 
+        print_report_row "$font_name" "Checking" "font installation"
+
         if ! prompt_yes_no "Install '${font_name}'? (Recommended for icons)" "n"; then
-            printInfoMsg "Skipping '${font_name}' installation."
+            print_report_row "$font_name" "Skipped" "user declined"
             record_summary "$font_name" "Skipped" "user declined"
             continue
         fi
@@ -1527,7 +1528,7 @@ install_nerd_fonts() {
             mkdir -p "$font_dir"
             if run_with_spinner "Extracting to ${font_dir}..." unzip -o "${temp_dir}/${font_zip_name}.zip" -d "$font_dir"; then
                 fonts_installed=1
-                printOkMsg "'${font_name}' installed."
+                print_report_row "$font_name" "Installed" "font files ready"
                 record_summary "$font_name" "Installed" "font files ready"
             else
                 printErrMsg "Failed to extract '${font_name}'."
@@ -1536,6 +1537,7 @@ install_nerd_fonts() {
             fi
         else
             printErrMsg "Failed to download '${font_name}'."
+            print_report_row "$font_name" "Failed" "download failed"
             record_summary "$font_name" "Failed" "download failed"
         fi
         rm -rf "$temp_dir"
@@ -1544,10 +1546,11 @@ install_nerd_fonts() {
     if [[ $fonts_installed -eq 1 ]]; then
         printInfoMsg "Updating font cache... (this may take a moment)"
         if run_with_spinner "Running fc-cache..." fc-cache -f -v; then
-            printOkMsg "Font cache updated."
+            print_report_row "Font Cache" "Updated" "font cache refreshed"
             record_summary "Font Cache" "Updated" "font cache refreshed"
         else
             printErrMsg "Failed to update font cache."
+            print_report_row "Font Cache" "Failed" "cache refresh failed"
             record_summary "Font Cache" "Failed" "cache refresh failed"
         fi
     fi
