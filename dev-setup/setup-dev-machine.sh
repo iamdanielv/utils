@@ -529,13 +529,14 @@ install_github_binary() {
         return 1
     fi
     
-    printBanner "Install/Update ${binary_name} from ${repo}"
+    print_report_row "$binary_name" "Checking" "release and installed version"
 
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
     
     if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
         printInfoMsg "Deferring ${binary_name}; release information is unavailable."
+        print_report_row "$binary_name" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         record_summary "$binary_name" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         return 0
     fi
@@ -577,6 +578,7 @@ install_github_binary() {
         if [[ "$installed_version_string" != "Not installed" ]]; then
             result_status="Updated"
         fi
+        print_report_row "$binary_name" "$result_status" "$installed_version_string -> $latest_version"
         record_summary "$binary_name" "$result_status" "$installed_version_string -> $latest_version"
         return 0
     fi
@@ -587,8 +589,6 @@ install_github_binary() {
 
 # Installs or updates Go (Golang) to the latest stable version.
 install_golang() {
-    printBanner "Install/Update Go (Golang)"
-
     if [[ "$VERIFY_MODE" == "true" ]]; then
         local installed_version="Not installed"
         if command -v go &>/dev/null; then installed_version=$(go version | awk '{print $3}'); fi
@@ -600,6 +600,8 @@ install_golang() {
         fi
         return
     fi
+
+    print_report_row "Go (Golang)" "Checking" "release and installed version"
 
     # Determine architecture for download URL
     local arch
@@ -656,9 +658,9 @@ install_golang() {
 
         printInfoMsg "Extracting to ${install_path}..."
         if sudo tar -C "$install_path" -xzf "${temp_dir}/${tarball_name}"; then
-            printOkMsg "Successfully installed Go ${latest_version}."
             local result_status="Installed"
             if [[ "$installed_version" != "Not installed" ]]; then result_status="Updated"; fi
+            print_report_row "Go (Golang)" "$result_status" "$installed_version -> $latest_version"
             record_summary "Go (Golang)" "$result_status" "$installed_version -> $latest_version"
             return 0
         fi
@@ -674,7 +676,6 @@ install_golang() {
 
 # Installs zoxide (smarter cd) using the official install script
 install_zoxide() {
-    printBanner "Install/Update zoxide"
     local repo="ajeetdsouza/zoxide"
     local binary_name="zoxide"
 
@@ -685,11 +686,14 @@ install_zoxide() {
         return
     fi
 
+    print_report_row "zoxide" "Checking" "release and installed version"
+
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
 
     if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
         printInfoMsg "Deferring zoxide; release information is unavailable."
+        print_report_row "zoxide" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         record_summary "zoxide" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         return 0
     fi
@@ -714,9 +718,9 @@ install_zoxide() {
     fi
 
     if run_with_spinner "Installing zoxide via official script..." bash -c "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR='${XDG_BIN_HOME}' bash"; then
-        printOkMsg "Successfully installed zoxide."
         local result_status="Installed"
         if [[ "$installed_version_string" != "Not installed" ]]; then result_status="Updated"; fi
+        print_report_row "zoxide" "$result_status" "$installed_version_string -> $latest_version"
         record_summary "zoxide" "$result_status" "$installed_version_string -> $latest_version"
         return 0
     else
@@ -728,7 +732,6 @@ install_zoxide() {
 
 # Installs starship (custom prompt) using the official install script
 install_starship() {
-    printBanner "Install/Update Starship"
     local repo="starship/starship"
     local binary_name="starship"
 
@@ -739,11 +742,14 @@ install_starship() {
         return
     fi
 
+    print_report_row "starship" "Checking" "release and installed version"
+
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
 
     if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
         printInfoMsg "Deferring starship; release information is unavailable."
+        print_report_row "starship" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         record_summary "starship" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         return 0
     fi
@@ -768,9 +774,9 @@ install_starship() {
     fi
 
     if run_with_spinner "Installing starship via official script..." sh -c "curl -sS https://starship.rs/install.sh | sh -s -- -y -b '${XDG_BIN_HOME}'"; then
-        printOkMsg "Successfully installed starship."
         local result_status="Installed"
         if [[ "$installed_version_string" != "Not installed" ]]; then result_status="Updated"; fi
+        print_report_row "starship" "$result_status" "$installed_version_string -> $latest_version"
         record_summary "starship" "$result_status" "$installed_version_string -> $latest_version"
         return 0
     else
@@ -782,8 +788,6 @@ install_starship() {
 
 # Downloads and installs the latest stable version of Neovim.
 install_neovim() {
-    printBanner "Installing/Updating Neovim (Latest Stable)"
-
     if [[ "$VERIFY_MODE" == "true" ]]; then
         local installed_version="0"
         local version_file="${XDG_STATE_HOME}/nvim-version"
@@ -797,6 +801,8 @@ install_neovim() {
         return
     fi
 
+    print_report_row "Neovim" "Checking" "release and installed version"
+
     local bin_dir="${XDG_BIN_HOME}"
     local version_file="${XDG_STATE_HOME}/nvim-version"
     mkdir -p "$bin_dir"
@@ -808,6 +814,7 @@ install_neovim() {
 
     if [[ -z "$latest_version_tag" || "$latest_version_tag" == "null" || "$latest_version_tag" == "$GH_API_RATE_LIMITED" || "$latest_version_tag" == "$GH_API_UNAVAILABLE" ]]; then
         printInfoMsg "Deferring Neovim; release information is unavailable."
+        print_report_row "Neovim" "Unavailable" "$(_github_unavailable_detail "$latest_version_tag")"
         record_summary "Neovim" "Unavailable" "$(_github_unavailable_detail "$latest_version_tag")"
         return 0
     fi
@@ -848,9 +855,9 @@ install_neovim() {
         chmod +x "$nvim_appimage_path"
         ln -sf "$nvim_appimage_path" "${bin_dir}/nvim"
         echo "$latest_version" > "$version_file"
-        printOkMsg "Neovim ${latest_version_tag} installed to ${bin_dir}/nvim"
         local result_status="Installed"
         if [[ "$installed_version" != "0" ]]; then result_status="Updated"; fi
+        print_report_row "Neovim" "$result_status" "$installed_version -> $latest_version"
         record_summary "Neovim" "$result_status" "$installed_version -> $latest_version"
         return 0
     else
