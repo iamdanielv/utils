@@ -769,6 +769,7 @@ install_neovim() {
 
     if [[ -z "$latest_version_tag" || "$latest_version_tag" == "null" ]]; then
         printErrMsg "Could not determine latest Neovim version from GitHub API."
+        record_summary "Neovim" "Failed" "latest version unavailable"
         return 1
     fi
     
@@ -791,11 +792,13 @@ install_neovim() {
 
     if [[ "$installed_version" == "$latest_version" ]]; then
         printOkMsg "You already have the latest version of Neovim (v${installed_version}). Skipping."
+        record_summary "Neovim" "Already Present" "$latest_version_tag"
         return 0
     fi
 
     if ! prompt_yes_no "Do you want to install/update Neovim to ${latest_version_tag}?" "y"; then
         printInfoMsg "Neovim installation skipped."
+        record_summary "Neovim" "Skipped" "user declined"
         return 0
     fi
 
@@ -808,8 +811,13 @@ install_neovim() {
         ln -sf "$nvim_appimage_path" "${bin_dir}/nvim"
         echo "$latest_version" > "$version_file"
         printOkMsg "Neovim ${latest_version_tag} installed to ${bin_dir}/nvim"
+        local result_status="Installed"
+        if [[ "$installed_version" != "0" ]]; then result_status="Updated"; fi
+        record_summary "Neovim" "$result_status" "$installed_version -> $latest_version"
+        return 0
     else
         printErrMsg "Failed to download Neovim AppImage."
+        record_summary "Neovim" "Failed" "download failed"
         return 1
     fi
 }
@@ -833,7 +841,8 @@ setup_lazyvim() {
     # Check if LazyVim is already installed by looking for lazyvim.json
     if [[ -f "$lazyvim_json_path" ]]; then
         printInfoMsg "LazyVim is already installed (found lazyvim.json). Skipping setup."
-        return
+        record_summary "LazyVim Config" "Already Present" "starter config exists"
+        return 0
     fi
 
     # If not, check if a generic nvim config directory exists
@@ -842,11 +851,16 @@ setup_lazyvim() {
         if prompt_yes_no "Do you want to back it up and replace it with the LazyVim starter?" "y"; then
             local backup_dir="${nvim_config_dir}.bak_$(date +"%Y%m%d_%H%M%S")"
             printInfoMsg "Backing up current config to ${backup_dir}..."
-            mv "$nvim_config_dir" "$backup_dir"
+            if ! mv "$nvim_config_dir" "$backup_dir"; then
+                printErrMsg "Failed to back up existing Neovim configuration."
+                record_summary "LazyVim Config" "Failed" "backup failed"
+                return 1
+            fi
             printOkMsg "Backup complete."
         else
             printInfoMsg "Skipping LazyVim setup as requested."
-            return
+            record_summary "LazyVim Config" "Skipped" "user declined"
+            return 0
         fi
     fi
 
@@ -855,8 +869,11 @@ setup_lazyvim() {
     if run_with_spinner "Cloning LazyVim..." git clone https://github.com/LazyVim/starter "$nvim_config_dir"; then
         printOkMsg "LazyVim starter cloned to ${nvim_config_dir}."
         printInfoMsg "You can now start Neovim by running: ${C_L_CYAN}nvim${T_RESET}"
+        record_summary "LazyVim Config" "Installed" "starter config ready"
+        return 0
     else
         printErrMsg "Failed to clone LazyVim starter repository."
+        record_summary "LazyVim Config" "Failed" "clone failed"
         return 1
     fi
 }
@@ -875,13 +892,15 @@ setup_lazyvim_plugins() {
 
     if [[ ! -d "$source_plugins_dir" ]] || [[ -z "$(ls -A "$source_plugins_dir")" ]]; then
         printInfoMsg "No custom LazyVim plugins found to install. Skipping."
-        return
+        record_summary "LazyVim Plugins" "Skipped" "source directory empty"
+        return 0
     fi
 
     # This function should only run if LazyVim is installed.
     if [[ ! -d "${XDG_CONFIG_HOME}/nvim/lua" ]]; then
         printWarnMsg "LazyVim installation not found at '${XDG_CONFIG_HOME}/nvim'. Skipping custom plugin setup."
-        return
+        record_summary "LazyVim Plugins" "Skipped" "LazyVim config missing"
+        return 0
     fi
 
     printInfoMsg "Copying nvim plugin configs to ${dest_plugins_dir}..."
@@ -897,13 +916,24 @@ setup_lazyvim_plugins() {
         # For plugins, we just want to ensure they exist.
         # We won't prompt for overwrite, just copy if it's not there.
         if [[ ! -f "$dest_file" ]]; then
-            cp "$src_file" "$dest_file"
+            if ! cp "$src_file" "$dest_file"; then
+                printErrMsg "Failed to copy plugin config '${filename}'."
+                record_summary "LazyVim Plugins" "Failed" "copy failed"
+                return 1
+            fi
             printOkMsg "Copied new plugin config '${filename}'."
             file_copied=true
         else
             printInfoMsg "Plugin config '${filename}' already exists. Skipping."
         fi
     done
+
+    if $file_copied; then
+        record_summary "LazyVim Plugins" "Installed" "plugin configs copied"
+    else
+        record_summary "LazyVim Plugins" "Already Present" "plugin configs synchronized"
+    fi
+    return 0
 }
 
 # Clones and installs fzf from the official GitHub repository.
