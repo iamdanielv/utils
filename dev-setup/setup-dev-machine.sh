@@ -197,6 +197,9 @@ record_summary() {
         if [[ "$status" == "Failed" && "$VERIFY_MODE" != "true" ]]; then
             SETUP_FAILED=true
         fi
+        if [[ "$status" == "Current" && "$VERIFY_MODE" != "true" ]]; then
+            print_report_row "$task" "$status" "$detail"
+        fi
         if [[ -z "${SUMMARY_RESULTS[$task]+x}" ]]; then
             SUMMARY_ORDER+=("$task")
         fi
@@ -353,7 +356,6 @@ install_package() {
     fi
 
     if command -v "$command_to_check" &>/dev/null; then
-        printInfoMsg "'${package_name}' is already installed. Skipping."
         record_summary "$package_name" "Current" "${command_to_check} available"
         return 0
     fi
@@ -543,7 +545,6 @@ install_github_binary() {
     local norm_installed="${installed_version_string#v}"
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
-        printOkMsg "You already have the latest version of ${binary_name} (${latest_version}). Skipping."
         record_summary "$binary_name" "Current" "$latest_version"
         return 0
     fi
@@ -626,7 +627,6 @@ install_golang() {
     printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version}${T_RESET}"
 
     if [[ "$installed_version" == "$latest_version" ]]; then
-        printOkMsg "You already have the latest version of Go. Skipping."
         record_summary "Go (Golang)" "Current" "$latest_version"
         return 0
     fi
@@ -699,7 +699,6 @@ install_zoxide() {
     local norm_installed="${installed_version_string#v}"
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
-        printOkMsg "You already have the latest version of zoxide (${latest_version}). Skipping."
         record_summary "zoxide" "Current" "$latest_version"
         return 0
     fi
@@ -754,7 +753,6 @@ install_starship() {
     local norm_installed="${installed_version_string#v}"
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
-        printOkMsg "You already have the latest version of starship (${latest_version}). Skipping."
         record_summary "starship" "Current" "$latest_version"
         return 0
     fi
@@ -828,7 +826,6 @@ install_neovim() {
     fi
 
     if [[ "$installed_version" == "$latest_version" ]]; then
-        printOkMsg "You already have the latest version of Neovim (v${installed_version}). Skipping."
         record_summary "Neovim" "Current" "$latest_version_tag"
         return 0
     fi
@@ -877,7 +874,6 @@ setup_lazyvim() {
 
     # Check if LazyVim is already installed by looking for lazyvim.json
     if [[ -f "$lazyvim_json_path" ]]; then
-        printInfoMsg "LazyVim is already installed (found lazyvim.json). Skipping setup."
         record_summary "LazyVim Config" "Current" "starter config exists"
         return 0
     fi
@@ -1071,7 +1067,6 @@ configure_git_delta() {
     current_pager=$(git config --global core.pager || true)
     
     if [[ "$current_pager" == "delta" ]]; then
-        printInfoMsg "Git is already configured to use delta. Skipping."
         record_summary "Git Delta" "Current" "git pager configured"
         return
     fi
@@ -1143,7 +1138,6 @@ configure_shell_environment() {
         
         # Compare existing block with the one we want to write.
         if [[ "$existing_block" == "$(echo -e "${config_block}")" ]]; then
-            printInfoMsg "Shell configuration is already up to date. Skipping."
             record_summary ".bashrc config" "Current" "setup block synchronized"
             return
         fi
@@ -1245,7 +1239,6 @@ setup_bash_aliases() {
 
     if [[ -f "$dest_aliases_path" ]]; then
         if cmp -s "$source_aliases_path" "$dest_aliases_path"; then
-            printInfoMsg "'~/.bash_aliases' is identical to source. Skipping."
             record_summary ".bash_aliases" "Current" "aliases synchronized"
             return 0
         fi
@@ -1306,7 +1299,6 @@ setup_tmux_config() {
 
     if [[ -f "$dest_conf_path" ]]; then
         if cmp -s "$source_conf_path" "$dest_conf_path"; then
-            printInfoMsg "'tmux.conf' is identical to source. Skipping."
             config_status="Current"
             # Fall through to script setup
         elif prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "y"; then
@@ -1369,7 +1361,6 @@ setup_starship_config() {
 
     if [[ -f "$dest_config" ]]; then
         if cmp -s "$source_config" "$dest_config"; then
-            printInfoMsg "'starship.toml' is identical to source. Skipping."
             config_status="Current"
         elif prompt_yes_no "File '${dest_config}' already exists. Back it up and overwrite it?" "y"; then
             local backup_file="${dest_config}.bak_$(date +"%Y%m%d_%H%M%S")"
@@ -1481,7 +1472,6 @@ install_nerd_fonts() {
         local font_dir="${XDG_DATA_HOME}/fonts/${font_dir_name}"
 
         if [[ -d "$font_dir" ]]; then
-            printInfoMsg "'${font_name}' is already installed in '${font_dir}'. Skipping."
             record_summary "$font_name" "Current" "font directory exists"
             continue
         fi
