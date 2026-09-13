@@ -968,10 +968,16 @@ setup_fzf_config() {
         if run_with_spinner "Downloading fzf-preview.sh..." curl -L -f -o "$preview_script_path" "$preview_script_url"; then
             chmod +x "$preview_script_path"
             printOkMsg "fzf-preview.sh downloaded successfully."
+            record_summary "fzf-preview.sh" "Installed" "preview script ready"
         else
             printErrMsg "Failed to download fzf-preview.sh."
+            record_summary "fzf-preview.sh" "Failed" "download failed"
         fi
+    else
+        record_summary "fzf-preview.sh" "Already Present" "preview script exists"
     fi
+
+    return 0
 }
 
 # Configures git to use delta as the default pager
@@ -987,6 +993,7 @@ configure_git_delta() {
 
     if ! command -v delta &>/dev/null; then
         printInfoMsg "delta not found. Skipping git configuration."
+        record_summary "Git Delta" "Skipped" "delta unavailable"
         return
     fi
 
@@ -998,6 +1005,7 @@ configure_git_delta() {
     
     if [[ "$current_pager" == "delta" ]]; then
         printInfoMsg "Git is already configured to use delta. Skipping."
+        record_summary "Git Delta" "Already Present" "git pager configured"
         return
     fi
 
@@ -1010,6 +1018,9 @@ configure_git_delta() {
         git config --global merge.conflictstyle "diff3"
         git config --global diff.colorMoved "default"
         printOkMsg "Git configured to use delta."
+        record_summary "Git Delta" "Configured" "git pager configured"
+    else
+        record_summary "Git Delta" "Skipped" "user declined"
     fi
 }
 
@@ -1027,7 +1038,8 @@ configure_shell_environment() {
 
     if [[ ! -f "$bashrc" ]]; then
         printWarnMsg "Could not find ${bashrc}. Skipping shell configuration."
-        return
+        record_summary ".bashrc config" "Skipped" "bashrc missing"
+        return 0
     fi
 
     # Ensure local bin is in PATH so we can detect newly installed tools
@@ -1065,6 +1077,7 @@ configure_shell_environment() {
         # Compare existing block with the one we want to write.
         if [[ "$existing_block" == "$(echo -e "${config_block}")" ]]; then
             printInfoMsg "Shell configuration is already up to date. Skipping."
+            record_summary ".bashrc config" "Already Present" "setup block synchronized"
             return
         fi
     fi
@@ -1086,7 +1099,16 @@ configure_shell_environment() {
         echo -e "\n${config_block}" >> "$bashrc"
         printOkMsg "Injected/Updated shell configuration in .bashrc."
         printInfoMsg "Please run '${C_L_CYAN}source ~/.bashrc${T_RESET}' to apply changes."
+        if $block_exists; then
+            record_summary ".bashrc config" "Updated" "setup block updated"
+        else
+            record_summary ".bashrc config" "Installed" "setup block added"
+        fi
+    else
+        record_summary ".bashrc config" "Skipped" "user declined"
     fi
+
+    return 0
 }
 
 # Copies custom binaries/scripts to ~/.local/bin
@@ -1103,12 +1125,21 @@ setup_binaries() {
 
     if [[ ! -d "$source_bin_path" ]] || [[ -z "$(ls -A "$source_bin_path")" ]]; then
         printInfoMsg "No custom binaries found in '${source_bin_path}'. Skipping."
-        return
+        record_summary "Custom Binaries" "Skipped" "source directory empty"
+        return 0
     fi
 
     printInfoMsg "Copying binaries to ${dest_bin_path}..."
     mkdir -p "$dest_bin_path"
-    cp "$source_bin_path"/* "$dest_bin_path/"
+    local destination_exists=false
+    if [[ -n "$(find "$dest_bin_path" -maxdepth 1 -type f -name 'dv-*' -print -quit)" ]]; then
+        destination_exists=true
+    fi
+    if ! cp "$source_bin_path"/* "$dest_bin_path/"; then
+        printErrMsg "Failed to copy custom binaries."
+        record_summary "Custom Binaries" "Failed" "copy failed"
+        return 1
+    fi
 
     # chmod +x only dv-* files to avoid touching unrelated files
     chmod +x "${dest_bin_path}"/dv-* 2>/dev/null || true
@@ -1118,6 +1149,12 @@ setup_binaries() {
         chmod -x "${dest_bin_path}/dv-common.sh"
     fi
     printOkMsg "Custom binaries installed."
+    if $destination_exists; then
+        record_summary "Custom Binaries" "Updated" "scripts synchronized"
+    else
+        record_summary "Custom Binaries" "Installed" "scripts copied"
+    fi
+    return 0
 }
 
 # Copies the .bash_aliases file to the user's home directory.
@@ -1135,13 +1172,15 @@ setup_bash_aliases() {
 
     if [[ ! -f "$source_aliases_path" ]]; then
         printErrMsg "Could not find '.bash_aliases' in the script directory: ${SCRIPT_DIR}"
+        record_summary ".bash_aliases" "Failed" "source file missing"
         return 1
     fi
 
     if [[ -f "$dest_aliases_path" ]]; then
         if cmp -s "$source_aliases_path" "$dest_aliases_path"; then
             printInfoMsg "'~/.bash_aliases' is identical to source. Skipping."
-            return
+            record_summary ".bash_aliases" "Already Present" "aliases synchronized"
+            return 0
         fi
 
         if prompt_yes_no "File '~/.bash_aliases' already exists. Back it up and overwrite it?" "y"; then
@@ -1149,15 +1188,26 @@ setup_bash_aliases() {
             backup_file="${dest_aliases_path}.bak_$(date +"%Y%m%d_%H%M%S")"
             printInfoMsg "Backing up current file to ${backup_file}..."
             cp "$dest_aliases_path" "$backup_file"
-            cp "$source_aliases_path" "$dest_aliases_path"
+            if ! cp "$source_aliases_path" "$dest_aliases_path"; then
+                record_summary ".bash_aliases" "Failed" "copy failed"
+                return 1
+            fi
             printOkMsg "Backup created and '~/.bash_aliases' has been overwritten."
+            record_summary ".bash_aliases" "Updated" "aliases synchronized"
         else
             printInfoMsg "Skipping '.bash_aliases' setup."
+            record_summary ".bash_aliases" "Skipped" "user declined"
         fi
     else
-        cp "$source_aliases_path" "$dest_aliases_path"
+        if ! cp "$source_aliases_path" "$dest_aliases_path"; then
+            record_summary ".bash_aliases" "Failed" "copy failed"
+            return 1
+        fi
         printOkMsg "Copied '.bash_aliases' to your home directory."
+        record_summary ".bash_aliases" "Installed" "aliases copied"
     fi
+
+    return 0
 }
 
 # Copies the tmux configuration to ~/.config/tmux/tmux.conf
