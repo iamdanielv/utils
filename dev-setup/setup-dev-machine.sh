@@ -233,11 +233,11 @@ get_report_status_style() {
             REPORT_ICON="${T_BOLD}${C_GREEN}✓${T_RESET}"
             REPORT_COLOR="${C_GREEN}"
             ;;
-        "Updated"|"Current")
+        "Updated")
             REPORT_ICON="${T_BOLD}${C_L_BLUE}↑${T_RESET}"
             REPORT_COLOR="${C_L_BLUE}"
             ;;
-        "Already Present")
+        "Current")
             REPORT_ICON="${T_BOLD}${C_GRAY}~${T_RESET}"
             REPORT_COLOR="${C_GRAY}"
             ;;
@@ -354,7 +354,7 @@ install_package() {
 
     if command -v "$command_to_check" &>/dev/null; then
         printInfoMsg "'${package_name}' is already installed. Skipping."
-        record_summary "$package_name" "Already Present" "${command_to_check} available"
+        record_summary "$package_name" "Current" "${command_to_check} available"
         return 0
     fi
 
@@ -526,7 +526,7 @@ install_github_binary() {
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
         printOkMsg "You already have the latest version of ${binary_name} (${latest_version}). Skipping."
-        record_summary "$binary_name" "Already Present" "$latest_version"
+        record_summary "$binary_name" "Current" "$latest_version"
         return 0
     fi
 
@@ -605,7 +605,7 @@ install_golang() {
 
     if [[ "$installed_version" == "$latest_version" ]]; then
         printOkMsg "You already have the latest version of Go. Skipping."
-        record_summary "Go (Golang)" "Already Present" "$latest_version"
+        record_summary "Go (Golang)" "Current" "$latest_version"
         return 0
     fi
 
@@ -678,7 +678,7 @@ install_zoxide() {
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
         printOkMsg "You already have the latest version of zoxide (${latest_version}). Skipping."
-        record_summary "zoxide" "Already Present" "$latest_version"
+        record_summary "zoxide" "Current" "$latest_version"
         return 0
     fi
 
@@ -733,7 +733,7 @@ install_starship() {
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
         printOkMsg "You already have the latest version of starship (${latest_version}). Skipping."
-        record_summary "starship" "Already Present" "$latest_version"
+        record_summary "starship" "Current" "$latest_version"
         return 0
     fi
 
@@ -807,7 +807,7 @@ install_neovim() {
 
     if [[ "$installed_version" == "$latest_version" ]]; then
         printOkMsg "You already have the latest version of Neovim (v${installed_version}). Skipping."
-        record_summary "Neovim" "Already Present" "$latest_version_tag"
+        record_summary "Neovim" "Current" "$latest_version_tag"
         return 0
     fi
 
@@ -856,7 +856,7 @@ setup_lazyvim() {
     # Check if LazyVim is already installed by looking for lazyvim.json
     if [[ -f "$lazyvim_json_path" ]]; then
         printInfoMsg "LazyVim is already installed (found lazyvim.json). Skipping setup."
-        record_summary "LazyVim Config" "Already Present" "starter config exists"
+        record_summary "LazyVim Config" "Current" "starter config exists"
         return 0
     fi
 
@@ -946,7 +946,7 @@ setup_lazyvim_plugins() {
     if $file_copied; then
         record_summary "LazyVim Plugins" "Installed" "plugin configs copied"
     else
-        record_summary "LazyVim Plugins" "Already Present" "plugin configs synchronized"
+        record_summary "LazyVim Plugins" "Current" "plugin configs synchronized"
     fi
     return 0
 }
@@ -1019,7 +1019,7 @@ setup_fzf_config() {
             record_summary "fzf-preview.sh" "Failed" "download failed"
         fi
     else
-        record_summary "fzf-preview.sh" "Already Present" "preview script exists"
+        record_summary "fzf-preview.sh" "Current" "preview script exists"
     fi
 
     return 0
@@ -1050,7 +1050,7 @@ configure_git_delta() {
     
     if [[ "$current_pager" == "delta" ]]; then
         printInfoMsg "Git is already configured to use delta. Skipping."
-        record_summary "Git Delta" "Already Present" "git pager configured"
+        record_summary "Git Delta" "Current" "git pager configured"
         return
     fi
 
@@ -1122,7 +1122,7 @@ configure_shell_environment() {
         # Compare existing block with the one we want to write.
         if [[ "$existing_block" == "$(echo -e "${config_block}")" ]]; then
             printInfoMsg "Shell configuration is already up to date. Skipping."
-            record_summary ".bashrc config" "Already Present" "setup block synchronized"
+            record_summary ".bashrc config" "Current" "setup block synchronized"
             return
         fi
     fi
@@ -1224,7 +1224,7 @@ setup_bash_aliases() {
     if [[ -f "$dest_aliases_path" ]]; then
         if cmp -s "$source_aliases_path" "$dest_aliases_path"; then
             printInfoMsg "'~/.bash_aliases' is identical to source. Skipping."
-            record_summary ".bash_aliases" "Already Present" "aliases synchronized"
+            record_summary ".bash_aliases" "Current" "aliases synchronized"
             return 0
         fi
 
@@ -1285,7 +1285,7 @@ setup_tmux_config() {
     if [[ -f "$dest_conf_path" ]]; then
         if cmp -s "$source_conf_path" "$dest_conf_path"; then
             printInfoMsg "'tmux.conf' is identical to source. Skipping."
-            config_status="Already Present"
+            config_status="Current"
             # Fall through to script setup
         elif prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "y"; then
             local backup_file
@@ -1348,7 +1348,7 @@ setup_starship_config() {
     if [[ -f "$dest_config" ]]; then
         if cmp -s "$source_config" "$dest_config"; then
             printInfoMsg "'starship.toml' is identical to source. Skipping."
-            config_status="Already Present"
+            config_status="Current"
         elif prompt_yes_no "File '${dest_config}' already exists. Back it up and overwrite it?" "y"; then
             local backup_file="${dest_config}.bak_$(date +"%Y%m%d_%H%M%S")"
             printInfoMsg "Backing up current file to ${backup_file}..."
@@ -1460,7 +1460,7 @@ install_nerd_fonts() {
 
         if [[ -d "$font_dir" ]]; then
             printInfoMsg "'${font_name}' is already installed in '${font_dir}'. Skipping."
-            record_summary "$font_name" "Already Present" "font directory exists"
+            record_summary "$font_name" "Current" "font directory exists"
             continue
         fi
 
@@ -1720,7 +1720,7 @@ main() {
     VERIFY_FAILED=false
 
     if [[ "$VERIFY_MODE" == "true" ]]; then
-        printMsg "${C_L_BLUE}${T_BOLD}Running in Verification Mode (Read-Only)${T_RESET}\n"
+        printMsg "${C_L_BLUE}${T_BOLD}Running in Verification Mode (Read-Only)${T_RESET}"
         # Fall through to run phases, but they will now use report_verify
     fi
 
