@@ -241,11 +241,11 @@ get_report_status_style() {
             REPORT_ICON="${T_BOLD}${C_GRAY}~${T_RESET}"
             REPORT_COLOR="${C_GRAY}"
             ;;
-        "Skipped"|"Optional"|"Unknown")
+        "Skipped"|"Optional"|"Unknown"|"Unavailable")
             REPORT_ICON="${T_BOLD}${C_L_CYAN}?${T_RESET}"
             REPORT_COLOR="${C_L_CYAN}"
             ;;
-        "Outdated"|"Differs"|"Not Configured"|"Unavailable")
+        "Outdated"|"Differs"|"Not Configured")
             REPORT_ICON="${T_BOLD}${C_YELLOW}!${T_RESET}"
             REPORT_COLOR="${C_YELLOW}"
             ;;
@@ -371,6 +371,9 @@ install_package() {
 }
 
 # (Private) Helper to query GitHub API and parse error responses
+GH_API_RATE_LIMITED="__GH_API_RATE_LIMITED__"
+GH_API_UNAVAILABLE="__GH_API_UNAVAILABLE__"
+
 _gh_api_request() {
     local endpoint="$1"
     local response
@@ -395,16 +398,31 @@ _gh_api_request() {
             error_msg="HTTP status $http_code"
         fi
 
-        if [[ "$error_msg" == *"rate limit"* ]]; then
-            printErrMsg "GitHub API rate limit exceeded. Please set GITHUB_TOKEN or try again later." >&2
+        if [[ "$http_code" == "403" || "$http_code" == "429" || "$error_msg" == *"rate limit"* ]]; then
+            printWarnMsg "GitHub API rate limit reached. Set GITHUB_TOKEN or try again later." >&2
+            printf '%s\n' "$GH_API_RATE_LIMITED"
         else
-            printErrMsg "GitHub API error: ${error_msg}" >&2
+            printWarnMsg "GitHub API unavailable: ${error_msg}" >&2
+            printf '%s\n' "$GH_API_UNAVAILABLE"
         fi
+        return 1
+    fi
+
+    if [[ "$http_code" == "000" ]]; then
+        printWarnMsg "GitHub API unavailable: connection failed" >&2
+        printf '%s\n' "$GH_API_UNAVAILABLE"
         return 1
     fi
 
     echo "$response"
     return 0
+}
+
+_github_unavailable_detail() {
+    case "$1" in
+        "$GH_API_RATE_LIMITED") echo "GitHub API rate limit" ;;
+        *) echo "GitHub API unavailable" ;;
+    esac
 }
 
 # (Private) Fetches the latest version tag from GitHub API
@@ -414,7 +432,7 @@ _gh_get_latest_version() {
     if response=$(_gh_api_request "https://api.github.com/repos/${repo}/releases/latest"); then
         echo "$response" | jq -r '.tag_name'
     else
-        echo ""
+        echo "$response"
     fi
 }
 
@@ -442,7 +460,7 @@ _gh_find_download_url() {
         echo "$response" | \
             jq -r --arg regex "$asset_regex" '.assets[] | select(.name | test("linux"; "i") and (test("amd64"; "i") or test("x86_64"; "i"))) | select(.name | test("\\.tar\\.gz$|\\.zip$"; "i")) | select($regex == "" or (.name | test($regex; "i"))) | .browser_download_url' | head -n 1
     else
-        echo ""
+        echo "$response"
     fi
 }
 
@@ -510,10 +528,10 @@ install_github_binary() {
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
     
-    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
-        printErrMsg "Could not determine latest ${binary_name} version from GitHub API."
-        record_summary "$binary_name" "Failed" "latest version unavailable"
-        return 1
+    if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
+        printInfoMsg "Deferring ${binary_name}; release information is unavailable."
+        record_summary "$binary_name" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
+        return 0
     fi
     printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
@@ -539,6 +557,10 @@ install_github_binary() {
     local download_url
     download_url=$(_gh_find_download_url "$repo" "$asset_regex")
 
+    if [[ "$download_url" == "$GH_API_RATE_LIMITED" || "$download_url" == "$GH_API_UNAVAILABLE" ]]; then
+        record_summary "$binary_name" "Unavailable" "$(_github_unavailable_detail "$download_url")"
+        return 0
+    fi
     if [[ -z "$download_url" ]]; then
         printErrMsg "Could not find a compatible download asset for ${repo} on Linux x86_64."
         record_summary "$binary_name" "Failed" "compatible asset unavailable"
@@ -662,10 +684,10 @@ install_zoxide() {
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
 
-    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
-        printErrMsg "Could not determine latest zoxide version from GitHub API."
-        record_summary "zoxide" "Failed" "latest version unavailable"
-        return 1
+    if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
+        printInfoMsg "Deferring zoxide; release information is unavailable."
+        record_summary "zoxide" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
+        return 0
     fi
     printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
@@ -717,10 +739,10 @@ install_starship() {
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
 
-    if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
-        printErrMsg "Could not determine latest starship version from GitHub API."
-        record_summary "starship" "Failed" "latest version unavailable"
-        return 1
+    if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
+        printInfoMsg "Deferring starship; release information is unavailable."
+        record_summary "starship" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
+        return 0
     fi
     printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
@@ -782,10 +804,10 @@ install_neovim() {
     local latest_version_tag
     latest_version_tag=$(_gh_get_latest_version "neovim/neovim")
 
-    if [[ -z "$latest_version_tag" || "$latest_version_tag" == "null" ]]; then
-        printErrMsg "Could not determine latest Neovim version from GitHub API."
-        record_summary "Neovim" "Failed" "latest version unavailable"
-        return 1
+    if [[ -z "$latest_version_tag" || "$latest_version_tag" == "null" || "$latest_version_tag" == "$GH_API_RATE_LIMITED" || "$latest_version_tag" == "$GH_API_UNAVAILABLE" ]]; then
+        printInfoMsg "Deferring Neovim; release information is unavailable."
+        record_summary "Neovim" "Unavailable" "$(_github_unavailable_detail "$latest_version_tag")"
+        return 0
     fi
     
     local latest_version="${latest_version_tag#v}"
@@ -1475,9 +1497,9 @@ install_nerd_fonts() {
             printInfoMsg "Finding latest Nerd Fonts release..."
             latest_nerd_font_version=$(_gh_get_latest_version "ryanoasis/nerd-fonts")
             
-            if [[ -z "$latest_nerd_font_version" || "$latest_nerd_font_version" == "null" ]]; then
-                printErrMsg "Could not determine latest Nerd Fonts version from GitHub API. Skipping font installs."
-                record_summary "$font_name" "Failed" "latest version unavailable"
+            if [[ -z "$latest_nerd_font_version" || "$latest_nerd_font_version" == "null" || "$latest_nerd_font_version" == "$GH_API_RATE_LIMITED" || "$latest_nerd_font_version" == "$GH_API_UNAVAILABLE" ]]; then
+                printInfoMsg "Deferring ${font_name}; release information is unavailable."
+                record_summary "$font_name" "Unavailable" "$(_github_unavailable_detail "$latest_nerd_font_version")"
                 continue
             fi
             printInfoMsg "Latest version: ${C_L_GREEN}${latest_nerd_font_version}${T_RESET}"
