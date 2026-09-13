@@ -552,6 +552,7 @@ install_golang() {
         arch="amd64"
     else
         printErrMsg "Unsupported architecture for Go: $(uname -m). Only x86_64 is supported."
+        record_summary "Go (Golang)" "Failed" "unsupported architecture"
         return 1
     fi
 
@@ -562,7 +563,8 @@ install_golang() {
 
     if [[ -z "$latest_version" ]]; then
         printErrMsg "Could not determine the latest Go version from go.dev."
-        return
+        record_summary "Go (Golang)" "Failed" "latest version unavailable"
+        return 1
     fi
     printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
@@ -575,12 +577,14 @@ install_golang() {
 
     if [[ "$installed_version" == "$latest_version" ]]; then
         printOkMsg "You already have the latest version of Go. Skipping."
-        return
+        record_summary "Go (Golang)" "Already Present" "$latest_version"
+        return 0
     fi
 
     if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
         printInfoMsg "Go installation skipped."
-        return
+        record_summary "Go (Golang)" "Skipped" "user declined"
+        return 0
     fi
 
     local tarball_name="${latest_version}.linux-${arch}.tar.gz"
@@ -599,9 +603,18 @@ install_golang() {
         printInfoMsg "Extracting to ${install_path}..."
         if sudo tar -C "$install_path" -xzf "${temp_dir}/${tarball_name}"; then
             printOkMsg "Successfully installed Go ${latest_version}."
+            local result_status="Installed"
+            if [[ "$installed_version" != "Not installed" ]]; then result_status="Updated"; fi
+            record_summary "Go (Golang)" "$result_status" "$installed_version -> $latest_version"
+            return 0
         fi
+        printErrMsg "Failed to extract Go."
+        record_summary "Go (Golang)" "Failed" "extraction failed"
+        return 1
     else
         printErrMsg "Failed to download Go. Please try installing it manually."
+        record_summary "Go (Golang)" "Failed" "download failed"
+        return 1
     fi
 }
 
@@ -628,6 +641,7 @@ install_zoxide() {
 
     if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
         printErrMsg "Could not determine latest zoxide version from GitHub API."
+        record_summary "zoxide" "Failed" "latest version unavailable"
         return 1
     fi
     printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
@@ -641,18 +655,25 @@ install_zoxide() {
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
         printOkMsg "You already have the latest version of zoxide (${latest_version}). Skipping."
+        record_summary "zoxide" "Already Present" "$latest_version"
         return 0
     fi
 
     if ! prompt_yes_no "Do you want to install/update zoxide to version ${latest_version}?" "y"; then
         printInfoMsg "zoxide installation skipped."
+        record_summary "zoxide" "Skipped" "user declined"
         return 0
     fi
 
     if run_with_spinner "Installing zoxide via official script..." bash -c "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR='${XDG_BIN_HOME}' bash"; then
         printOkMsg "Successfully installed zoxide."
+        local result_status="Installed"
+        if [[ "$installed_version_string" != "Not installed" ]]; then result_status="Updated"; fi
+        record_summary "zoxide" "$result_status" "$installed_version_string -> $latest_version"
+        return 0
     else
         printErrMsg "Failed to install zoxide."
+        record_summary "zoxide" "Failed" "installation failed"
         return 1
     fi
 }
@@ -680,6 +701,7 @@ install_starship() {
 
     if [[ -z "$latest_version" || "$latest_version" == "null" ]]; then
         printErrMsg "Could not determine latest starship version from GitHub API."
+        record_summary "starship" "Failed" "latest version unavailable"
         return 1
     fi
     printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
@@ -693,18 +715,25 @@ install_starship() {
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
         printOkMsg "You already have the latest version of starship (${latest_version}). Skipping."
+        record_summary "starship" "Already Present" "$latest_version"
         return 0
     fi
 
     if ! prompt_yes_no "Do you want to install/update starship to version ${latest_version}?" "y"; then
         printInfoMsg "starship installation skipped."
+        record_summary "starship" "Skipped" "user declined"
         return 0
     fi
 
     if run_with_spinner "Installing starship via official script..." sh -c "curl -sS https://starship.rs/install.sh | sh -s -- -y -b '${XDG_BIN_HOME}'"; then
         printOkMsg "Successfully installed starship."
+        local result_status="Installed"
+        if [[ "$installed_version_string" != "Not installed" ]]; then result_status="Updated"; fi
+        record_summary "starship" "$result_status" "$installed_version_string -> $latest_version"
+        return 0
     else
         printErrMsg "Failed to install starship."
+        record_summary "starship" "Failed" "installation failed"
         return 1
     fi
 }
@@ -887,10 +916,13 @@ install_fzf_from_source() {
         return
     fi
 
+    local result_status="Installed"
     if [[ -d "$fzf_dir" ]]; then
+        result_status="Updated"
         printInfoMsg "fzf is already installed. Updating..."
         if ! run_with_spinner "Updating fzf repo..." git -C "$fzf_dir" pull; then
             printErrMsg "Failed to update fzf."
+            record_summary "fzf" "Failed" "repository update failed"
             return 1
         fi
     else
@@ -899,6 +931,7 @@ install_fzf_from_source() {
         local fzf_repo="https://github.com/junegunn/fzf.git"
         if ! run_with_spinner "Cloning fzf..." git clone --depth 1 "$fzf_repo" "$fzf_dir"; then
             printErrMsg "Failed to clone fzf repository."
+            record_summary "fzf" "Failed" "repository clone failed"
             return 1
         fi
     fi
@@ -907,8 +940,12 @@ install_fzf_from_source() {
     printInfoMsg "Running fzf install script..."
     if ! run_with_spinner "Installing fzf binaries..." "${fzf_dir}/install" --all; then
         printErrMsg "fzf install script failed."
+        record_summary "fzf" "Failed" "binary installation failed"
         return 1
     fi
+
+    record_summary "fzf" "$result_status" "source and binaries ready"
+    return 0
 }
 
 # Sets up custom fzf configuration and preview script.
