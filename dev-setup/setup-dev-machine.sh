@@ -1176,8 +1176,11 @@ setup_tmux_config() {
 
     if [[ ! -f "$source_conf_path" ]]; then
         printWarnMsg "Could not find 'tmux.conf' in: ${source_conf_path}"
-        return
+        record_summary "tmux.conf" "Failed" "source file missing"
+        return 1
     fi
+
+    local config_status="Installed"
 
     if [[ ! -d "$dest_conf_dir" ]]; then
         printInfoMsg "Creating directory: ${dest_conf_dir}"
@@ -1187,6 +1190,7 @@ setup_tmux_config() {
     if [[ -f "$dest_conf_path" ]]; then
         if cmp -s "$source_conf_path" "$dest_conf_path"; then
             printInfoMsg "'tmux.conf' is identical to source. Skipping."
+            config_status="Already Present"
             # Fall through to script setup
         elif prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "y"; then
             local backup_file
@@ -1195,8 +1199,10 @@ setup_tmux_config() {
             cp "$dest_conf_path" "$backup_file"
             cp "$source_conf_path" "$dest_conf_path"
             printOkMsg "Backup created and 'tmux.conf' has been overwritten."
+            config_status="Updated"
         else
             printInfoMsg "Skipping 'tmux.conf' setup."
+            config_status="Skipped"
         fi
     else
         cp "$source_conf_path" "$dest_conf_path"
@@ -1209,11 +1215,18 @@ setup_tmux_config() {
 
     if [[ -d "$source_scripts_dir" ]]; then
         mkdir -p "$dest_scripts_dir"
-        cp "${source_scripts_dir}"/* "$dest_scripts_dir" 2>/dev/null || true
+        if ! cp "${source_scripts_dir}"/* "$dest_scripts_dir" 2>/dev/null; then
+            printErrMsg "Failed to install tmux scripts."
+            record_summary "tmux.conf" "Failed" "script copy failed"
+            return 1
+        fi
         chmod +x "${dest_scripts_dir}"/*.sh 2>/dev/null || true
         printOkMsg "Installed/Updated tmux scripts in '${dest_scripts_dir}':"
         ls "$dest_scripts_dir"
     fi
+
+    record_summary "tmux.conf" "$config_status" "config and scripts ready"
+    return 0
 }
 
 # Copies the starship.toml configuration to ~/.config/starship.toml
@@ -1231,26 +1244,35 @@ setup_starship_config() {
 
     if [[ ! -f "$source_config" ]]; then
         printWarnMsg "Could not find 'starship.toml' in: ${source_config}"
-        return
+        record_summary "starship.toml" "Failed" "source file missing"
+        return 1
     fi
+
+    local config_status="Installed"
 
     if [[ -f "$dest_config" ]]; then
         if cmp -s "$source_config" "$dest_config"; then
             printInfoMsg "'starship.toml' is identical to source. Skipping."
+            config_status="Already Present"
         elif prompt_yes_no "File '${dest_config}' already exists. Back it up and overwrite it?" "y"; then
             local backup_file="${dest_config}.bak_$(date +"%Y%m%d_%H%M%S")"
             printInfoMsg "Backing up current file to ${backup_file}..."
             cp "$dest_config" "$backup_file"
             cp "$source_config" "$dest_config"
             printOkMsg "Backup created and 'starship.toml' has been overwritten."
+            config_status="Updated"
         else
             printInfoMsg "Skipping 'starship.toml' setup."
+            config_status="Skipped"
         fi
     else
         mkdir -p "$(dirname "$dest_config")"
         cp "$source_config" "$dest_config"
         printOkMsg "Copied 'starship.toml' to '${dest_config}'."
     fi
+
+    record_summary "starship.toml" "$config_status" "configuration ready"
+    return 0
 }
 
 # Installs Tmux Plugin Manager and plugins
@@ -1263,10 +1285,13 @@ install_tpm() {
         return
     fi
 
+    local install_status="Installed"
     if [[ -d "$tpm_dir" ]]; then
+        install_status="Updated"
         printInfoMsg "TPM is already installed. Updating..."
         if ! run_with_spinner "Updating TPM repo..." git -C "$tpm_dir" pull; then
             printErrMsg "Failed to update TPM."
+            record_summary "TPM" "Failed" "repository update failed"
             return 1
         fi
     else
@@ -1274,6 +1299,7 @@ install_tpm() {
         mkdir -p "$(dirname "$tpm_dir")"
         if ! run_with_spinner "Cloning TPM..." git clone https://github.com/tmux-plugins/tpm "$tpm_dir"; then
             printErrMsg "Failed to clone TPM repository."
+            record_summary "TPM" "Failed" "repository clone failed"
             return 1
         fi
     fi
@@ -1284,8 +1310,17 @@ install_tpm() {
             printOkMsg "Tmux plugins installed."
         else
             printErrMsg "Failed to install Tmux plugins."
+            record_summary "TPM" "Failed" "plugin installation failed"
+            return 1
         fi
+    else
+        printWarnMsg "TPM plugin installer not found."
+        record_summary "TPM" "Failed" "plugin installer missing"
+        return 1
     fi
+
+    record_summary "TPM" "$install_status" "TPM and plugins ready"
+    return 0
 }
 
 # Downloads and installs Nerd Fonts
@@ -1314,11 +1349,13 @@ install_nerd_fonts() {
 
         if [[ -d "$font_dir" ]]; then
             printInfoMsg "'${font_name}' is already installed in '${font_dir}'. Skipping."
+            record_summary "$font_name" "Already Present" "font directory exists"
             continue
         fi
 
         if ! prompt_yes_no "Install '${font_name}'? (Recommended for icons)" "n"; then
             printInfoMsg "Skipping '${font_name}' installation."
+            record_summary "$font_name" "Skipped" "user declined"
             continue
         fi
 
@@ -1329,7 +1366,8 @@ install_nerd_fonts() {
             
             if [[ -z "$latest_nerd_font_version" || "$latest_nerd_font_version" == "null" ]]; then
                 printErrMsg "Could not determine latest Nerd Fonts version from GitHub API. Skipping font installs."
-                return
+                record_summary "$font_name" "Failed" "latest version unavailable"
+                continue
             fi
             printInfoMsg "Latest version: ${C_L_GREEN}${latest_nerd_font_version}${T_RESET}"
         fi
@@ -1342,12 +1380,15 @@ install_nerd_fonts() {
             if run_with_spinner "Extracting to ${font_dir}..." unzip -o "${temp_dir}/${font_zip_name}.zip" -d "$font_dir"; then
                 fonts_installed=1
                 printOkMsg "'${font_name}' installed."
+                record_summary "$font_name" "Installed" "font files ready"
             else
                 printErrMsg "Failed to extract '${font_name}'."
                 rm -rf "$font_dir"
+                record_summary "$font_name" "Failed" "extraction failed"
             fi
         else
             printErrMsg "Failed to download '${font_name}'."
+            record_summary "$font_name" "Failed" "download failed"
         fi
         rm -rf "$temp_dir"
     done
@@ -1356,10 +1397,14 @@ install_nerd_fonts() {
         printInfoMsg "Updating font cache... (this may take a moment)"
         if run_with_spinner "Running fc-cache..." fc-cache -f -v; then
             printOkMsg "Font cache updated."
+            record_summary "Font Cache" "Updated" "font cache refreshed"
         else
             printErrMsg "Failed to update font cache."
+            record_summary "Font Cache" "Failed" "cache refresh failed"
         fi
     fi
+
+    return 0
 }
 
 # --- Phases ---
