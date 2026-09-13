@@ -1058,13 +1058,13 @@ configure_git_delta() {
 
     export PATH="${XDG_BIN_HOME}:${PATH}"
 
+    print_report_row "Git Delta" "Checking" "git pager configuration"
+
     if ! command -v delta &>/dev/null; then
-        printInfoMsg "delta not found. Skipping git configuration."
+        print_report_row "Git Delta" "Skipped" "delta unavailable"
         record_summary "Git Delta" "Skipped" "delta unavailable"
         return
     fi
-
-    printBanner "Configuring Delta (Git Pager)"
     
     # Check if core.pager is already delta
     local current_pager
@@ -1083,16 +1083,16 @@ configure_git_delta() {
         git config --global delta.light false
         git config --global merge.conflictstyle "diff3"
         git config --global diff.colorMoved "default"
-        printOkMsg "Git configured to use delta."
+        print_report_row "Git Delta" "Configured" "git pager configured"
         record_summary "Git Delta" "Configured" "git pager configured"
     else
+        print_report_row "Git Delta" "Skipped" "user declined"
         record_summary "Git Delta" "Skipped" "user declined"
     fi
 }
 
 # Configures .bashrc with a consolidated block of environment settings
 configure_shell_environment() {
-    printBanner "Configuring Shell Environment"
     local bashrc="${HOME}/.bashrc"
     local marker_start="# --- DEV MACHINE SETUP START ---"
     local marker_end="# --- DEV MACHINE SETUP END ---"
@@ -1102,8 +1102,10 @@ configure_shell_environment() {
         return
     fi
 
+    print_report_row ".bashrc config" "Checking" "shell environment"
+
     if [[ ! -f "$bashrc" ]]; then
-        printWarnMsg "Could not find ${bashrc}. Skipping shell configuration."
+        print_report_row ".bashrc config" "Skipped" "bashrc missing"
         record_summary ".bashrc config" "Skipped" "bashrc missing"
         return 0
     fi
@@ -1162,14 +1164,16 @@ configure_shell_environment() {
             sed -i "/^${marker_start}$/,/^${marker_end}$/d" "$bashrc"
         fi
         echo -e "\n${config_block}" >> "$bashrc"
-        printOkMsg "Injected/Updated shell configuration in .bashrc."
         printInfoMsg "Please run '${C_L_CYAN}source ~/.bashrc${T_RESET}' to apply changes."
         if $block_exists; then
+            print_report_row ".bashrc config" "Updated" "setup block updated"
             record_summary ".bashrc config" "Updated" "setup block updated"
         else
+            print_report_row ".bashrc config" "Installed" "setup block added"
             record_summary ".bashrc config" "Installed" "setup block added"
         fi
     else
+        print_report_row ".bashrc config" "Skipped" "user declined"
         record_summary ".bashrc config" "Skipped" "user declined"
     fi
 
@@ -1224,7 +1228,6 @@ setup_binaries() {
 
 # Copies the .bash_aliases file to the user's home directory.
 setup_bash_aliases() {
-    printBanner "Setting up .bash_aliases"
     local source_aliases_path="${SCRIPT_DIR}/config/bash/.bash_aliases"
     local dest_aliases_path="${HOME}/.bash_aliases"
 
@@ -1234,6 +1237,8 @@ setup_bash_aliases() {
         else report_verify ".bash_aliases" "Differs" "Content mismatch"; fi
         return
     fi
+
+    print_report_row ".bash_aliases" "Checking" "alias configuration"
 
     if [[ ! -f "$source_aliases_path" ]]; then
         printErrMsg "Could not find '.bash_aliases' in the script directory: ${SCRIPT_DIR}"
@@ -1256,10 +1261,10 @@ setup_bash_aliases() {
                 record_summary ".bash_aliases" "Failed" "copy failed"
                 return 1
             fi
-            printOkMsg "Backup created and '~/.bash_aliases' has been overwritten."
+            print_report_row ".bash_aliases" "Updated" "aliases synchronized"
             record_summary ".bash_aliases" "Updated" "aliases synchronized"
         else
-            printInfoMsg "Skipping '.bash_aliases' setup."
+            print_report_row ".bash_aliases" "Skipped" "user declined"
             record_summary ".bash_aliases" "Skipped" "user declined"
         fi
     else
@@ -1267,7 +1272,7 @@ setup_bash_aliases() {
             record_summary ".bash_aliases" "Failed" "copy failed"
             return 1
         fi
-        printOkMsg "Copied '.bash_aliases' to your home directory."
+        print_report_row ".bash_aliases" "Installed" "aliases copied"
         record_summary ".bash_aliases" "Installed" "aliases copied"
     fi
 
