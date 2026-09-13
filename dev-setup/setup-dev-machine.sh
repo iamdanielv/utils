@@ -174,6 +174,7 @@ SCRIPT_DIR=""
 VERIFY_MODE=false
 NON_INTERACTIVE=false
 SUMMARY_ENABLED=true
+SETUP_FAILED=false
 declare -A SUMMARY_RESULTS
 SUMMARY_ORDER=()
 
@@ -183,6 +184,9 @@ record_summary() {
         local task="$1"
         local status="$2"
         local detail="$3"
+        if [[ "$status" == "Failed" && "$VERIFY_MODE" != "true" ]]; then
+            SETUP_FAILED=true
+        fi
         if [[ -z "${SUMMARY_RESULTS[$task]+x}" ]]; then
             SUMMARY_ORDER+=("$task")
         fi
@@ -1499,19 +1503,22 @@ detect_system() {
     # OS Detection
     if [[ "$(uname -s)" != "Linux" ]]; then
         printErrMsg "Unsupported operating system: $(uname -s). This script only supports Linux."
-        exit 1
+        record_summary "System" "Failed" "unsupported operating system"
+        return 1
     fi
 
     # Architecture Detection
     if [[ "$(uname -m)" != "x86_64" ]]; then
         printErrMsg "Unsupported architecture: $(uname -m). This script only supports x86_64."
-        exit 1
+        record_summary "System" "Failed" "unsupported architecture"
+        return 1
     fi
 
     # Package Manager Detection
     if ! command -v apt-get &>/dev/null; then
         printErrMsg "Could not find 'apt'. This script only supports apt-based distributions (like Debian, Ubuntu)."
-        exit 1
+        record_summary "System" "Failed" "apt not available"
+        return 1
     fi
     printOkMsg "System check passed: Linux x86_64 with apt."
 }
@@ -1706,10 +1713,15 @@ main() {
         install_nerd_fonts
         phase_neovim_setup
         printOkMsg "Neovim Setup Complete"
-        exit 0
+        print_summary_report
+        if [[ "$SETUP_FAILED" == "true" ]]; then return 1; fi
+        return 0
     fi
 
-    detect_system
+    if ! detect_system; then
+        print_summary_report
+        return 1
+    fi
     phase_bootstrap
     phase_system_tools
     phase_user_binaries
@@ -1723,7 +1735,7 @@ main() {
 
     if [[ "$VERIFY_MODE" == "true" ]]; then
         printMsg "\n${T_BOLD}Verification Complete.${T_RESET}"
-        exit 0
+        return 0
     fi
 
     printPhaseBanner "Dev Machine Setup Complete"
@@ -1731,6 +1743,9 @@ main() {
     printMsg "\n${T_ULINE}Final Steps:${T_RESET}"
     printMsg "\nTo apply all changes (new aliases, fzf, PATH) to your current session, please run:"
     printMsg "  ${C_L_CYAN}source ~/.bashrc${T_RESET}"
+    print_summary_report
+    if [[ "$SETUP_FAILED" == "true" ]]; then return 1; fi
+    return 0
 }
 
 # This block will only run when the script is executed directly, not when sourced.
