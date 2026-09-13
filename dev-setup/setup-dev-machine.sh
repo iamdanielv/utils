@@ -975,7 +975,6 @@ setup_lazyvim_plugins() {
 
 # Clones and installs fzf from the official GitHub repository.
 install_fzf_from_source() {
-    printBanner "Installing fzf (from source)"
     local fzf_dir="${XDG_DATA_HOME}/fzf"
     
     if [[ "$VERIFY_MODE" == "true" ]]; then
@@ -983,10 +982,12 @@ install_fzf_from_source() {
         return
     fi
 
+    print_report_row "fzf" "Checking" "source and binaries"
+
     local result_status="Installed"
     if [[ -d "$fzf_dir" ]]; then
         result_status="Updated"
-        printInfoMsg "fzf is already installed. Updating..."
+        printInfoMsg "Updating fzf repository..."
         if ! run_with_spinner "Updating fzf repo..." git -C "$fzf_dir" pull; then
             printErrMsg "Failed to update fzf."
             record_summary "fzf" "Failed" "repository update failed"
@@ -1011,14 +1012,13 @@ install_fzf_from_source() {
         return 1
     fi
 
+    print_report_row "fzf" "$result_status" "source and binaries ready"
     record_summary "fzf" "$result_status" "source and binaries ready"
     return 0
 }
 
 # Sets up custom fzf configuration and preview script.
 setup_fzf_config() {
-    printBanner "Setting up Custom FZF Configuration"
-
     local bin_dir="${XDG_BIN_HOME}"
     mkdir -p "$bin_dir"
 
@@ -1027,6 +1027,8 @@ setup_fzf_config() {
         return
     fi
 
+    print_report_row "fzf-preview.sh" "Checking" "preview script"
+
     # --- Download fzf-preview.sh script ---
     local preview_script_path="${bin_dir}/fzf-preview.sh"
     local preview_script_url="https://raw.githubusercontent.com/junegunn/fzf/master/bin/fzf-preview.sh"
@@ -1034,10 +1036,11 @@ setup_fzf_config() {
     if [[ ! -f "$preview_script_path" ]]; then
         if run_with_spinner "Downloading fzf-preview.sh..." curl -L -f -o "$preview_script_path" "$preview_script_url"; then
             chmod +x "$preview_script_path"
-            printOkMsg "fzf-preview.sh downloaded successfully."
+            print_report_row "fzf-preview.sh" "Installed" "preview script ready"
             record_summary "fzf-preview.sh" "Installed" "preview script ready"
         else
             printErrMsg "Failed to download fzf-preview.sh."
+            print_report_row "fzf-preview.sh" "Failed" "download failed"
             record_summary "fzf-preview.sh" "Failed" "download failed"
         fi
     else
@@ -1144,7 +1147,7 @@ configure_shell_environment() {
         
         # Compare existing block with the one we want to write.
         if [[ "$existing_block" == "$(echo -e "${config_block}")" ]]; then
-            record_summary ".bashrc config" "Current" "setup block synchronized"
+            record_summary ".bashrc config" "Current" "identical to source; no changes needed"
             return
         fi
     fi
@@ -1248,7 +1251,7 @@ setup_bash_aliases() {
 
     if [[ -f "$dest_aliases_path" ]]; then
         if cmp -s "$source_aliases_path" "$dest_aliases_path"; then
-            record_summary ".bash_aliases" "Current" "aliases synchronized"
+            record_summary ".bash_aliases" "Current" "identical to source; no changes needed"
             return 0
         fi
 
@@ -1261,6 +1264,7 @@ setup_bash_aliases() {
                 record_summary ".bash_aliases" "Failed" "copy failed"
                 return 1
             fi
+            printInfoMsg "Backup created at: ${backup_file}"
             print_report_row ".bash_aliases" "Updated" "aliases synchronized"
             record_summary ".bash_aliases" "Updated" "aliases synchronized"
         else
@@ -1281,7 +1285,6 @@ setup_bash_aliases() {
 
 # Copies the tmux configuration to ~/.config/tmux/tmux.conf
 setup_tmux_config() {
-    printBanner "Setting up Tmux Configuration"
     local source_conf_path="${SCRIPT_DIR}/config/tmux/tmux.conf"
     local dest_conf_dir="${XDG_CONFIG_HOME}/tmux"
     local dest_conf_path="${dest_conf_dir}/tmux.conf"
@@ -1292,6 +1295,8 @@ setup_tmux_config() {
         else report_verify "tmux.conf" "Differs" "Content mismatch"; fi
         return
     fi
+
+    print_report_row "tmux.conf" "Checking" "config and scripts"
 
     if [[ ! -f "$source_conf_path" ]]; then
         printWarnMsg "Could not find 'tmux.conf' in: ${source_conf_path}"
@@ -1316,15 +1321,13 @@ setup_tmux_config() {
             printInfoMsg "Backing up current file to ${backup_file}..."
             cp "$dest_conf_path" "$backup_file"
             cp "$source_conf_path" "$dest_conf_path"
-            printOkMsg "Backup created and 'tmux.conf' has been overwritten."
+            printInfoMsg "Backup created at: ${backup_file}"
             config_status="Updated"
         else
-            printInfoMsg "Skipping 'tmux.conf' setup."
             config_status="Skipped"
         fi
     else
         cp "$source_conf_path" "$dest_conf_path"
-        printOkMsg "Copied 'tmux.conf' to '${dest_conf_path}'."
     fi
 
     # Setup Tmux Scripts
@@ -1339,17 +1342,22 @@ setup_tmux_config() {
             return 1
         fi
         chmod +x "${dest_scripts_dir}"/*.sh 2>/dev/null || true
-        printOkMsg "Installed/Updated tmux scripts in '${dest_scripts_dir}':"
-        ls "$dest_scripts_dir"
+        printInfoMsg "Tmux scripts synchronized in '${dest_scripts_dir}'."
     fi
 
-    record_summary "tmux.conf" "$config_status" "config and scripts ready"
+    if [[ "$config_status" != "Current" ]]; then
+        print_report_row "tmux.conf" "$config_status" "config and scripts ready"
+    fi
+    if [[ "$config_status" == "Current" ]]; then
+        record_summary "tmux.conf" "$config_status" "identical to source; no changes needed"
+    else
+        record_summary "tmux.conf" "$config_status" "config and scripts ready"
+    fi
     return 0
 }
 
 # Copies the starship.toml configuration to ~/.config/starship.toml
 setup_starship_config() {
-    printBanner "Setting up Starship Configuration"
     local source_config="${SCRIPT_DIR}/config/starship.toml"
     local dest_config="${XDG_CONFIG_HOME}/starship.toml"
 
@@ -1359,6 +1367,8 @@ setup_starship_config() {
         else report_verify "starship.toml" "Differs" "Content mismatch"; fi
         return
     fi
+
+    print_report_row "starship.toml" "Checking" "prompt configuration"
 
     if [[ ! -f "$source_config" ]]; then
         printWarnMsg "Could not find 'starship.toml' in: ${source_config}"
@@ -1376,25 +1386,29 @@ setup_starship_config() {
             printInfoMsg "Backing up current file to ${backup_file}..."
             cp "$dest_config" "$backup_file"
             cp "$source_config" "$dest_config"
-            printOkMsg "Backup created and 'starship.toml' has been overwritten."
+            printInfoMsg "Backup created at: ${backup_file}"
             config_status="Updated"
         else
-            printInfoMsg "Skipping 'starship.toml' setup."
             config_status="Skipped"
         fi
     else
         mkdir -p "$(dirname "$dest_config")"
         cp "$source_config" "$dest_config"
-        printOkMsg "Copied 'starship.toml' to '${dest_config}'."
     fi
 
-    record_summary "starship.toml" "$config_status" "configuration ready"
+    if [[ "$config_status" != "Current" ]]; then
+        print_report_row "starship.toml" "$config_status" "configuration ready"
+    fi
+    if [[ "$config_status" == "Current" ]]; then
+        record_summary "starship.toml" "$config_status" "identical to source; no changes needed"
+    else
+        record_summary "starship.toml" "$config_status" "configuration ready"
+    fi
     return 0
 }
 
 # Installs Tmux Plugin Manager and plugins
 install_tpm() {
-    printBanner "Installing Tmux Plugin Manager (TPM)"
     local tpm_dir="${XDG_CONFIG_HOME}/tmux/plugins/tpm"
 
     if [[ "$VERIFY_MODE" == "true" ]]; then
@@ -1402,10 +1416,12 @@ install_tpm() {
         return
     fi
 
+    print_report_row "TPM" "Checking" "repository and plugins"
+
     local install_status="Installed"
     if [[ -d "$tpm_dir" ]]; then
         install_status="Updated"
-        printInfoMsg "TPM is already installed. Updating..."
+        printInfoMsg "Updating TPM repository..."
         if ! run_with_spinner "Updating TPM repo..." git -C "$tpm_dir" pull; then
             printErrMsg "Failed to update TPM."
             record_summary "TPM" "Failed" "repository update failed"
@@ -1424,7 +1440,7 @@ install_tpm() {
     printInfoMsg "Installing Tmux plugins..."
     if [[ -f "$tpm_dir/bin/install_plugins" ]]; then
         if run_with_spinner "Running TPM install_plugins..." "$tpm_dir/bin/install_plugins"; then
-            printOkMsg "Tmux plugins installed."
+            print_report_row "TPM" "$install_status" "TPM and plugins ready"
         else
             printErrMsg "Failed to install Tmux plugins."
             record_summary "TPM" "Failed" "plugin installation failed"
