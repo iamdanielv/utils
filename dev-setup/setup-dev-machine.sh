@@ -84,8 +84,15 @@ generate_banner_string() {
     printf '%s' "${color}${prefix} ${text_to_print} ${T_RESET}"
 }
 
-printBanner() { printMsg "$(generate_banner_string "$1" "${C_L_BLUE}" "─" "─")"; }
-printPhaseBanner() { printMsg "$(generate_banner_string "$1" "${C_L_MAGENTA}" "━" "┏")"; }
+printBanner() {
+    if [[ "$VERIFY_MODE" == "true" ]]; then return; fi
+    printMsg "$(generate_banner_string "$1" "${C_L_BLUE}" "─" "─")"
+}
+
+printPhaseBanner() {
+    if [[ "$VERIFY_MODE" == "true" ]]; then return; fi
+    printMsg "$(generate_banner_string "$1" "${C_L_MAGENTA}" "━" "┏")"
+}
 
 # Terminal Control
 clear_current_line() { printf '\033[2K\r' >/dev/tty; }

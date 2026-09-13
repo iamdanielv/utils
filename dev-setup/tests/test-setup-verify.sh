@@ -93,6 +93,16 @@ if [[ "$VERIFY_STATUS" -eq 0 ]]; then
     exit 1
 fi
 
+if echo "$OUTPUT" | grep -q "Phase 1: Bootstrap\|Install/Update"; then
+    printErrMsg "Verification output contains setup banners."
+    exit 1
+fi
+
+if ! echo "$OUTPUT" | grep -q "Dev Machine Verification"; then
+    printErrMsg "Verification report header is missing."
+    exit 1
+fi
+
 printBanner "Test 2: Installed & Synced (Expect Installed)"
 # Setup "Installed" state matching our mocks
 create_mock_bin "zoxide" "zoxide v1.0.0"
