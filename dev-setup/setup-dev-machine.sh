@@ -232,6 +232,10 @@ get_report_status_style() {
     REPORT_COLOR=""
 
     case "$status" in
+        "Checking"|"Copying"|"Configuring")
+            REPORT_ICON="${T_BOLD}${C_L_YELLOW}i${T_RESET}"
+            REPORT_COLOR="${C_L_YELLOW}"
+            ;;
         "Installed"|"Configured"|"Synced"|"Running")
             REPORT_ICON="${T_BOLD}${C_GREEN}✓${T_RESET}"
             REPORT_COLOR="${C_GREEN}"
@@ -268,7 +272,7 @@ print_report_row() {
     local status="$2"
     local detail="$3"
     get_report_status_style "$status"
-    printf " [%s] %-25s %s%-16s%s %s\n" "$REPORT_ICON" "$task" "$REPORT_COLOR" "$status" "$T_RESET" "$detail"
+    printf " [%s] %-22s %s%-10s%s %s\n" "$REPORT_ICON" "$task" "$REPORT_COLOR" "$status" "$T_RESET" "$detail"
 }
 
 print_summary_report() {
@@ -1174,7 +1178,6 @@ configure_shell_environment() {
 
 # Copies custom binaries/scripts to ~/.local/bin
 setup_binaries() {
-    printBanner "Setting up Custom Binaries"
     local source_bin_path="${SCRIPT_DIR}/bin"
     local dest_bin_path="${XDG_BIN_HOME}"
 
@@ -1190,7 +1193,7 @@ setup_binaries() {
         return 0
     fi
 
-    printInfoMsg "Copying binaries to ${dest_bin_path}..."
+    print_report_row "Custom Binaries" "Checking" "source and destination"
     mkdir -p "$dest_bin_path"
     local destination_exists=false
     if [[ -n "$(find "$dest_bin_path" -maxdepth 1 -type f -name 'dv-*' -print -quit)" ]]; then
@@ -1209,10 +1212,11 @@ setup_binaries() {
     if [[ -f "${dest_bin_path}/dv-common.sh" ]]; then
         chmod -x "${dest_bin_path}/dv-common.sh"
     fi
-    printOkMsg "Custom binaries installed."
     if $destination_exists; then
+        print_report_row "Custom Binaries" "Updated" "scripts synchronized"
         record_summary "Custom Binaries" "Updated" "scripts synchronized"
     else
+        print_report_row "Custom Binaries" "Installed" "scripts copied"
         record_summary "Custom Binaries" "Installed" "scripts copied"
     fi
     return 0
@@ -1590,16 +1594,17 @@ check_docker() {
         return
     fi
 
-    printInfoMsg "Checking for Docker..."
+    print_report_row "Docker" "Checking" "installation and daemon"
     if ! command -v docker &>/dev/null; then
-        printWarnMsg "Docker is not installed. Note: 'lazydocker' will not work without Docker."
+        print_report_row "Docker" "Optional" "not installed"
+        printInfoMsg "lazydocker will not work without Docker."
         printInfoMsg "  To install Docker, visit: https://docs.docker.com/engine/install/"
     elif ! docker info &>/dev/null; then
-        printWarnMsg "Docker is installed, but the daemon is not running or current user has no permissions."
+        print_report_row "Docker" "Optional" "daemon unavailable"
         printInfoMsg "  Ensure the docker service is started: sudo systemctl start docker"
         printInfoMsg "  And your user is in the docker group: sudo usermod -aG docker \$USER"
     else
-        printOkMsg "Docker is installed and running."
+        print_report_row "Docker" "Running" "daemon available"
     fi
 }
 
