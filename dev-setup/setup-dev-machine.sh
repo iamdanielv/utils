@@ -4,6 +4,11 @@
 # The return value of a pipeline is the status of the last command to exit with a non-zero status.
 set -o pipefail
 
+if (( BASH_VERSINFO[0] < 4 )); then
+    printf 'setup-dev-machine.sh requires Bash 4 or newer. Found Bash %s.\n' "${BASH_VERSION}" >&2
+    exit 1
+fi
+
 # --- XDG Base Directory Standards ---
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -31,7 +36,7 @@ T_CURSOR_SHOW=$'\033[?25h'
 T_ERR_ICON="[${T_BOLD}${C_RED}✗${T_RESET}]"
 T_OK_ICON="[${T_BOLD}${C_GREEN}✓${T_RESET}]"
 T_INFO_ICON="[${T_BOLD}${C_YELLOW}i${T_RESET}]"
-T_WARN_ICON="/${T_BOLD}${C_YELLOW}!${T_RESET}\\"
+T_WARN_ICON="[${T_BOLD}${C_YELLOW}!${T_RESET}]"
 T_QST_ICON="[${T_BOLD}${C_L_CYAN}?${T_RESET}]"
 
 # Key Codes
@@ -170,6 +175,7 @@ VERIFY_MODE=false
 NON_INTERACTIVE=false
 SUMMARY_ENABLED=false
 declare -A SUMMARY_RESULTS
+SUMMARY_ORDER=()
 
 # --- Summary Reporting ---
 record_summary() {
@@ -177,6 +183,9 @@ record_summary() {
         local task="$1"
         local status="$2"
         local detail="$3"
+        if [[ -z "${SUMMARY_RESULTS[$task]+x}" ]]; then
+            SUMMARY_ORDER+=("$task")
+        fi
         SUMMARY_RESULTS["$task"]="$status|$detail"
     fi
 }
@@ -188,54 +197,77 @@ printSummaryBanner() {
     printf -v line '%*s' "$((total_width - 1))" ""; line="${line// /${line_char}}"; printf '%s%s%s\n' "${C_L_BLUE}" "${line}" "${T_RESET}"
 }
 
+print_report_header() {
+    local title="$1"
+    printMsg ""
+    printSummaryBanner
+    printMsg " ${title}"
+    printSummaryBanner
+}
+
+print_report_footer() {
+    printSummaryBanner
+}
+
+get_report_status_style() {
+    local status="$1"
+    REPORT_ICON=""
+    REPORT_COLOR=""
+
+    case "$status" in
+        "Installed"|"Configured"|"Synced"|"Running")
+            REPORT_ICON="${T_BOLD}${C_GREEN}✓${T_RESET}"
+            REPORT_COLOR="${C_GREEN}"
+            ;;
+        "Updated"|"Current")
+            REPORT_ICON="${T_BOLD}${C_L_BLUE}↑${T_RESET}"
+            REPORT_COLOR="${C_L_BLUE}"
+            ;;
+        "Already Present")
+            REPORT_ICON="${T_BOLD}${C_GRAY}~${T_RESET}"
+            REPORT_COLOR="${C_GRAY}"
+            ;;
+        "Skipped"|"Optional"|"Unknown")
+            REPORT_ICON="${T_BOLD}${C_L_CYAN}?${T_RESET}"
+            REPORT_COLOR="${C_L_CYAN}"
+            ;;
+        "Outdated"|"Differs"|"Not Configured"|"Unavailable")
+            REPORT_ICON="${T_BOLD}${C_YELLOW}!${T_RESET}"
+            REPORT_COLOR="${C_YELLOW}"
+            ;;
+        "Failed"|"Missing")
+            REPORT_ICON="${T_BOLD}${C_L_RED}✗${T_RESET}"
+            REPORT_COLOR="${C_L_RED}"
+            ;;
+        *)
+            REPORT_ICON="${T_BOLD}${C_GRAY}?${T_RESET}"
+            REPORT_COLOR="${C_GRAY}"
+            ;;
+    esac
+}
+
+print_report_row() {
+    local task="$1"
+    local status="$2"
+    local detail="$3"
+    get_report_status_style "$status"
+    printf " [%s] %-25s %s%-16s%s %s\n" "$REPORT_ICON" "$task" "$REPORT_COLOR" "$status" "$T_RESET" "$detail"
+}
+
 print_summary_report() {
     if [[ "$SUMMARY_ENABLED" != "true" ]]; then return; fi
 
-    printMsg ""
-    printSummaryBanner
-    printMsg " INSTALLATION SUMMARY REPORT"
-    printSummaryBanner
+    print_report_header "INSTALLATION SUMMARY REPORT"
 
-    # Sort tasks alphabetically for consistent reporting
-    local sorted_tasks
-    sorted_tasks=$(printf '%s\n' "${!SUMMARY_RESULTS[@]}" | sort)
-
-    while IFS= read -r task; do
-        if [[ -z "$task" ]]; then continue; fi
+    local task
+    for task in "${SUMMARY_ORDER[@]}"; do
         local data="${SUMMARY_RESULTS[$task]}"
         local status="${data%|*}"
         local detail="${data#*|}"
+        print_report_row "$task" "$status" "$detail"
+    done
 
-        local icon=""
-        local color=""
-
-        case "$status" in
-            "Installed")
-                icon="${T_BOLD}${C_GREEN}✓${T_RESET}"
-                color="${C_GREEN}"
-                ;;
-            "Updated")
-                icon="${T_BOLD}${C_L_BLUE}↑${T_RESET}"
-                color="${C_L_BLUE}"
-                ;;
-            "Already Present")
-                icon="${T_BOLD}${C_GRAY}~${T_RESET}"
-                color="${C_GRAY}"
-                ;;
-            "Skipped")
-                icon="${T_BOLD}${C_L_CYAN}?${T_RESET}"
-                color="${C_L_CYAN}"
-                ;;
-            "Failed")
-                icon="${T_BOLD}${C_L_RED}✗${T_RESET}"
-                color="${C_L_RED}"
-                ;;
-        esac
-
-        printf " %s %-20s ${color}%s${T_RESET}\n" "$icon" "$task" "$detail"
-    done <<< "$sorted_tasks"
-
-    printSummaryBanner
+    print_report_footer
 }
 
 # --- Verification Helper ---
@@ -243,16 +275,7 @@ report_verify() {
     local item="$1"
     local status="$2"
     local details="$3"
-    local color="${C_GREEN}"
-    local icon="${T_OK_ICON}"
-
-    if [[ "$status" == "Missing" ]]; then
-        color="${C_RED}"; icon="${T_ERR_ICON}"
-    elif [[ "$status" == "Outdated" || "$status" == "Modified" || "$status" == "Differs" ]]; then
-        color="${C_YELLOW}"; icon="${T_WARN_ICON}"
-    fi
-
-    printf " %s %-25s %s%-12s%s %s\n" "$icon" "$item" "$color" "$status" "$T_RESET" "$details"
+    print_report_row "$item" "$status" "$details"
 }
 
 # --- Script Functions ---
