@@ -555,7 +555,7 @@ install_github_binary() {
     fi
 
     if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
-        printInfoMsg "${binary_name} installation skipped."
+        print_report_row "$binary_name" "Skipped" "user declined"
         record_summary "$binary_name" "Skipped" "user declined"
         return 0
     fi
@@ -638,7 +638,7 @@ install_golang() {
     fi
 
     if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
-        printInfoMsg "Go installation skipped."
+        print_report_row "Go (Golang)" "Skipped" "user declined"
         record_summary "Go (Golang)" "Skipped" "user declined"
         return 0
     fi
@@ -712,7 +712,7 @@ install_zoxide() {
     fi
 
     if ! prompt_yes_no "Do you want to install/update zoxide to version ${latest_version}?" "y"; then
-        printInfoMsg "zoxide installation skipped."
+        print_report_row "zoxide" "Skipped" "user declined"
         record_summary "zoxide" "Skipped" "user declined"
         return 0
     fi
@@ -768,7 +768,7 @@ install_starship() {
     fi
 
     if ! prompt_yes_no "Do you want to install/update starship to version ${latest_version}?" "y"; then
-        printInfoMsg "starship installation skipped."
+        print_report_row "starship" "Skipped" "user declined"
         record_summary "starship" "Skipped" "user declined"
         return 0
     fi
@@ -842,7 +842,7 @@ install_neovim() {
     fi
 
     if ! prompt_yes_no "Do you want to install/update Neovim to ${latest_version_tag}?" "y"; then
-        printInfoMsg "Neovim installation skipped."
+        print_report_row "Neovim" "Skipped" "user declined"
         record_summary "Neovim" "Skipped" "user declined"
         return 0
     fi
@@ -902,7 +902,7 @@ setup_lazyvim() {
             fi
             printInfoMsg "Backup created at: ${backup_dir}"
         else
-            printInfoMsg "Skipping LazyVim setup as requested."
+            print_report_row "LazyVim Config" "Skipped" "user declined"
             record_summary "LazyVim Config" "Skipped" "user declined"
             return 0
         fi
@@ -936,14 +936,15 @@ setup_lazyvim_plugins() {
     print_report_row "LazyVim Plugins" "Checking" "plugin configurations"
 
     if [[ ! -d "$source_plugins_dir" ]] || [[ -z "$(ls -A "$source_plugins_dir")" ]]; then
-        printInfoMsg "No custom LazyVim plugins found to install. Skipping."
+        print_report_row "LazyVim Plugins" "Skipped" "source directory empty"
         record_summary "LazyVim Plugins" "Skipped" "source directory empty"
         return 0
     fi
 
     # This function should only run if LazyVim is installed.
     if [[ ! -d "${XDG_CONFIG_HOME}/nvim/lua" ]]; then
-        printWarnMsg "LazyVim installation not found at '${XDG_CONFIG_HOME}/nvim'. Skipping custom plugin setup."
+        print_report_row "LazyVim Plugins" "Skipped" "LazyVim config missing"
+        printInfoMsg "LazyVim installation not found at '${XDG_CONFIG_HOME}/nvim'."
         record_summary "LazyVim Plugins" "Skipped" "LazyVim config missing"
         return 0
     fi
@@ -969,7 +970,7 @@ setup_lazyvim_plugins() {
             print_report_row "LazyVim Plugins" "Installed" "copied ${filename}"
             file_copied=true
         else
-            printInfoMsg "Plugin config '${filename}' already exists. Skipping."
+            :
         fi
     done
 
@@ -1203,7 +1204,7 @@ setup_binaries() {
     fi
 
     if [[ ! -d "$source_bin_path" ]] || [[ -z "$(ls -A "$source_bin_path")" ]]; then
-        printInfoMsg "No custom binaries found in '${source_bin_path}'. Skipping."
+        print_report_row "Custom Binaries" "Skipped" "source directory empty"
         record_summary "Custom Binaries" "Skipped" "source directory empty"
         return 0
     fi
@@ -1522,6 +1523,7 @@ install_nerd_fonts() {
             
             if [[ -z "$latest_nerd_font_version" || "$latest_nerd_font_version" == "null" || "$latest_nerd_font_version" == "$GH_API_RATE_LIMITED" || "$latest_nerd_font_version" == "$GH_API_UNAVAILABLE" ]]; then
                 printInfoMsg "Deferring ${font_name}; release information is unavailable."
+                print_report_row "$font_name" "Unavailable" "$(_github_unavailable_detail "$latest_nerd_font_version")"
                 record_summary "$font_name" "Unavailable" "$(_github_unavailable_detail "$latest_nerd_font_version")"
                 continue
             fi
