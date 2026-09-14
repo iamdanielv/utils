@@ -197,7 +197,7 @@ record_summary() {
         if [[ "$status" == "Failed" && "$VERIFY_MODE" != "true" ]]; then
             SETUP_FAILED=true
         fi
-        if [[ "$status" == "Current" && "$VERIFY_MODE" != "true" ]]; then
+        if [[ "$status" == "Current" || "$status" == "Latest" ]] && [[ "$VERIFY_MODE" != "true" ]]; then
             print_report_row "$task" "$status" "$detail"
         fi
         if [[ -z "${SUMMARY_RESULTS[$task]+x}" ]]; then
@@ -248,7 +248,11 @@ get_report_status_style() {
             REPORT_ICON="${T_BOLD}${C_GRAY}~${T_RESET}"
             REPORT_COLOR="${C_GREEN}"
             ;;
-        "Skipped"|"Optional"|"Unknown"|"Unavailable"|"Latest")
+        "Latest")
+            REPORT_ICON="${T_BOLD}${C_GREEN}~${T_RESET}"
+            REPORT_COLOR="${C_GREEN}"
+            ;;
+        "Skipped"|"Optional"|"Unknown"|"Unavailable")
             REPORT_ICON="${T_BOLD}${C_L_CYAN}?${T_RESET}"
             REPORT_COLOR="${C_L_CYAN}"
             ;;
@@ -551,7 +555,7 @@ install_github_binary() {
     local norm_installed="${installed_version_string#v}"
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
-        record_summary "$binary_name" "Current" "$latest_version"
+        record_summary "$binary_name" "Latest" "$latest_version"
         return 0
     fi
 
