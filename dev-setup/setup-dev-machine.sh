@@ -197,7 +197,9 @@ record_summary() {
         if [[ "$status" == "Failed" && "$VERIFY_MODE" != "true" ]]; then
             SETUP_FAILED=true
         fi
-        if [[ "$status" == "Current" || "$status" == "Latest" ]] && [[ "$VERIFY_MODE" != "true" ]]; then
+        if [[ "$status" == "Current" ||
+              "$status" == "Latest"  ||
+              "$status" == "Installed" ]] && [[ "$VERIFY_MODE" != "true" ]]; then
             print_report_row "$task" "$status" "$detail"
         fi
         if [[ -z "${SUMMARY_RESULTS[$task]+x}" ]]; then
@@ -366,7 +368,7 @@ install_package() {
     #print_report_row "$package_name" "Checking" "availability"
 
     if command -v "$command_to_check" &>/dev/null; then
-        record_summary "$package_name" "Current" "${command_to_check} available"
+        record_summary "$package_name" "Installed" "${command_to_check} installed"
         return 0
     fi
 
