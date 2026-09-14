@@ -359,7 +359,7 @@ install_package() {
         return
     fi
 
-    print_report_row "$package_name" "Checking" "package availability"
+    print_report_row "$package_name" "Checking" "availability"
 
     if command -v "$command_to_check" &>/dev/null; then
         record_summary "$package_name" "Current" "${command_to_check} available"
