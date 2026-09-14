@@ -530,7 +530,7 @@ install_github_binary() {
         return 1
     fi
     
-    print_report_row "$binary_name" "Checking" "release and installed version"
+    #print_report_row "$binary_name" "Checking" "release and installed version"
 
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
@@ -541,11 +541,11 @@ install_github_binary() {
         record_summary "$binary_name" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         return 0
     fi
-    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
+    #print_report_row "$binary_name" "Latest" "${latest_version}"
 
     local installed_version_string
     installed_version_string=$(_gh_get_installed_version "$binary_name")
-    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
+    #print_report_row "Installed version:" "Installed" "${installed_version_string}"
 
     local norm_latest="${latest_version#v}"
     local norm_installed="${installed_version_string#v}"
