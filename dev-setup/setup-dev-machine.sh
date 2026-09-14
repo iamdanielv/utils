@@ -248,7 +248,7 @@ get_report_status_style() {
             REPORT_ICON="${T_BOLD}${C_GRAY}~${T_RESET}"
             REPORT_COLOR="${C_GREEN}"
             ;;
-        "Skipped"|"Optional"|"Unknown"|"Unavailable")
+        "Skipped"|"Optional"|"Unknown"|"Unavailable"|"Latest")
             REPORT_ICON="${T_BOLD}${C_L_CYAN}?${T_RESET}"
             REPORT_COLOR="${C_L_CYAN}"
             ;;
@@ -359,7 +359,7 @@ install_package() {
         return
     fi
 
-    print_report_row "$package_name" "Checking" "availability"
+    #print_report_row "$package_name" "Checking" "availability"
 
     if command -v "$command_to_check" &>/dev/null; then
         record_summary "$package_name" "Current" "${command_to_check} available"
