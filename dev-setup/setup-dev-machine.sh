@@ -1835,10 +1835,10 @@ main() {
 
     printPhaseBanner "Dev Machine Setup Complete"
     printOkMsg "All tasks have finished."
+    print_summary_report
     printMsg "\n${T_ULINE}Final Steps:${T_RESET}"
     printMsg "\nTo apply all changes (new aliases, fzf, PATH) to your current session, please run:"
     printMsg "  ${C_L_CYAN}source ~/.bashrc${T_RESET}"
-    print_summary_report
     if [[ "$SETUP_FAILED" == "true" ]]; then return 1; fi
     return 0
 }
