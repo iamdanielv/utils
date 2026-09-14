@@ -272,7 +272,7 @@ print_report_row() {
     local status="$2"
     local detail="$3"
     get_report_status_style "$status"
-    printf " [%s] %-22s %s%-10s%s %s\n" "$REPORT_ICON" "$task" "$REPORT_COLOR" "$status" "$T_RESET" "$detail"
+    printf "[%s] %-22s %s%-10s%s %s\n" "$REPORT_ICON" "$task" "$REPORT_COLOR" "$status" "$T_RESET" "$detail"
 }
 
 print_summary_report() {
