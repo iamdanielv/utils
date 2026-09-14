@@ -1632,11 +1632,11 @@ check_docker() {
         return
     fi
 
-    print_report_row "Docker" "Checking" "installation and daemon"
+    #print_report_row "Docker" "Checking" "installation and daemon"
     if ! command -v docker &>/dev/null; then
         print_report_row "Docker" "Optional" "not installed"
         printInfoMsg "lazydocker will not work without Docker."
-        printInfoMsg "  To install Docker, visit: https://docs.docker.com/engine/install/"
+        printInfoMsg "To install Docker, visit: https://docs.docker.com/engine/install/"
     elif ! docker info &>/dev/null; then
         print_report_row "Docker" "Optional" "daemon unavailable"
         printInfoMsg "  Ensure the docker service is started: sudo systemctl start docker"
