@@ -1,47 +1,46 @@
-.PHONY: help setup setup-verify logs-start logs-stop logs-view logs-open logs-clean logs-debug logs-restart clean
+# Visuals
+C_RESET   := \033[0m
+C_GREEN   := \033[32m
+C_RED     := \033[31m
+C_CYAN    := \033[36m
 
-help:
-	@printf '%s\n' ''
-	@printf '%s\n' 'Available targets:'
-	@printf '%s\n' '  make setup         - run the developer machine setup script'
-	@printf '%s\n' '  make setup-verify  - run the setup verification suite'
-	@printf '%s\n' '  make logs-start    - start the docker log viewer stack'
-	@printf '%s\n' '  make logs-stop     - stop the docker log viewer stack'
-	@printf '%s\n' '  make logs-restart  - restart the docker log viewer stack'
-	@printf '%s\n' '  make logs-view     - open the log viewer UI'
-	@printf '%s\n' '  make logs-open     - open Grafana in the default browser'
-	@printf '%s\n' '  make logs-clean    - stop and remove log stack data'
-	@printf '%s\n' '  make logs-debug    - inspect the docker log stack health'
-	@printf '%s\n' ''
-	@printf '%s\n' 'Observability defaults:'
-	@printf '%s\n' '  Grafana URL: http://localhost:3000'
-	@printf '%s\n' '  Grafana user: admin'
-	@printf '%s\n' '  Grafana pass: admin'
+.DEFAULT_GOAL := help
 
-setup:
+##@ General
+
+.PHONY: help dev-setup dev-setup-verify logs-start logs-stop logs-view logs-open logs-clean logs-debug logs-restart
+
+help: ##@ Show this help message
+	@awk 'BEGIN {FS = ":.*?##@ "} /^[a-zA-Z_-]+:.*?##@ / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2} /^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5)}' $(MAKEFILE_LIST)
+
+##@ Dev Setup
+
+dev-setup: ##@ run Dev Machine Setup script
 	@bash dev-setup/setup-dev-machine.sh
 
-setup-verify:
+dev-setup-verify: ##@ run Dev Machine Setup verification suite
 	@bash dev-setup/tests/test-setup-verify.sh
 
-logs-start:
+##@ Observability (observability/Makefile)
+
+logs-start: ##@ start the docker log viewer stack
 	@./observability/docker/dv-docker-log-viewer.sh start
 
-logs-stop:
+logs-stop: ##@ stop the docker log viewer stack
 	@./observability/docker/dv-docker-log-viewer.sh stop
 
-logs-view:
+logs-view: ##@ open the log viewer UI
 	@xdg-open http://localhost:3000 2>/dev/null || printf '%s\n' 'Open http://localhost:3000 in your browser.'
 
-logs-open:
+logs-open: ##@ open Grafana in the default browser
 	@xdg-open http://localhost:3000 2>/dev/null || printf '%s\n' 'Open http://localhost:3000 in your browser.'
 
-logs-clean:
+logs-clean: ##@ stop and remove log stack data
 	@./observability/docker/dv-docker-log-viewer.sh clean
 
-logs-debug:
+logs-debug: ##@ inspect the docker log stack health
 	@./observability/docker/dv-docker-log-viewer.sh debug
 
-logs-restart: logs-stop logs-start
-
-clean: logs-clean
+logs-restart: ##@ restart the docker log viewer stack
+	@$(MAKE) logs-stop
+	@$(MAKE) logs-start
