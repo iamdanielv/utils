@@ -1202,6 +1202,8 @@ configure_shell_environment() {
 setup_binaries() {
     local source_bin_path="${SCRIPT_DIR}/bin"
     local dest_bin_path="${XDG_BIN_HOME}"
+    local updated=false
+    local files_copied=false
 
     if [[ "$VERIFY_MODE" == "true" ]]; then
         # Simple check: count files
@@ -1209,37 +1211,75 @@ setup_binaries() {
         return
     fi
 
-    if [[ ! -d "$source_bin_path" ]] || [[ -z "$(ls -A "$source_bin_path")" ]]; then
-        print_report_row "Custom Binaries" "Skipped" "source directory empty"
-        record_summary "Custom Binaries" "Skipped" "source directory empty"
+    # Check if source directory exists and has files
+    if [[ ! -d "$source_bin_path" ]] || [[ -z "$(ls -A "$source_bin_path" 2>/dev/null)" ]]; then
+        print_report_row "Custom Binaries" "Skipped" "source directory is empty or missing"
+        record_summary "Custom Binaries" "Skipped" "source directory is empty or missing"
         return 0
     fi
 
     print_report_row "Custom Binaries" "Checking" "source and destination"
+    
+    # 1. Ensure destination directory exists
     mkdir -p "$dest_bin_path"
-    local destination_exists=false
-    if [[ -n "$(find "$dest_bin_path" -maxdepth 1 -type f -name 'dv-*' -print -quit)" ]]; then
-        destination_exists=true
-    fi
-    if ! cp "$source_bin_path"/* "$dest_bin_path/"; then
-        printErrMsg "Failed to copy custom binaries."
-        record_summary "Custom Binaries" "Failed" "copy failed"
-        return 1
-    fi
 
-    # chmod +x only dv-* files to avoid touching unrelated files
-    chmod +x "${dest_bin_path}"/dv-* 2>/dev/null || true
+    local initial_dest_scripts=("$dest_bin_path"/dv-*.sh)
+    local initial_dest_count=0
+    for file in "${initial_dest_scripts[@]}"; do
+        if [[ -f "$file" ]]; then
+            initial_dest_count=$((initial_dest_count + 1))
+        fi
+    done
 
-    # Ensure library files are not executable
-    if [[ -f "${dest_bin_path}/dv-common.sh" ]]; then
-        chmod -x "${dest_bin_path}/dv-common.sh"
-    fi
-    if $destination_exists; then
-        print_report_row "Custom Binaries" "Updated" "scripts synchronized"
-        record_summary "Custom Binaries" "Updated" "scripts synchronized"
+    # 2. Iterate over all expected source binaries and compare/copy
+    for src_file in "${source_bin_path}/dv-*.sh"; do
+        if [[ ! -f "$src_file" ]]; then continue; fi
+        
+        local filename=$(basename "$src_file")
+        local dest_file="$dest_bin_path/$filename"
+        
+        # Check if destination file exists
+        if [[ ! -f "$dest_file" ]]; then
+            # Case 1: File is missing at destination -> INSTALL
+            printInfoMsg "  --> Installing: ${filename}"
+            cp "$src_file" "$dest_file"
+            chmod +x "$dest_file"
+            updated=true
+            files_copied=true
+        else
+            # Case 2: Check for difference (cmp checks content difference)
+            if ! cmp -s "$src_file" "$dest_file"; then
+                # Content difference found -> UPDATE
+                printInfoMsg "  --> Updating: ${filename}"
+                cp "$src_file" "$dest_file"
+                chmod +x "$dest_file"
+                updated=true
+                files_copied=true
+            else
+                # Content is the same -> CURRENT
+                : # Do nothing
+            fi
+        fi
+    done
+
+    # 3. Final reporting
+    if $files_copied || $updated; then
+        # Action taken: Copy/Update detected.
+        if $files_copied; then
+            status_msg="Installed/Updated"
+            report_detail="Custom binaries copied or updated."
+        else
+            status_msg="Updated"
+            report_detail="Custom binaries updated."
+        fi
+        print_report_row "Custom Binaries" "$status_msg" "$report_detail"
+        record_summary "Custom Binaries" "$status_msg" "$report_detail"
+    elif [[ $initial_dest_count -gt 0 ]]; then
+        # No action taken, but files existed initially.
+        record_summary "Custom Binaries" "Current" "Custom binaries are up to date"
     else
-        print_report_row "Custom Binaries" "Installed" "scripts copied"
-        record_summary "Custom Binaries" "Installed" "scripts copied"
+        # No files found in source AND destination wasn't detected
+        record_summary "Custom Binaries" "Current" "No custom binaries detected or managed."
     fi
     return 0
 }
