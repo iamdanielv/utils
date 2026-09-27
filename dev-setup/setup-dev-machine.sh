@@ -196,11 +196,6 @@ record_summary() {
         if [[ "$status" == "Failed" && "$VERIFY_MODE" != "true" ]]; then
             SETUP_FAILED=true
         fi
-        if [[ "$status" == "Current" ||
-              "$status" == "Latest"  ||
-              "$status" == "Installed" ]] && [[ "$VERIFY_MODE" != "true" ]]; then
-            print_report_row "$task" "$status" "$detail"
-        fi
         if [[ -z "${SUMMARY_RESULTS[$task]+x}" ]]; then
             SUMMARY_ORDER+=("$task")
         fi
@@ -488,15 +483,28 @@ _gh_download_and_install() {
 
     if ! run_with_spinner "Downloading ${binary_name} ${version}..." curl -L -f "$download_url" -o "${temp_dir}/${archive_name}"; then
         printErrMsg "Failed to download ${binary_name}. Please try installing it manually."
+        print_report_row "$binary_name" "Failed" "download failed"
+        record_summary "$binary_name" "Failed" "download failed"
         return 1
     fi
 
+    local extract_status=1
     if [[ "$archive_name" == *.tar.gz ]]; then
-        run_with_spinner "Extracting tarball..." tar -xzf "${temp_dir}/${archive_name}" -C "$temp_dir"
+        if run_with_spinner "Extracting tarball..." tar -xzf "${temp_dir}/${archive_name}" -C "$temp_dir"; then
+            extract_status=0
+        fi
     elif [[ "$archive_name" == *.zip ]]; then
-        run_with_spinner "Extracting zip..." unzip -o "${temp_dir}/${archive_name}" -d "$temp_dir"
+        if run_with_spinner "Extracting zip..." unzip -o "${temp_dir}/${archive_name}" -d "$temp_dir"; then
+            extract_status=0
+        fi
     else
-        printErrMsg "Unsupported archive format: ${archive_name}"; return 1
+        printErrMsg "Unsupported archive format: ${archive_name}"
+    fi
+
+    if [[ $extract_status -ne 0 ]]; then
+        print_report_row "$binary_name" "Failed" "extraction failed"
+        record_summary "$binary_name" "Failed" "extraction failed"
+        return 1
     fi
 
     local found_bin; found_bin=$(find "$temp_dir" -type f -name "$binary_name" | head -n 1)
@@ -723,17 +731,16 @@ install_zoxide() {
         return 0
     fi
 
-    if run_with_spinner "Installing zoxide via official script..." bash -c "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR='${XDG_BIN_HOME}' bash"; then
-        local result_status="Installed"
-        if [[ "$installed_version_string" != "Not installed" ]]; then result_status="Updated"; fi
-        print_report_row "zoxide" "$result_status" "$installed_version_string -> $latest_version"
-        record_summary "zoxide" "$result_status" "$installed_version_string -> $latest_version"
-        return 0
-    else
-        printErrMsg "Failed to install zoxide."
+    if ! run_with_spinner "Installing zoxide via official script..." bash -c "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR='${XDG_BIN_HOME}' bash"; then
+        print_report_row "zoxide" "Failed" "installation failed"
         record_summary "zoxide" "Failed" "installation failed"
         return 1
     fi
+
+    # Success: Print status, then record state.
+    print_report_row "zoxide" "Installed" "zoxide installed/updated"
+    record_summary "zoxide" "Installed" "zoxide installed/updated"
+    return 0
 }
 
 # Installs starship (custom prompt) using the official install script
@@ -782,11 +789,14 @@ install_starship() {
     if run_with_spinner "Installing starship via official script..." sh -c "curl -sS https://starship.rs/install.sh | sh -s -- -y -b '${XDG_BIN_HOME}'"; then
         local result_status="Installed"
         if [[ "$installed_version_string" != "Not installed" ]]; then result_status="Updated"; fi
+        # Success: Print status, then record state.
         print_report_row "starship" "$result_status" "$installed_version_string -> $latest_version"
         record_summary "starship" "$result_status" "$installed_version_string -> $latest_version"
         return 0
     else
         printErrMsg "Failed to install starship."
+        # Failure: Print status, then record state.
+        print_report_row "starship" "Failed" "installation failed"
         record_summary "starship" "Failed" "installation failed"
         return 1
     fi
@@ -1277,9 +1287,11 @@ setup_binaries() {
     elif [[ $initial_dest_count -gt 0 ]]; then
         # No action taken, but files existed initially.
         record_summary "Custom Binaries" "Current" "Custom binaries are up to date"
+        print_report_row "Custom Binaries" "Current" "Custom binaries are up to date"
     else
         # No files found in source AND destination wasn't detected
         record_summary "Custom Binaries" "Current" "No custom binaries detected or managed."
+        print_report_row "Custom Binaries" "Current" "No custom binaries detected or managed."
     fi
     return 0
 }
