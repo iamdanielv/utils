@@ -568,7 +568,14 @@ install_github_binary() {
         return 0
     fi
 
-    if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
+    local prompt_msg
+    if [[ "$installed_version_string" == "Not installed" ]]; then
+        prompt_msg="Do you want to install ${binary_name} version ${latest_version}?"
+    else
+        prompt_msg="Do you want to update ${binary_name} from ${installed_version_string} to ${latest_version}?"
+    fi
+
+    if ! prompt_yes_no "$prompt_msg" "y"; then
         print_report_row "$binary_name" "Skipped" "user declined"
         record_summary "$binary_name" "Skipped" "user declined"
         return 0
@@ -651,7 +658,14 @@ install_golang() {
         return 0
     fi
 
-    if ! prompt_yes_no "Do you want to install/update to version ${latest_version}?" "y"; then
+    local prompt_msg
+    if [[ "$installed_version" == "Not installed" ]]; then
+        prompt_msg="Do you want to install Go (Golang) version ${latest_version}?"
+    else
+        prompt_msg="Do you want to update Go (Golang) from ${installed_version} to ${latest_version}?"
+    fi
+
+    if ! prompt_yes_no "$prompt_msg" "y"; then
         print_report_row "Go (Golang)" "Skipped" "user declined"
         record_summary "Go (Golang)" "Skipped" "user declined"
         return 0
@@ -725,7 +739,14 @@ install_zoxide() {
         return 0
     fi
 
-    if ! prompt_yes_no "Do you want to install/update zoxide to version ${latest_version}?" "y"; then
+    local prompt_msg
+    if [[ "$installed_version_string" == "Not installed" ]]; then
+        prompt_msg="Do you want to install zoxide version ${latest_version}?"
+    else
+        prompt_msg="Do you want to update zoxide from ${installed_version_string} to ${latest_version}?"
+    fi
+
+    if ! prompt_yes_no "$prompt_msg" "y"; then
         print_report_row "zoxide" "Skipped" "user declined"
         record_summary "zoxide" "Skipped" "user declined"
         return 0
@@ -780,7 +801,14 @@ install_starship() {
         return 0
     fi
 
-    if ! prompt_yes_no "Do you want to install/update starship to version ${latest_version}?" "y"; then
+    local prompt_msg
+    if [[ "$installed_version_string" == "Not installed" ]]; then
+        prompt_msg="Do you want to install starship version ${latest_version}?"
+    else
+        prompt_msg="Do you want to update starship from ${installed_version_string} to ${latest_version}?"
+    fi
+
+    if ! prompt_yes_no "$prompt_msg" "y"; then
         print_report_row "starship" "Skipped" "user declined"
         record_summary "starship" "Skipped" "user declined"
         return 0
@@ -857,7 +885,14 @@ install_neovim() {
         return 0
     fi
 
-    if ! prompt_yes_no "Do you want to install/update Neovim to ${latest_version_tag}?" "y"; then
+    local prompt_msg
+    if [[ "$installed_version" == "0" ]]; then
+        prompt_msg="Do you want to install Neovim version ${latest_version_tag}?"
+    else
+        prompt_msg="Do you want to update Neovim from v${installed_version} to ${latest_version_tag}?"
+    fi
+
+    if ! prompt_yes_no "$prompt_msg" "y"; then
         print_report_row "Neovim" "Skipped" "user declined"
         record_summary "Neovim" "Skipped" "user declined"
         return 0
