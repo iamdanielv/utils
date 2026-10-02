@@ -1203,8 +1203,8 @@ configure_shell_environment() {
     config_block+="${marker_end}"
     
     # If block exists, check if it's identical to what we would write.
+    local existing_block=""
     if $block_exists; then
-        local existing_block
         existing_block=$(sed -n "/^${marker_start}$/,/^${marker_end}$/p" "$bashrc")
         
         # Compare existing block with the one we want to write.
@@ -1212,6 +1212,12 @@ configure_shell_environment() {
             record_summary ".bashrc config" "Current" "identical to source; no changes needed"
             return
         fi
+
+        # Show the diff for updates
+        show_config_diff "$existing_block" "$(echo -e "${config_block}")" ".bashrc"
+    else
+        # Show what will be added for new installations
+        show_config_diff "" "$(echo -e "${config_block}")" ".bashrc"
     fi
 
     local prompt_msg="Add environment configuration to .bashrc?"
@@ -1419,19 +1425,25 @@ setup_tmux_config() {
         if cmp -s "$source_conf_path" "$dest_conf_path"; then
             config_status="Current"
             # Fall through to script setup
-        elif prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "y"; then
-            local backup_file
-            backup_file="${dest_conf_path}.bak_$(date +"%Y%m%d_%H%M%S")"
-            printInfoMsg "Backing up current file to ${backup_file}..."
-            cp "$dest_conf_path" "$backup_file"
-            cp "$source_conf_path" "$dest_conf_path"
-            printInfoMsg "Backup created at: ${backup_file}"
-            config_status="Updated"
         else
-            config_status="Skipped"
+            # Show the diff for updates
+            show_config_diff "$(cat "$dest_conf_path")" "$(cat "$source_conf_path")" "tmux.conf"
+
+            if prompt_yes_no "File '${dest_conf_path}' already exists. Back it up and overwrite it?" "y"; then
+                local backup_file
+                backup_file="${dest_conf_path}.bak_$(date +"%Y%m%d_%H%M%S")"
+                printInfoMsg "Backing up current file to ${backup_file}..."
+                cp "$dest_conf_path" "$backup_file"
+                cp "$source_conf_path" "$dest_conf_path"
+                printInfoMsg "Backup created at: ${backup_file}"
+                config_status="Updated"
+            else
+                config_status="Skipped"
+            fi
         fi
     else
         cp "$source_conf_path" "$dest_conf_path"
+        config_status="Installed"
     fi
 
     # Setup Tmux Scripts
@@ -1485,19 +1497,25 @@ setup_starship_config() {
     if [[ -f "$dest_config" ]]; then
         if cmp -s "$source_config" "$dest_config"; then
             config_status="Current"
-        elif prompt_yes_no "File '${dest_config}' already exists. Back it up and overwrite it?" "y"; then
-            local backup_file="${dest_config}.bak_$(date +"%Y%m%d_%H%M%S")"
-            printInfoMsg "Backing up current file to ${backup_file}..."
-            cp "$dest_config" "$backup_file"
-            cp "$source_config" "$dest_config"
-            printInfoMsg "Backup created at: ${backup_file}"
-            config_status="Updated"
         else
-            config_status="Skipped"
+            # Show the diff for updates
+            show_config_diff "$(cat "$dest_config")" "$(cat "$source_config")" "starship.toml"
+
+            if prompt_yes_no "File '${dest_config}' already exists. Back it up and overwrite it?" "y"; then
+                local backup_file="${dest_config}.bak_$(date +"%Y%m%d_%H%M%S")"
+                printInfoMsg "Backing up current file to ${backup_file}..."
+                cp "$dest_config" "$backup_file"
+                cp "$source_config" "$dest_config"
+                printInfoMsg "Backup created at: ${backup_file}"
+                config_status="Updated"
+            else
+                config_status="Skipped"
+            fi
         fi
     else
         mkdir -p "$(dirname "$dest_config")"
         cp "$source_config" "$dest_config"
+        config_status="Installed"
     fi
 
     if [[ "$config_status" != "Current" ]]; then
@@ -1660,6 +1678,18 @@ install_nerd_fonts() {
     fi
 
     return 0
+}
+
+# Helper to show a diff preview of changes
+show_config_diff() {
+    local current_content="$1"
+    local new_content="$2"
+    local file_name="$3"
+
+    printInfoMsg "Previewing changes for ${file_name}:"
+    # Use diff with a process substitution to compare the two strings
+    diff -u <(echo "$current_content") <(echo "$new_content") | sed 's/^/  /'
+    printMsg ""
 }
 
 # --- Phases ---
