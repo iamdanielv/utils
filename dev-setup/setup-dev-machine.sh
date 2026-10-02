@@ -758,9 +758,11 @@ install_zoxide() {
         return 1
     fi
 
+    local result_status="Installed"
+    if [[ "$installed_version_string" != "Not installed" ]]; then result_status="Updated"; fi
     # Success: Print status, then record state.
-    print_report_row "zoxide" "Installed" "zoxide installed/updated"
-    record_summary "zoxide" "Installed" "zoxide installed/updated"
+    print_report_row "zoxide" "$result_status" "$installed_version_string -> $latest_version"
+    record_summary "zoxide" "$result_status" "$installed_version_string -> $latest_version"
     return 0
 }
 
