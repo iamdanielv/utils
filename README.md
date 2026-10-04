@@ -659,6 +659,7 @@ A highly configured Tmux setup (`tmux.conf`) focused on speed and integration wi
 
 - **Prefix**: Remapped to `Ctrl+a`.
 - **Status bar**: Shows the active pane's directory, Git branch (`*` means uncommitted changes), IP, and host.
+- **Copy mode**: Shows a `COPY` badge in the status bar.
 - **Smart Navigation**: Seamlessly navigate between Tmux panes and Vim splits using `Ctrl+h/j/k/l`.
 - **Scratchpad** (`Prefix + \``): A toggleable popup terminal for quick tasks.
 - **Session Manager** (`Prefix + s`): Interactive session switcher, creator, and manager.
