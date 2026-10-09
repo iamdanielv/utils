@@ -44,6 +44,12 @@ make logs-start
 make logs-open
 ```
 
+### Git Summary (`dv-git-summary`)
+
+Run `dv-git-summary.sh` inside a repository for a read-only snapshot of its
+branch and upstream, working-tree change counts, latest commit, and stash count.
+It is also available from the tmux Git menu with `Prefix + g`, then `i`.
+
 ### 🏛️ Centurion (`centurion/`)
 
 **Description:**
