@@ -135,15 +135,19 @@ else
     fi
 fi
 
-print_section "├─ Working Tree"
 if (( staged == 0 && unstaged == 0 && untracked == 0 )); then
-    print_field "Status" "$C_GREEN" "✓ clean"
+    working_tree_color="$C_GREEN"
+    working_tree_status="✓ clean"
 else
-    print_field "Status" "$C_YELLOW" "● changes"
-    print_field "Staged" "$C_GREEN" "$staged"
-    print_field "Unstaged" "$C_YELLOW" "$unstaged"
-    print_field "Untracked" "$C_RED" "$untracked"
+    working_tree_color="$C_YELLOW"
+    working_tree_status="● changes"
 fi
+printf '%b├─ Working Tree:%b %b%s%b  │  %bStaged:%b %s  │  %bUnstaged:%b %s  │  %bUntracked:%b %s\n' \
+    "$C_BOLD$C_CYAN" "$C_RESET" \
+    "$working_tree_color" "$working_tree_status" "$C_RESET" \
+    "$C_GREEN" "$C_RESET" "$staged" \
+    "$C_YELLOW" "$C_RESET" "$unstaged" \
+    "$C_RED" "$C_RESET" "$untracked"
 
 print_section "├─ Recent Activity"
 printf '  %b%s%b %b%s%b\n' "$C_GREEN" "$last_hash" "$C_RESET" \
