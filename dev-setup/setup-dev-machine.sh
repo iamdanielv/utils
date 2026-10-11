@@ -51,6 +51,12 @@ printOkMsg() { printMsg "${T_OK_ICON} ${1}${T_RESET}"; }
 printInfoMsg() { printMsg "${T_INFO_ICON} ${1}${T_RESET}"; }
 printWarnMsg() { printMsg "${T_WARN_ICON} ${1}${T_RESET}"; }
 
+debug_setup_binaries() {
+    if [[ "${DEBUG_SETUP_BINARIES:-false}" == "true" ]]; then
+        printInfoMsg "DEBUG setup_binaries: ${1}"
+    fi
+}
+
 # Banner Utils
 strip_ansi_codes() {
     local s="$1"; local esc=$'\033'
@@ -1302,49 +1308,65 @@ setup_binaries() {
     
     # 1. Ensure destination directory exists
     mkdir -p "$dest_bin_path"
+    debug_setup_binaries "Source bin path: ${source_bin_path}"
+    debug_setup_binaries "Destination bin path: ${dest_bin_path}"
 
+    # Use nullglob to avoid literal glob patterns when no files exist
+    shopt -s nullglob
     local initial_dest_scripts=("$dest_bin_path"/dv-*.sh)
-    local initial_dest_count=0
-    for file in "${initial_dest_scripts[@]}"; do
-        if [[ -f "$file" ]]; then
-            initial_dest_count=$((initial_dest_count + 1))
-        fi
-    done
+    local initial_dest_count=${#initial_dest_scripts[@]}
+    debug_setup_binaries "Initial destination count: ${initial_dest_count}"
+    local source_scripts=("$source_bin_path"/dv-*.sh)
+    debug_setup_binaries "Source match count: ${#source_scripts[@]}"
+    # Reset nullglob for safety
+    shopt -u nullglob
 
     # 2. Iterate over all expected source binaries and compare/copy
-    for src_file in "${source_bin_path}/dv-*.sh"; do
+    local files_copied=false
+
+    for src_file in "${source_scripts[@]}"; do
         if [[ ! -f "$src_file" ]]; then continue; fi
-        
+
         local filename=$(basename "$src_file")
         local dest_file="$dest_bin_path/$filename"
-        
+        debug_setup_binaries "Checking src file: ${filename}"
+
         # Check if destination file exists
         if [[ ! -f "$dest_file" ]]; then
             # Case 1: File is missing at destination -> INSTALL
+            debug_setup_binaries "Case 1: missing at destination -> installing ${filename}"
             printInfoMsg "  --> Installing: ${filename}"
             cp "$src_file" "$dest_file"
             chmod +x "$dest_file"
-            updated=true
             files_copied=true
         else
             # Case 2: Check for difference (cmp checks content difference)
             if ! cmp -s "$src_file" "$dest_file"; then
                 # Content difference found -> UPDATE
+                debug_setup_binaries "Case 2: found, but content differs -> updating ${filename}"
                 printInfoMsg "  --> Updating: ${filename}"
                 cp "$src_file" "$dest_file"
                 chmod +x "$dest_file"
-                updated=true
                 files_copied=true
             else
-                # Content is the same -> CURRENT
-                : # Do nothing
+                debug_setup_binaries "Case 3: found and current -> ${filename}"
             fi
         fi
     done
 
-    # 3. Final reporting
-    if $files_copied || $updated; then
-        # Action taken: Copy/Update detected.
+    # 3. Final reporting - check what actions were taken
+    if $files_copied; then
+        # Files were copied or updated during the loop
+        status_msg="Installed/Updated"
+        report_detail="Custom binaries copied or updated."
+        print_report_row "Custom Binaries" "$status_msg" "$report_detail"
+        record_summary "Custom Binaries" "$status_msg" "$report_detail"
+    elif [[ ${#initial_dest_scripts[@]} -gt 0 ]]; then
+        # No files were copied/updated, but destination has files
+        record_summary "Custom Binaries" "Current" "Custom binaries are up to date"
+        print_report_row "Custom Binaries" "Current" "Custom binaries are up to date"
+    else
+        # Check if any files were copied/updated during the loop
         if $files_copied; then
             status_msg="Installed/Updated"
             report_detail="Custom binaries copied or updated."
@@ -1354,14 +1376,6 @@ setup_binaries() {
         fi
         print_report_row "Custom Binaries" "$status_msg" "$report_detail"
         record_summary "Custom Binaries" "$status_msg" "$report_detail"
-    elif [[ $initial_dest_count -gt 0 ]]; then
-        # No action taken, but files existed initially.
-        record_summary "Custom Binaries" "Current" "Custom binaries are up to date"
-        print_report_row "Custom Binaries" "Current" "Custom binaries are up to date"
-    else
-        # No files found in source AND destination wasn't detected
-        record_summary "Custom Binaries" "Current" "No custom binaries detected or managed."
-        print_report_row "Custom Binaries" "Current" "No custom binaries detected or managed."
     fi
     return 0
 }
