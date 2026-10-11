@@ -321,6 +321,33 @@ report_verify() {
 
 # --- Script Functions ---
 
+apply_post_setup_environment_updates() {
+    echo ""
+    if [[ -n "$TMUX" ]]; then
+        printInfoMsg "Tmux detected. Reloading configuration..."
+        local tmux_conf="${HOME}/.config/tmux/tmux.conf"
+        
+        if [[ -f "$tmux_conf" ]]; then
+            if tmux source-file "$tmux_conf"; then
+                tmux display-message "Dev Environment Configured & Reloaded!"
+                echo "  ${C_GREEN}[✓] Reloaded${T_RESET} active tmux session."
+            else
+                printErrMsg "Failed to reload tmux config."
+            fi
+        else
+            printWarnMsg "Tmux config not found at $tmux_conf"
+        fi
+
+        # Source bash aliases in the current tmux pane
+        if command -v tmux &>/dev/null; then
+            tmux send-keys -t "$(tmux display-message -p "#{pane_id}")" "source ~/.bash_aliases"
+            echo "  ${C_GREEN}[✓] Sourced${T_RESET} bash aliases for active pane."
+        fi
+    else
+        printInfoMsg "Changes applied. To apply to your current shell session, run: ${C_BOLD}source ~/.bashrc${T_RESET}"
+    fi
+}
+
 print_usage() {
     printPhaseBanner "Developer Machine Setup Script"
     printMsg "This script automates the setup of a new developer environment by installing"
@@ -1955,6 +1982,12 @@ main() {
     printPhaseBanner "Dev Machine Setup Complete"
     printOkMsg "All tasks have finished."
     print_summary_report
+    
+    # Apply post-setup environment updates (reload tmux and bash aliases) in current session
+    if [[ "$VERIFY_MODE" != "true" ]]; then
+        apply_post_setup_environment_updates
+    fi
+    
     printMsg "\n${T_ULINE}Final Steps:${T_RESET}"
     printMsg "\nTo apply all changes (new aliases, fzf, PATH) to your current session, please run:"
     printMsg "  ${C_L_CYAN}source ~/.bashrc${T_RESET}"
