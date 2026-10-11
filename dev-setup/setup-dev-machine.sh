@@ -775,42 +775,12 @@ install_zoxide() {
         return
     fi
     
-    local latest_version
-    latest_version=$(_gh_get_latest_version "$repo")
-
-    if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
-        printInfoMsg "Deferring zoxide; release information is unavailable."
-        print_report_row "zoxide" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
-        record_summary "zoxide" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
-        return 0
-    fi
-    #printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
-
-    local installed_version_string
-    installed_version_string=$(_gh_get_installed_version "$binary_name")
-    #printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
-
-    local norm_latest="${latest_version#v}"
-    local norm_installed="${installed_version_string#v}"
-
-    if [[ "$norm_latest" == "$norm_installed" ]]; then
-        print_report_row "zoxide" "Current" "$latest_version"
-        record_summary "zoxide" "Current" "$latest_version"
+    if ! _github_release_prepare_install "$repo" "$binary_name"; then
         return 0
     fi
 
-    local prompt_msg
-    if [[ "$installed_version_string" == "Not installed" ]]; then
-        prompt_msg="Do you want to install zoxide version ${latest_version}?"
-    else
-        prompt_msg="Do you want to update zoxide from ${installed_version_string} to ${latest_version}?"
-    fi
-
-    if ! prompt_yes_no "$prompt_msg" "y"; then
-        print_report_row "zoxide" "Skipped" "user declined"
-        record_summary "zoxide" "Skipped" "user declined"
-        return 0
-    fi
+    local latest_version="$GH_RELEASE_LATEST_VERSION"
+    local installed_version_string="$GH_RELEASE_INSTALLED_VERSION"
 
     if ! run_with_spinner "Installing zoxide via official script..." bash -c "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | BIN_DIR='${XDG_BIN_HOME}' bash"; then
         print_report_row "zoxide" "Failed" "installation failed"
