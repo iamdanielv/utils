@@ -492,6 +492,59 @@ _gh_get_installed_version() {
     echo "$installed_version_string"
 }
 
+_github_release_prepare_install() {
+    local repo="$1"
+    local binary_name="$2"
+    local current_status="${3:-Current}"
+    local display_name="${4:-$binary_name}"
+    local installed_version_reader="${5:-_gh_get_installed_version}"
+    local missing_version_value="${6:-Not installed}"
+    local installed_version_prefix="${7:-}"
+
+    GH_RELEASE_LATEST_VERSION=""
+    GH_RELEASE_INSTALLED_VERSION=""
+
+    local latest_version
+    latest_version=$(_gh_get_latest_version "$repo")
+
+    if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
+        printInfoMsg "Deferring ${display_name}; release information is unavailable."
+        print_report_row "$binary_name" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
+        record_summary "$binary_name" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
+        return 1
+    fi
+
+    local installed_version_string
+    installed_version_string=$("$installed_version_reader" "$binary_name")
+    local norm_latest="${latest_version#v}"
+    local norm_installed="${installed_version_string#v}"
+
+    if [[ "$norm_latest" == "$norm_installed" ]]; then
+        if [[ "$current_status" == "Current" ]]; then
+            print_report_row "$binary_name" "$current_status" "$latest_version"
+        fi
+        record_summary "$binary_name" "$current_status" "$latest_version"
+        return 1
+    fi
+
+    local prompt_msg
+    if [[ "$installed_version_string" == "$missing_version_value" ]]; then
+        prompt_msg="Do you want to install ${display_name} version ${latest_version}?"
+    else
+        prompt_msg="Do you want to update ${display_name} from ${installed_version_prefix}${installed_version_string} to ${latest_version}?"
+    fi
+
+    if ! prompt_yes_no "$prompt_msg" "y"; then
+        print_report_row "$binary_name" "Skipped" "user declined"
+        record_summary "$binary_name" "Skipped" "user declined"
+        return 1
+    fi
+
+    GH_RELEASE_LATEST_VERSION="$latest_version"
+    GH_RELEASE_INSTALLED_VERSION="$installed_version_string"
+    return 0
+}
+
 # (Private) Finds the download URL for the correct asset
 _gh_find_download_url() {
     local repo="$1"
@@ -578,41 +631,12 @@ install_github_binary() {
     
     #print_report_row "$binary_name" "Checking" "release and installed version"
 
-    local latest_version
-    latest_version=$(_gh_get_latest_version "$repo")
-    
-    if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
-        printInfoMsg "Deferring ${binary_name}; release information is unavailable."
-        print_report_row "$binary_name" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
-        record_summary "$binary_name" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
-        return 0
-    fi
-    #print_report_row "$binary_name" "Latest" "${latest_version}"
-
-    local installed_version_string
-    installed_version_string=$(_gh_get_installed_version "$binary_name")
-    #print_report_row "Installed version:" "Installed" "${installed_version_string}"
-
-    local norm_latest="${latest_version#v}"
-    local norm_installed="${installed_version_string#v}"
-
-    if [[ "$norm_latest" == "$norm_installed" ]]; then
-        record_summary "$binary_name" "Latest" "$latest_version"
+    if ! _github_release_prepare_install "$repo" "$binary_name" "Latest"; then
         return 0
     fi
 
-    local prompt_msg
-    if [[ "$installed_version_string" == "Not installed" ]]; then
-        prompt_msg="Do you want to install ${binary_name} version ${latest_version}?"
-    else
-        prompt_msg="Do you want to update ${binary_name} from ${installed_version_string} to ${latest_version}?"
-    fi
-
-    if ! prompt_yes_no "$prompt_msg" "y"; then
-        print_report_row "$binary_name" "Skipped" "user declined"
-        record_summary "$binary_name" "Skipped" "user declined"
-        return 0
-    fi
+    local latest_version="$GH_RELEASE_LATEST_VERSION"
+    local installed_version_string="$GH_RELEASE_INSTALLED_VERSION"
 
     local download_url
     download_url=$(_gh_find_download_url "$repo" "$asset_regex")
