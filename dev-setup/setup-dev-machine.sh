@@ -812,42 +812,12 @@ install_starship() {
     fi
 
     
-    local latest_version
-    latest_version=$(_gh_get_latest_version "$repo")
-
-    if [[ -z "$latest_version" || "$latest_version" == "null" || "$latest_version" == "$GH_API_RATE_LIMITED" || "$latest_version" == "$GH_API_UNAVAILABLE" ]]; then
-        printInfoMsg "Deferring starship; release information is unavailable."
-        print_report_row "starship" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
-        record_summary "starship" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
-        return 0
-    fi
-    #printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
-
-    local installed_version_string
-    installed_version_string=$(_gh_get_installed_version "$binary_name")
-    #printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
-
-    local norm_latest="${latest_version#v}"
-    local norm_installed="${installed_version_string#v}"
-
-    if [[ "$norm_latest" == "$norm_installed" ]]; then
-        print_report_row "starship" "Current" "$latest_version"
-        record_summary "starship" "Current" "$latest_version"
+    if ! _github_release_prepare_install "$repo" "$binary_name"; then
         return 0
     fi
 
-    local prompt_msg
-    if [[ "$installed_version_string" == "Not installed" ]]; then
-        prompt_msg="Do you want to install starship version ${latest_version}?"
-    else
-        prompt_msg="Do you want to update starship from ${installed_version_string} to ${latest_version}?"
-    fi
-
-    if ! prompt_yes_no "$prompt_msg" "y"; then
-        print_report_row "starship" "Skipped" "user declined"
-        record_summary "starship" "Skipped" "user declined"
-        return 0
-    fi
+    local latest_version="$GH_RELEASE_LATEST_VERSION"
+    local installed_version_string="$GH_RELEASE_INSTALLED_VERSION"
 
     if run_with_spinner "Installing starship via official script..." sh -c "curl -sS https://starship.rs/install.sh | sh -s -- -y -b '${XDG_BIN_HOME}'"; then
         local result_status="Installed"
