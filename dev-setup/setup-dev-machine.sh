@@ -656,6 +656,7 @@ install_golang() {
     fi
 
     print_report_row "Go (Golang)" "Checking" "release and installed version"
+    #printInfoMsg "Fetching latest Go release info..."
 
     # Determine architecture for download URL
     local arch
@@ -669,7 +670,6 @@ install_golang() {
 
     # Get latest version from the official Go JSON endpoint
     local latest_version
-    printInfoMsg "Fetching latest Go version..."
     latest_version=$(curl -s "https://go.dev/dl/?mode=json" | jq -r '.[0].version')
 
     if [[ -z "$latest_version" ]]; then
@@ -677,16 +677,17 @@ install_golang() {
         record_summary "Go (Golang)" "Failed" "latest version unavailable"
         return 1
     fi
-    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
+    # printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
     local installed_version="Not installed"
     if command -v go &>/dev/null; then
         # 'go version' output is like: go version go1.22.1 linux/amd64
         installed_version=$(go version | awk '{print $3}')
     fi
-    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version}${T_RESET}"
+    # printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version}${T_RESET}"
 
     if [[ "$installed_version" == "$latest_version" ]]; then
+        print_report_row "Go (Golang)" "Current" "$latest_version"
         record_summary "Go (Golang)" "Current" "$latest_version"
         return 0
     fi
@@ -740,15 +741,16 @@ install_zoxide() {
     local repo="ajeetdsouza/zoxide"
     local binary_name="zoxide"
 
+    print_report_row "zoxide" "Checking" "release and installed version"
+    #printInfoMsg "Fetching latest zoxide release info..."
+
     if [[ "$VERIFY_MODE" == "true" ]]; then
         local installed_version_string; installed_version_string=$(_gh_get_installed_version "$binary_name")
         if [[ "$installed_version_string" == "Not installed" ]]; then report_verify "zoxide" "Missing" "";
         else report_verify "zoxide" "Installed" "v${installed_version_string#v}"; fi
         return
     fi
-
-    print_report_row "zoxide" "Checking" "release and installed version"
-
+    
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
 
@@ -758,16 +760,17 @@ install_zoxide() {
         record_summary "zoxide" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         return 0
     fi
-    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
+    #printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
     local installed_version_string
     installed_version_string=$(_gh_get_installed_version "$binary_name")
-    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
+    #printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
 
     local norm_latest="${latest_version#v}"
     local norm_installed="${installed_version_string#v}"
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
+        print_report_row "zoxide" "Current" "$latest_version"
         record_summary "zoxide" "Current" "$latest_version"
         return 0
     fi
@@ -804,6 +807,9 @@ install_starship() {
     local repo="starship/starship"
     local binary_name="starship"
 
+    print_report_row "starship" "Checking" "release and installed version"
+    #printInfoMsg "Fetching latest starship release info..."
+
     if [[ "$VERIFY_MODE" == "true" ]]; then
         local installed_version_string; installed_version_string=$(_gh_get_installed_version "$binary_name")
         if [[ "$installed_version_string" == "Not installed" ]]; then report_verify "starship" "Missing" "";
@@ -811,8 +817,7 @@ install_starship() {
         return
     fi
 
-    print_report_row "starship" "Checking" "release and installed version"
-
+    
     local latest_version
     latest_version=$(_gh_get_latest_version "$repo")
 
@@ -822,16 +827,17 @@ install_starship() {
         record_summary "starship" "Unavailable" "$(_github_unavailable_detail "$latest_version")"
         return 0
     fi
-    printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
+    #printInfoMsg "Latest version:       ${C_L_GREEN}${latest_version}${T_RESET}"
 
     local installed_version_string
     installed_version_string=$(_gh_get_installed_version "$binary_name")
-    printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
+    #printInfoMsg "Installed version:    ${C_L_YELLOW}${installed_version_string}${T_RESET}"
 
     local norm_latest="${latest_version#v}"
     local norm_installed="${installed_version_string#v}"
 
     if [[ "$norm_latest" == "$norm_installed" ]]; then
+        print_report_row "starship" "Current" "$latest_version"
         record_summary "starship" "Current" "$latest_version"
         return 0
     fi
@@ -887,7 +893,7 @@ install_neovim() {
     mkdir -p "$bin_dir"
     mkdir -p "$(dirname "$version_file")"
 
-    printInfoMsg "Checking for latest Neovim version..."
+    # printInfoMsg "Checking for latest Neovim version..."
     local latest_version_tag
     latest_version_tag=$(_gh_get_latest_version "neovim/neovim")
 
@@ -899,7 +905,7 @@ install_neovim() {
     fi
     
     local latest_version="${latest_version_tag#v}"
-    printInfoMsg "Latest stable version is: ${latest_version_tag}"
+    # printInfoMsg "Latest stable version is: ${latest_version_tag}"
 
     local installed_version="0"
     if [[ -f "$version_file" ]]; then
@@ -912,10 +918,11 @@ install_neovim() {
         system_version_output=$(nvim --version 2>/dev/null | head -n 1)
         local system_version
         system_version=$(echo "$system_version_output" | awk '{print $2}')
-        printInfoMsg "Found installed Neovim version: ${system_version} (managed by this script: v${installed_version})"
+        # printInfoMsg "Found installed Neovim version: ${system_version} (managed by this script: v${installed_version})"
     fi
 
     if [[ "$installed_version" == "$latest_version" ]]; then
+        print_report_row "Neovim" "Current" "$latest_version_tag"
         record_summary "Neovim" "Current" "$latest_version_tag"
         return 0
     fi
