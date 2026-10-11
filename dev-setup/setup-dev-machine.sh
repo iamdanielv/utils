@@ -836,6 +836,15 @@ install_starship() {
 }
 
 # Downloads and installs the latest stable version of Neovim.
+_get_neovim_managed_version() {
+    local version_file="${XDG_STATE_HOME}/nvim-version"
+    local installed_version="0"
+    if [[ -f "$version_file" ]]; then
+        installed_version=$(<"$version_file")
+    fi
+    printf '%s\n' "$installed_version"
+}
+
 install_neovim() {
     if [[ "$VERIFY_MODE" == "true" ]]; then
         local installed_version="0"
@@ -857,26 +866,6 @@ install_neovim() {
     mkdir -p "$bin_dir"
     mkdir -p "$(dirname "$version_file")"
 
-    # printInfoMsg "Checking for latest Neovim version..."
-    local latest_version_tag
-    latest_version_tag=$(_gh_get_latest_version "neovim/neovim")
-
-    if [[ -z "$latest_version_tag" || "$latest_version_tag" == "null" || "$latest_version_tag" == "$GH_API_RATE_LIMITED" || "$latest_version_tag" == "$GH_API_UNAVAILABLE" ]]; then
-        printInfoMsg "Deferring Neovim; release information is unavailable."
-        print_report_row "Neovim" "Unavailable" "$(_github_unavailable_detail "$latest_version_tag")"
-        record_summary "Neovim" "Unavailable" "$(_github_unavailable_detail "$latest_version_tag")"
-        return 0
-    fi
-    
-    local latest_version="${latest_version_tag#v}"
-    # printInfoMsg "Latest stable version is: ${latest_version_tag}"
-
-    local installed_version="0"
-    if [[ -f "$version_file" ]]; then
-        installed_version=$(<"$version_file")
-    fi
-
-    # Also check for a system-installed nvim to report its version
     if command -v nvim &>/dev/null; then
         local system_version_output
         system_version_output=$(nvim --version 2>/dev/null | head -n 1)
@@ -885,24 +874,15 @@ install_neovim() {
         # printInfoMsg "Found installed Neovim version: ${system_version} (managed by this script: v${installed_version})"
     fi
 
-    if [[ "$installed_version" == "$latest_version" ]]; then
-        print_report_row "Neovim" "Current" "$latest_version_tag"
-        record_summary "Neovim" "Current" "$latest_version_tag"
+    if ! _github_release_prepare_install \
+        "neovim/neovim" "Neovim" "Current" "Neovim" \
+        "_get_neovim_managed_version" "0" "v"; then
         return 0
     fi
 
-    local prompt_msg
-    if [[ "$installed_version" == "0" ]]; then
-        prompt_msg="Do you want to install Neovim version ${latest_version_tag}?"
-    else
-        prompt_msg="Do you want to update Neovim from v${installed_version} to ${latest_version_tag}?"
-    fi
-
-    if ! prompt_yes_no "$prompt_msg" "y"; then
-        print_report_row "Neovim" "Skipped" "user declined"
-        record_summary "Neovim" "Skipped" "user declined"
-        return 0
-    fi
+    local latest_version_tag="$GH_RELEASE_LATEST_VERSION"
+    local latest_version="${latest_version_tag#v}"
+    local installed_version="${GH_RELEASE_INSTALLED_VERSION#v}"
 
     # Use AppImage for Linux
     local nvim_appimage_path="${bin_dir}/nvim-linux-x86_64.appimage"
