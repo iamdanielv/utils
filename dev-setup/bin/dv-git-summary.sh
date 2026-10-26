@@ -39,12 +39,11 @@ EOF
 }
 
 print_section() {
-    printf '\n%b%s%b\n' "$C_BOLD$C_CYAN" "$1" "$C_RESET"
+    printf '%b%s%b\n' "$C_BOLD$C_CYAN" "$1" "$C_RESET"
 }
 
 print_field() {
-    printf '  %b%-12s%b %b%s%b\n' \
-        "$C_BOLD" "$1" "$C_RESET" "$2" "$3" "$C_RESET"
+    printf '%b│%b  %-12s %b%s%b\n' "$C_CYAN" "$C_RESET" "$1" "$2" "$3" "$C_RESET"
 }
 
 pause_after_summary=false
@@ -119,48 +118,64 @@ else
 fi
 stash_count=$(git stash list | wc -l)
 
-printf '%b╭─ Git Summary ─────────────────────────────%b\n' "$C_BOLD$C_CYAN" "$C_RESET"
-print_field "Repository" "$C_BOLD" "$repo_name"
-print_field "Path" "$C_GRAY" "$repo_root"
-print_field "Branch" "$C_CYAN" "$branch_label"
 if [[ "$upstream_label" == "none" ]]; then
-    print_field "Upstream" "$C_GRAY" "none"
+    sync_label="No upstream configured"
+    sync_color="$C_GRAY"
 else
-    print_field "Upstream" "$C_CYAN" "$upstream"
     if (( ahead == 0 && behind == 0 )); then
-        printf '  %b✓ in sync%b\n' "$C_GREEN" "$C_RESET"
+        sync_label="✓ Branch matches upstream"
+        sync_color="$C_GREEN"
     else
-        printf '  %-12s %b↑%s%b  %b↓%s%b\n' \
-            '' "$C_GREEN" "$ahead" "$C_RESET" "$C_RED" "$behind" "$C_RESET"
+        sync_label=""
+        if (( ahead > 0 )); then
+            sync_label="$ahead ahead"
+        fi
+        if (( behind > 0 )); then
+            if [[ -n "$sync_label" ]]; then
+                sync_label+=", "
+            fi
+            sync_label+="$behind behind"
+        fi
+        sync_color="$C_YELLOW"
     fi
 fi
 
+printf '%b╭─ Git Summary: %b%s%b\n' \
+    "$C_BOLD$C_CYAN" "$sync_color" "$sync_label" "$C_RESET"
+printf '%b│%b  %b%-12s%b %s\n' "$C_CYAN" "$C_RESET" "$C_BOLD" "Repository" "$C_RESET" "$repo_name"
+printf '%b│%b  %b%-12s%b %s\n' "$C_CYAN" "$C_RESET" "$C_BOLD" "Path" "$C_RESET" "$repo_root"
+printf '%b│%b  %b%-12s%b %s\n' "$C_CYAN" "$C_RESET" "$C_BOLD" "Branch" "$C_RESET" "$branch_label"
+print_field "Upstream" "$C_CYAN" "${upstream:-none}"
+
 if (( staged == 0 && unstaged == 0 && untracked == 0 )); then
-    working_tree_color="$C_GREEN"
-    working_tree_status="✓ clean"
+    printf '%b├─ Working Tree:%b %b✓ clean%b\n' \
+        "$C_BOLD$C_CYAN" "$C_RESET" "$C_GREEN" "$C_RESET"
 else
-    working_tree_color="$C_YELLOW"
-    working_tree_status="● changes"
+    printf '%b├─ Working Tree:%b %b● changes%b' \
+        "$C_BOLD$C_CYAN" "$C_RESET" "$C_YELLOW" "$C_RESET"
+    if (( staged > 0 )); then
+        printf '  %b│%b  %bStaged:%b %s' "$C_CYAN" "$C_RESET" "$C_CYAN" "$C_RESET" "$staged"
+    fi
+    if (( unstaged > 0 )); then
+        printf '  %b│%b  %bUnstaged:%b %s' "$C_CYAN" "$C_RESET" "$C_CYAN" "$C_RESET" "$unstaged"
+    fi
+    if (( untracked > 0 )); then
+        printf '  %b│%b  %bUntracked:%b %s' "$C_CYAN" "$C_RESET" "$C_CYAN" "$C_RESET" "$untracked"
+    fi
+    printf '\n'
 fi
-printf '%b├─ Working Tree:%b %b%s%b  │  %bStaged:%b %s  │  %bUnstaged:%b %s  │  %bUntracked:%b %s\n' \
-    "$C_BOLD$C_CYAN" "$C_RESET" \
-    "$working_tree_color" "$working_tree_status" "$C_RESET" \
-    "$C_GREEN" "$C_RESET" "$staged" \
-    "$C_YELLOW" "$C_RESET" "$unstaged" \
-    "$C_RED" "$C_RESET" "$untracked"
 
 print_section "├─ Recent Activity"
-printf '  %b%s%b %b%s%b\n' "$C_GREEN" "$last_hash" "$C_RESET" \
+printf '%b│%b  %b%s%b %b%s%b\n' "$C_CYAN" "$C_RESET" "$C_GREEN" "$last_hash" "$C_RESET" \
     "$C_BOLD" "$last_subject" "$C_RESET"
 if [[ -n "$last_age" ]]; then
-    printf '  %b%s%b\n' "$C_GRAY" "$last_age" "$C_RESET"
+    printf '%b│%b  %b%s%b\n' "$C_CYAN" "$C_RESET" "$C_GRAY" "$last_age" "$C_RESET"
 fi
 if (( stash_count == 1 )); then
-    print_field "Stashes" "$C_YELLOW" "1 stash"
+    printf '%b╰%b  %-12s %b%s%b\n' "$C_CYAN" "$C_RESET" "Stashes" "$C_YELLOW" "1 stash" "$C_RESET"
 else
-    print_field "Stashes" "$C_YELLOW" "$stash_count stashes"
+    printf '%b╰%b  %-12s %b%s%b\n' "$C_CYAN" "$C_RESET" "Stashes" "$C_YELLOW" "$stash_count stashes" "$C_RESET"
 fi
-printf '%b╰──────────────────────────────────────────%b\n' "$C_CYAN" "$C_RESET"
 
 if [[ "$pause_after_summary" == true ]]; then
     read -r -p "Press Enter to close..."
